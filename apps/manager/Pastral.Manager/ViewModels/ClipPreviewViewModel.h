@@ -17,6 +17,7 @@ namespace winrt::Pastral::Manager::implementation
         winrt::hstring Profile() const;
         winrt::hstring RepresentationSummary() const;
         winrt::hstring AutomationName() const;
+        winrt::hstring StateSummary() const;
         bool Pinned() const;
         bool Unavailable() const;
 
@@ -29,6 +30,7 @@ namespace winrt::Pastral::Manager::implementation
         winrt::hstring m_profile;
         winrt::hstring m_representationSummary;
         winrt::hstring m_automationName;
+        winrt::hstring m_stateSummary;
         bool m_pinned{ false };
         bool m_unavailable{ false };
     };

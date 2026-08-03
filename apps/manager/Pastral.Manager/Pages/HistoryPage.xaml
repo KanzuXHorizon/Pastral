@@ -11,21 +11,27 @@
         RowSpacing="16">
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="HistoryLayoutStates">
-                <VisualState x:Name="NarrowHistory">
+                <VisualState x:Name="NarrowLayout">
                     <VisualState.Setters>
                         <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="*" />
                         <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="0" />
-                        <Setter Target="DetailsPane.Visibility" Value="Collapsed" />
+                        <Setter Target="HistoryResultsRegion.(Grid.Column)" Value="0" />
+                        <Setter Target="HistoryResultsRegion.(Grid.Row)" Value="0" />
+                        <Setter Target="HistoryDetailsRegion.(Grid.Column)" Value="0" />
+                        <Setter Target="HistoryDetailsRegion.(Grid.Row)" Value="1" />
                     </VisualState.Setters>
                 </VisualState>
-                <VisualState x:Name="WideHistory">
+                <VisualState x:Name="WideLayout">
                     <VisualState.StateTriggers>
                         <AdaptiveTrigger MinWindowWidth="920" />
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="3*" />
                         <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="2*" />
-                        <Setter Target="DetailsPane.Visibility" Value="Visible" />
+                        <Setter Target="HistoryResultsRegion.(Grid.Column)" Value="0" />
+                        <Setter Target="HistoryResultsRegion.(Grid.Row)" Value="0" />
+                        <Setter Target="HistoryDetailsRegion.(Grid.Column)" Value="1" />
+                        <Setter Target="HistoryDetailsRegion.(Grid.Row)" Value="0" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
@@ -56,22 +62,33 @@
                     Text="Find copied content by preview, source, type, profile, and time." />
             </StackPanel>
             <TextBlock
+                x:Name="HistoryResultCount"
                 Grid.Column="1"
-                x:Uid="HistoryResultCount"
+                AutomationProperties.LiveSetting="Polite"
                 VerticalAlignment="Bottom"
                 Style="{StaticResource PastralMetadataTextStyle}"
                 Text="0 items" />
         </Grid>
 
-        <InfoBar
+        <StackPanel
             Grid.Row="1"
-            x:Uid="HistoryConnectionStatus"
-            AutomationProperties.Name="History availability status"
-            IsClosable="False"
-            IsOpen="True"
-            Message="Search and privacy-safe previews become available after a verified connection to the local agent."
-            Severity="Informational"
-            Title="History is not connected" />
+            Spacing="12">
+            <InfoBar
+                x:Name="HistoryConnectionStatus"
+                AutomationProperties.Name="History availability status"
+                IsClosable="False"
+                IsOpen="True"
+                Severity="Informational" />
+            <InfoBar
+                x:Name="HistorySyntheticNotice"
+                AutomationProperties.Name="Synthetic history disclosure"
+                IsClosable="False"
+                IsOpen="True"
+                Message="These bounded examples exist only in Debug builds and are not clipboard history."
+                Severity="Informational"
+                Title="Synthetic preview data"
+                Visibility="Collapsed" />
+        </StackPanel>
 
         <Grid
             Grid.Row="2"
@@ -82,52 +99,123 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <AutoSuggestBox
-                x:Uid="HistorySearchBox"
-                AutomationProperties.HelpText="History search is disabled until the local agent is connected"
+                x:Name="HistorySearchBox"
+                AutomationProperties.HelpText="Searches only privacy-safe preview metadata supplied by the active provider"
                 AutomationProperties.Name="Search clipboard history"
-                IsEnabled="False"
-                PlaceholderText="Search history" />
-            <ComboBox
+                PlaceholderText="Search safe previews, source, type, or profile"
+                TextChanged="SearchBox_TextChanged" />
+            <Button
+                x:Name="HistoryClearButton"
                 Grid.Column="1"
-                x:Uid="HistoryTypeFilter"
-                MinWidth="132"
-                AutomationProperties.HelpText="Type filters are disabled until history is connected"
-                AutomationProperties.Name="Filter history by type"
-                Header="Type"
+                AutomationProperties.Name="Clear history search"
+                Click="ClearFilters_Click"
+                Content="Clear"
                 IsEnabled="False"
-                SelectedIndex="0">
-                <x:String>All types</x:String>
-            </ComboBox>
-            <ComboBox
+                VerticalAlignment="Bottom" />
+            <Button
+                x:Name="HistoryRetryButton"
                 Grid.Column="2"
-                x:Uid="HistoryProfileFilter"
-                MinWidth="132"
-                AutomationProperties.HelpText="Profile filters are disabled until history is connected"
-                AutomationProperties.Name="Filter history by profile"
-                Header="Profile"
-                IsEnabled="False"
-                SelectedIndex="0">
-                <x:String>All profiles</x:String>
-            </ComboBox>
+                AutomationProperties.Name="Retry local agent connection"
+                Click="Retry_Click"
+                Content="Retry"
+                VerticalAlignment="Bottom" />
         </Grid>
 
         <Grid
             x:Name="HistoryColumns"
             Grid.Row="3"
-            ColumnSpacing="16">
+            ColumnSpacing="16"
+            RowSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*" />
                 <ColumnDefinition Width="2*" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
             <Border
-                Style="{StaticResource PastralCardStyle}"
-                AutomationProperties.Name="History results empty state">
-                <Grid MinHeight="360">
+                x:Name="HistoryResultsRegion"
+                AutomationProperties.Name="History results"
+                Style="{StaticResource PastralCardStyle}">
+                <Grid MinHeight="420">
+                    <ListView
+                        x:Name="HistoryResultsList"
+                        AutomationProperties.Name="History results list"
+                        SelectionChanged="ResultsList_SelectionChanged"
+                        SelectionMode="Single"
+                        Visibility="Collapsed">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,0,0,4" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid
+                                    AutomationProperties.Name="{Binding AutomationName}"
+                                    Padding="12,10"
+                                    ColumnSpacing="16">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock
+                                            MaxLines="3"
+                                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                                            Text="{Binding SafePreview}"
+                                            TextTrimming="CharacterEllipsis"
+                                            TextWrapping="Wrap" />
+                                        <StackPanel
+                                            Orientation="Horizontal"
+                                            Spacing="6">
+                                            <TextBlock
+                                                Style="{StaticResource PastralMetadataTextStyle}"
+                                                Text="{Binding Source}" />
+                                            <TextBlock
+                                                Style="{StaticResource PastralMetadataTextStyle}"
+                                                Text="·" />
+                                            <TextBlock
+                                                Style="{StaticResource PastralMetadataTextStyle}"
+                                                Text="{Binding RelativeTime}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        HorizontalAlignment="Right"
+                                        Spacing="3">
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Style="{StaticResource BodyTextBlockStyle}"
+                                            Text="{Binding TypeLabel}" />
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="{Binding RepresentationSummary}" />
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="{Binding Profile}" />
+                                        <TextBlock
+                                            HorizontalAlignment="Right"
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="{Binding StateSummary}" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
                     <StackPanel
-                        MaxWidth="420"
+                        x:Name="HistoryNoResultsPanel"
+                        MaxWidth="440"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
+                        AutomationProperties.Name="History empty or no-results state"
                         Spacing="12">
                         <Border
                             Width="56"
@@ -143,60 +231,134 @@
                                 Glyph="&#xE81C;" />
                         </Border>
                         <TextBlock
-                            x:Uid="HistoryEmptyTitle"
+                            x:Name="HistoryNoResultsTitle"
                             HorizontalAlignment="Center"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="No history is available" />
                         <TextBlock
-                            x:Uid="HistoryEmptyDescription"
+                            x:Name="HistoryNoResultsDetail"
                             TextAlignment="Center"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="The manager intentionally remains empty instead of opening storage directly or inventing sample clips." />
+                            Text="The manager intentionally remains empty instead of opening storage directly or inventing Release data." />
                     </StackPanel>
                 </Grid>
             </Border>
 
             <Border
-                x:Name="DetailsPane"
+                x:Name="HistoryDetailsRegion"
                 Grid.Column="1"
-                Style="{StaticResource PastralCardStyle}"
-                AutomationProperties.Name="Clip details placeholder">
+                AutomationProperties.Name="Selected clip details"
+                Style="{StaticResource PastralCardStyle}">
                 <StackPanel Spacing="16">
                     <StackPanel Spacing="4">
                         <TextBlock
-                            x:Uid="HistoryDetailsTitle"
+                            AutomationProperties.HeadingLevel="Level2"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Clip details" />
                         <TextBlock
-                            x:Uid="HistoryDetailsDescription"
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Select a connected history item to inspect representations, provenance, fidelity, and privacy policy." />
+                            x:Name="HistoryDetailPreview"
+                            MaxLines="4"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="Select a history item"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="Wrap" />
                     </StackPanel>
                     <Border
                         Height="1"
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"
                         IsHitTestVisible="False" />
-                    <Grid RowSpacing="12">
+                    <Grid
+                        ColumnSpacing="12"
+                        RowSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
+                        <TextBlock Style="{StaticResource PastralMetadataTextStyle}" Text="Source" />
                         <TextBlock
-                            x:Uid="HistoryDetailsRepresentation"
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Representations · Unavailable" />
+                            x:Name="HistoryDetailSource"
+                            Grid.Column="1"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Unavailable"
+                            TextWrapping="Wrap" />
                         <TextBlock
                             Grid.Row="1"
-                            x:Uid="HistoryDetailsSource"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Source · Unavailable" />
+                            Text="Type" />
+                        <TextBlock
+                            x:Name="HistoryDetailType"
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Unavailable" />
                         <TextBlock
                             Grid.Row="2"
-                            x:Uid="HistoryDetailsPolicy"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Protection policy · Unavailable" />
+                            Text="Representations" />
+                        <TextBlock
+                            x:Name="HistoryDetailRepresentation"
+                            Grid.Row="2"
+                            Grid.Column="1"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Unavailable"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            Grid.Row="3"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Profile" />
+                        <TextBlock
+                            x:Name="HistoryDetailProfile"
+                            Grid.Row="3"
+                            Grid.Column="1"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Unavailable" />
+                        <TextBlock
+                            Grid.Row="4"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="State" />
+                        <TextBlock
+                            x:Name="HistoryDetailState"
+                            Grid.Row="4"
+                            Grid.Column="1"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Unavailable"
+                            TextWrapping="Wrap" />
                     </Grid>
+                    <InfoBar
+                        x:Name="HistoryAvailabilityWarning"
+                        AutomationProperties.Name="Selected clip availability warning"
+                        IsClosable="False"
+                        IsOpen="True"
+                        Message="The referenced content is unavailable, so paste and copy remain disabled."
+                        Severity="Warning"
+                        Title="Content unavailable"
+                        Visibility="Collapsed" />
+                    <StackPanel
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            x:Name="HistoryPasteButton"
+                            AutomationProperties.HelpText="Paste is disabled until versioned local IPC and destination validation are implemented"
+                            AutomationProperties.Name="Paste selected representation"
+                            Content="Paste"
+                            IsEnabled="False" />
+                        <Button
+                            x:Name="HistoryCopyButton"
+                            AutomationProperties.HelpText="Copy is disabled until versioned local IPC is implemented"
+                            AutomationProperties.Name="Copy selected representation"
+                            Content="Copy"
+                            IsEnabled="False" />
+                    </StackPanel>
+                    <TextBlock
+                        Style="{StaticResource PastralMetadataTextStyle}"
+                        Text="Actions remain unavailable in this UI foundation; the manager never bypasses the agent boundary." />
                 </StackPanel>
             </Border>
         </Grid>

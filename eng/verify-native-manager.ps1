@@ -152,6 +152,25 @@ function Invoke-StaticVerification {
     Assert-Contains $historyPage 'AutomationProperties\.Name=' 'History accessibility names'
     Assert-Contains $historyPage '<VisualStateManager\.VisualStateGroups>' 'History adaptive visual states'
     Assert-Contains $historyPage 'MinWindowWidth="920"' 'History wide-layout trigger'
+    Assert-Contains $historyPage 'x:Name="HistorySearchBox"' 'History search box'
+    Assert-Contains $historyPage 'x:Name="HistoryResultsList"' 'History results list'
+    Assert-Contains $historyPage 'x:Name="HistoryResultCount"' 'History result-count live region'
+    Assert-Contains $historyPage 'x:Name="HistoryDetailsRegion"' 'History details region'
+    Assert-Contains $historyPage 'x:Name="HistoryNoResultsPanel"' 'History no-results panel'
+    Assert-Contains $historyPage 'x:Name="HistorySyntheticNotice"' 'History synthetic-data disclosure'
+    Assert-Contains $historyPage 'x:Name="HistoryPasteButton"' 'History paste action'
+    Assert-Contains $historyPage 'x:Name="HistoryCopyButton"' 'History copy action'
+    Assert-Contains $historyPage 'AutomationProperties\.HelpText=' 'History disabled-action explanations'
+    Assert-Contains $historyPage 'Text="\{Binding SafePreview\}"' 'History safe preview binding'
+    Assert-Contains $historyPage 'Text="\{Binding Source\}"' 'History source binding'
+    Assert-Contains $historyPage 'Text="\{Binding RepresentationSummary\}"' 'History representation binding'
+
+    $historyCode = Join-Path $managerRoot 'Pages\HistoryPage.xaml.cpp'
+    Assert-Contains $historyCode 'CreateManagerDataProvider\(' 'History provider boundary'
+    Assert-Contains $historyCode 'SearchBox_TextChanged' 'History search handler'
+    Assert-Contains $historyCode 'ResultsList_SelectionChanged' 'History selection handler'
+    Assert-Contains $historyCode 'ClearFilters_Click' 'History clear-filter handler'
+    Assert-Contains $historyCode 'Retry_Click' 'History retry handler'
 
     foreach ($page in @($homePage, $historyPage)) {
         $content = [System.IO.File]::ReadAllText($page)
@@ -276,7 +295,133 @@ function Invoke-SmokeVerification {
             Fail "Manager exited before responsiveness interval completed with code $($process.ExitCode)"
         }
 
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+        $automationRoot = [System.Windows.Automation.AutomationElement]::FromHandle($windowHandle)
+        if ($null -eq $automationRoot) {
+            Fail 'UI Automation could not resolve the manager root element'
+        }
+
+        $historyCondition = New-Object System.Windows.Automation.AndCondition(
+            (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'History'
+            )),
+            (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::ListItem
+            ))
+        )
+        $historyItem = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyCondition
+        )
+        if ($null -eq $historyItem) {
+            Fail 'UI Automation could not find the History navigation item'
+        }
+        $selectionPattern = $historyItem.GetCurrentPattern(
+            [System.Windows.Automation.SelectionItemPattern]::Pattern
+        )
+        $selectionPattern.Select()
+
+        $historyDeadline = [DateTime]::UtcNow.AddSeconds(10)
+        $requiredHistoryElements = @(
+            'Search clipboard history',
+            'History results list',
+            'Selected clip details',
+            'History availability status'
+        )
+        foreach ($name in $requiredHistoryElements) {
+            $condition = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                $name
+            )
+            $element = $null
+            while ([DateTime]::UtcNow -lt $historyDeadline -and $null -eq $element) {
+                Start-Sleep -Milliseconds 150
+                $element = $automationRoot.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Subtree,
+                    $condition
+                )
+            }
+            if ($null -eq $element) {
+                Fail "UI Automation could not find History element '$name'"
+            }
+        }
+
+        $searchGroupCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'Search clipboard history'
+        )
+        $searchGroup = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $searchGroupCondition
+        )
+        $editCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::Edit
+        )
+        $searchEdit = $searchGroup.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $editCondition
+        )
+        if ($null -eq $searchEdit) {
+            Fail 'UI Automation could not find the History search edit control'
+        }
+        $valuePattern = $searchEdit.GetCurrentPattern(
+            [System.Windows.Automation.ValuePattern]::Pattern
+        )
+        $valuePattern.SetValue('Terminal')
+
+        $filteredCountCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            '1 items'
+        )
+        $filteredCount = $null
+        $filterDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while ([DateTime]::UtcNow -lt $filterDeadline -and $null -eq $filteredCount) {
+            Start-Sleep -Milliseconds 150
+            $filteredCount = $automationRoot.FindFirst(
+                [System.Windows.Automation.TreeScope]::Subtree,
+                $filteredCountCondition
+            )
+        }
+        if ($null -eq $filteredCount) {
+            Fail 'History UI Automation filtering did not produce the expected one-item result'
+        }
+
+        $selectedDetailCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'Windows Terminal · 8 min ago'
+        )
+        $selectedDetail = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $selectedDetailCondition
+        )
+        if ($null -eq $selectedDetail) {
+            Fail 'History selection details did not update for the filtered Terminal item'
+        }
+
+        $valuePattern.SetValue('no matching Pastral clip')
+        $noResultsCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'No matching clips'
+        )
+        $noResults = $null
+        $noResultsDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while ([DateTime]::UtcNow -lt $noResultsDeadline -and $null -eq $noResults) {
+            Start-Sleep -Milliseconds 150
+            $noResults = $automationRoot.FindFirst(
+                [System.Windows.Automation.TreeScope]::Subtree,
+                $noResultsCondition
+            )
+        }
+        if ($null -eq $noResults) {
+            Fail 'History UI Automation filtering did not expose the no-results state'
+        }
+
         Write-Host "Manager smoke window handle: $windowHandle"
+        Write-Host 'Manager UI Automation History navigation, filtering, selection, and no-results states: PASS'
         [void]$process.CloseMainWindow()
         if (-not $process.WaitForExit(5000)) {
             $process.Kill()

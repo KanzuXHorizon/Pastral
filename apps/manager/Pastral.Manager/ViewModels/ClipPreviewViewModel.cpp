@@ -19,6 +19,18 @@ namespace winrt::Pastral::Manager::implementation
           m_pinned(data.pinned),
           m_unavailable(data.unavailable)
     {
+        if (m_pinned && m_unavailable)
+        {
+            m_stateSummary = L"Pinned · Unavailable";
+        }
+        else if (m_pinned)
+        {
+            m_stateSummary = L"Pinned";
+        }
+        else if (m_unavailable)
+        {
+            m_stateSummary = L"Unavailable";
+        }
     }
 
     winrt::hstring ClipPreviewViewModel::Id() const
@@ -59,6 +71,11 @@ namespace winrt::Pastral::Manager::implementation
     winrt::hstring ClipPreviewViewModel::AutomationName() const
     {
         return m_automationName;
+    }
+
+    winrt::hstring ClipPreviewViewModel::StateSummary() const
+    {
+        return m_stateSummary;
     }
 
     bool ClipPreviewViewModel::Pinned() const

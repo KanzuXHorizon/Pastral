@@ -11,6 +11,7 @@ namespace Pastral.Manager
         String Profile{ get; };
         String RepresentationSummary{ get; };
         String AutomationName{ get; };
+        String StateSummary{ get; };
         Boolean Pinned{ get; };
         Boolean Unavailable{ get; };
     }
