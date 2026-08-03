@@ -248,7 +248,7 @@ Use controlled roots:
 
 ```text
 <data-root>/.staging/<uuid>.tmp
-<data-root>/objects/ordinary/<protection-domain-uuid>/<digest-hex>.blob
+<data-root>/objects/ordinary/<protection-domain-uuid>/sha256-raw-v1/<digest-hex>.blob
 ```
 
 Use `OpenOptions::create_new(true)`, `write_all`, `flush`, `sync_all`, close, and `rename`. Store only the relative key. Reject unsafe keys during every read.

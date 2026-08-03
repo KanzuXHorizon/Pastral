@@ -625,6 +625,15 @@ pub(crate) mod tests {
                     BlobPlacement::ExternalFile => BlobPlacementSummary::ExternalFile,
                 }
             );
+            if placement == BlobPlacement::ExternalFile {
+                let external_key: String = storage
+                    .connection
+                    .query_row("SELECT external_key FROM blob_objects", [], |row| {
+                        row.get(0)
+                    })
+                    .unwrap();
+                assert!(external_key.contains("/sha256-raw-v1/"));
+            }
         }
     }
 

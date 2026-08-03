@@ -4,7 +4,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use pastral_domain::{BlobObjectId, ProtectionDomain, RawDigest};
+use pastral_domain::{BlobObjectId, DigestSuite, ProtectionDomain, RawDigest};
 use rusqlite::{Connection, MAIN_DB, OptionalExtension, Transaction, blob::ZeroBlob, params};
 
 use crate::{
@@ -320,9 +320,13 @@ pub(crate) fn resolve_external_key(root: &Path, key: &str) -> Result<PathBuf, St
 }
 
 pub(crate) fn external_relative_key(domain: ProtectionDomain, digest: &RawDigest) -> String {
+    let suite = match digest.suite() {
+        DigestSuite::Sha256RawV1 => "sha256-raw-v1",
+    };
     format!(
-        "objects/ordinary/{}/{}.blob",
+        "objects/ordinary/{}/{}/{}.blob",
         domain.id(),
+        suite,
         hex_lower(digest.bytes())
     )
 }
