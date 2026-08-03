@@ -1,4 +1,4 @@
-name: Rust domain CI
+name: Rust foundation CI
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "crates/domain/**"
+      - "crates/storage/**"
       - "eng/**"
       - ".github/workflows/rust-ci.yml"
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "crates/domain/**"
+      - "crates/storage/**"
       - "eng/**"
       - ".github/workflows/rust-ci.yml"
 
@@ -22,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  domain:
+  foundation:
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -35,12 +37,18 @@ jobs:
       - name: Check
         shell: powershell
         run: cargo check --workspace --all-targets
-      - name: Test
+      - name: Test workspace
         shell: powershell
         run: cargo test --workspace --all-targets
+      - name: Test storage foundation
+        shell: powershell
+        run: cargo test -p pastral-storage --all-targets
       - name: Clippy
         shell: powershell
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Documentation
         shell: powershell
         run: cargo doc --workspace --no-deps
+      - name: Dependency policy
+        shell: powershell
+        run: ./eng/verify-dependencies.ps1

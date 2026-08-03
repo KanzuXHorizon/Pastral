@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Clippy', 'Doc', 'All')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clippy', 'Doc', 'Dependencies', 'All')]
     [string]$Task = 'All'
 )
 
@@ -24,16 +24,20 @@ function Invoke-Verify { Invoke-Step 'Verify toolchain' { & "$PSScriptRoot\verif
 function Invoke-Format { Invoke-Step 'Check formatting' { cargo fmt --all -- --check } }
 function Invoke-Check { Invoke-Step 'Check workspace' { cargo check --workspace --all-targets } }
 function Invoke-Test { Invoke-Step 'Test workspace' { cargo test --workspace --all-targets } }
+function Invoke-Storage { Invoke-Step 'Test storage foundation' { cargo test -p pastral-storage --all-targets } }
 function Invoke-Clippy { Invoke-Step 'Clippy workspace' { cargo clippy --workspace --all-targets --all-features -- -D warnings } }
 function Invoke-Doc { Invoke-Step 'Build documentation' { cargo doc --workspace --no-deps } }
+function Invoke-Dependencies { Invoke-Step 'Verify dependency policy' { & "$PSScriptRoot\verify-dependencies.ps1" } }
 
 switch ($Task) {
     'Verify' { Invoke-Verify }
     'Format' { Invoke-Format }
     'Check' { Invoke-Check }
     'Test' { Invoke-Test }
+    'Storage' { Invoke-Storage }
     'Clippy' { Invoke-Clippy }
     'Doc' { Invoke-Doc }
+    'Dependencies' { Invoke-Dependencies }
     'All' {
         Invoke-Verify
         Invoke-Format
@@ -41,5 +45,6 @@ switch ($Task) {
         Invoke-Test
         Invoke-Clippy
         Invoke-Doc
+        Invoke-Dependencies
     }
 }

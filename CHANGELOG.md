@@ -10,7 +10,9 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 - Phase 1 reproducible Rust 1.97.1/Edition 2024 workspace and Windows MSVC toolchain verification/build scripts.
 - Pure `pastral-domain` crate with typed UUIDv4 identities, UTC Unix microseconds, capture order, stable clipboard format identity, protection-domain digest policy, immutable clip/audit/derived records, and fidelity aggregation.
-- Windows Rust CI and exact Phase 1 developer setup instructions.
+- Windows Rust CI and exact developer setup instructions for the domain and storage foundation.
+- `pastral-storage` crate with schema-versioned SQLite metadata, FTS5 literal lexical search, internal SQLite BLOB and controlled external-file placement, ordinary protection-domain deduplication, exact-byte integrity verification, content-free capture audit persistence, deletion, and bounded reconciliation.
+- PowerShell dependency-policy verification that rejects async, serialization, alternate database, IPC, logging, network, Windows-binding, and UI dependencies from the current foundation.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -39,7 +41,9 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- No executable application, clipboard integration, storage, IPC, native UI, or packaging implementation exists yet.
+- No executable application, clipboard integration, IPC, encryption, native UI, or packaging implementation exists yet.
+- Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
+- SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - No installer, package identity, signing pipeline, or public update channel exists.
 - No final logo/brand assets or legal name clearance exists.
 - Performance, fidelity, security, compatibility, and accessibility budgets are design targets pending implementation evidence.

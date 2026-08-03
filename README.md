@@ -8,20 +8,20 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 1 — repository/toolchain and pure Rust domain bootstrap.**
+**Phase 2A — Rust domain plus storage/search foundation.**
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, a pure `pastral-domain` crate, unit tests for its invariants, and Windows CI for this slice. Clipboard feature implementation has intentionally not started.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, the pure `pastral-domain` crate, and a synchronous `pastral-storage` crate for SQLite/FTS5 metadata, ordinary internal/external blob persistence, literal lexical search, content-free audit records, deletion, integrity checks, and bounded reconciliation. Clipboard feature implementation has intentionally not started.
 
 ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
 ## Confirmed direction
 
 - Windows 11 only; x64 first.
-- Rust 1.97.1/Edition 2024 is pinned for the workspace; Phase 1 contains only the pure `pastral-domain` crate.
+- Rust 1.97.1/Edition 2024 is pinned for the workspace; `pastral-domain` remains platform-independent and `pastral-storage` owns the current persistence boundary.
 - C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable planned for the on-demand manager.
 - One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
 - `pastral-worker.exe` runs only for bounded expensive or hostile work.
-- SQLite + FTS5 metadata with one content-addressed `BlobStore`; internal SQLite BLOB versus external-file placement is selected by Windows benchmark, not assumed globally.
+- SQLite + FTS5 metadata with one logical `BlobStore`; Phase 2A implements both internal SQLite BLOB and controlled external-file placement behind a caller-supplied versioned policy, without inventing a production threshold before Windows benchmarks.
 - Native focus-safe overlay using Win32 and a compositor/Direct2D/DirectWrite path subject to prototype evidence.
 - Local-first and network-silent core.
 - No clipboard polling, mandatory AI, Electron, Tauri, or embedded browser primary UI.
@@ -61,9 +61,11 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-Phase 1 provides `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `eng/verify-toolchain.ps1`, `eng/build.ps1`, and `crates/domain`. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup commands are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
+The implemented Rust foundation includes `crates/domain`, `crates/storage`, pinned workspace manifests, Windows CI, and PowerShell toolchain/build/dependency verification. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup and storage limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
 
-No Visual Studio/MSBuild WinUI project, packaging project, installer, executable, clipboard capture, database, IPC, or native UI implementation exists yet. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
+Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
+
+No Visual Studio/MSBuild WinUI project, packaging project, installer, executable, Win32 clipboard capture, IPC, encryption, or native UI implementation exists yet. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
 
 ## Contributing
 
