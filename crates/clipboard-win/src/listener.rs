@@ -85,9 +85,7 @@ impl ClipboardListener {
 
     #[cfg(test)]
     fn post_test_update(&self) -> Result<(), ClipboardError> {
-        sys::post_listener_test_update(
-            self.endpoint.ok_or(ClipboardError::ListenerStartupClosed)?,
-        )
+        sys::post_listener_test_update(self.endpoint.ok_or(ClipboardError::ListenerStartupClosed)?)
     }
 }
 

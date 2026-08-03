@@ -327,9 +327,7 @@ pub(crate) fn post_listener_stop(endpoint: ListenerEndpoint) -> Result<(), Clipb
 }
 
 #[cfg(test)]
-pub(crate) fn post_listener_test_update(
-    endpoint: ListenerEndpoint,
-) -> Result<(), ClipboardError> {
+pub(crate) fn post_listener_test_update(endpoint: ListenerEndpoint) -> Result<(), ClipboardError> {
     post_message(
         endpoint.window_handle,
         WM_CLIPBOARDUPDATE,
