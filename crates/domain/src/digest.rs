@@ -19,10 +19,17 @@ impl RawDigest {
         protection_domain: ProtectionDomain,
         logical_bytes: &[u8],
     ) -> Result<Self, DomainError> {
+        let bytes: [u8; 32] = Sha256::digest(logical_bytes).into();
+        Self::from_sha256_raw_v1_bytes(protection_domain, bytes)
+    }
+
+    pub fn from_sha256_raw_v1_bytes(
+        protection_domain: ProtectionDomain,
+        bytes: [u8; 32],
+    ) -> Result<Self, DomainError> {
         if !protection_domain.permits_persistent_plaintext_digest() {
             return Err(DomainError::PersistentPlaintextDigestForbidden);
         }
-        let bytes: [u8; 32] = Sha256::digest(logical_bytes).into();
         Ok(Self {
             suite: DigestSuite::Sha256RawV1,
             bytes,

@@ -48,6 +48,7 @@ macro_rules! typed_id {
     };
 }
 
+typed_id!(BlobObjectId);
 typed_id!(ClipEventId);
 typed_id!(ClipRepresentationId);
 typed_id!(CaptureAuditEventId);

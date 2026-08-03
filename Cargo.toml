@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/domain"]
+members = ["crates/domain", "crates/storage"]
 resolver = "3"
 
 [workspace.package]
@@ -10,5 +10,6 @@ authors = ["Pastral contributors"]
 repository = "https://github.com/pastral/pastral"
 
 [workspace.dependencies]
+rusqlite = { version = "=0.40.1", default-features = false, features = ["bundled", "blob"] }
 sha2 = { version = "=0.10.9", default-features = false }
 uuid = { version = "=1.18.1", default-features = false, features = ["std", "v4"] }

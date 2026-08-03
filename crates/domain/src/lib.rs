@@ -22,8 +22,8 @@ pub use error::DomainError;
 pub use fidelity::{Fidelity, FidelityAggregationVersion, aggregate_fidelity_v1};
 pub use format_identity::{ClipboardFormatIdentity, RegisteredFormatName, StandardFormatId};
 pub use id::{
-    CaptureAuditEventId, ClipEventId, ClipRepresentationId, DerivedRepresentationId, ProfileId,
-    ProtectionDomainId, TransformationId,
+    BlobObjectId, CaptureAuditEventId, ClipEventId, ClipRepresentationId, DerivedRepresentationId,
+    ProfileId, ProtectionDomainId, TransformationId,
 };
 pub use protection::ProtectionDomain;
 pub use representation::ClipRepresentation;

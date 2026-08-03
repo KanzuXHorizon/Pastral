@@ -1,0 +1,13 @@
+[package]
+name = "pastral-storage"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+pastral-domain = { path = "../domain" }
+rusqlite.workspace = true
+uuid.workspace = true
