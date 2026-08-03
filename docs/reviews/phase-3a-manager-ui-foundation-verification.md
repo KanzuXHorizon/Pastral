@@ -1,10 +1,15 @@
 # Phase 3A native manager UI foundation verification
 
-**Date:** 2026-08-04  
-**Repository:** `F:\Pastral`  
-**Branch:** `main`  
-**Baseline commit:** `0b5c86d`  
-**Evidence commit before this report:** `a65b845`  
+**Date:** 2026-08-04
+
+**Repository:** `F:\Pastral`
+
+**Branch:** `main`
+
+**Baseline commit:** `0b5c86d`
+
+**Evidence commit before this report:** `a65b845`
+
 **Scope:** native C++/WinRT WinUI 3 manager bootstrap, design system, shell, Home, History, presentation boundary, local verification, and CI definitions
 
 ## 1. Outcome
