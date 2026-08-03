@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'Manager', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All')]
     [string]$Task = 'All'
 )
 
@@ -26,6 +26,8 @@ function Invoke-Check { Invoke-Step 'Check workspace' { cargo check --locked --w
 function Invoke-Test { Invoke-Step 'Test workspace' { cargo test --locked --workspace --all-targets } }
 function Invoke-Storage { Invoke-Step 'Test storage foundation' { cargo test --locked -p pastral-storage --all-targets } }
 function Invoke-Clipboard { Invoke-Step 'Test Win32 clipboard foundation' { cargo test --locked -p pastral-clipboard-win --all-targets } }
+function Invoke-Manager { Invoke-Step 'Verify native manager' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode All } }
+function Invoke-NativePolicy { Invoke-Step 'Verify native manager policy' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Static } }
 function Invoke-Clippy { Invoke-Step 'Clippy workspace' { cargo clippy --locked --workspace --all-targets --all-features -- -D warnings } }
 function Invoke-Doc { Invoke-Step 'Build documentation' { cargo doc --locked --workspace --no-deps } }
 function Invoke-Dependencies { Invoke-Step 'Verify dependency policy' { & "$PSScriptRoot\verify-dependencies.ps1" } }
@@ -38,6 +40,8 @@ switch ($Task) {
     'Test' { Invoke-Test }
     'Storage' { Invoke-Storage }
     'Clipboard' { Invoke-Clipboard }
+    'Manager' { Invoke-Manager }
+    'NativePolicy' { Invoke-NativePolicy }
     'Clippy' { Invoke-Clippy }
     'Doc' { Invoke-Doc }
     'Dependencies' { Invoke-Dependencies }

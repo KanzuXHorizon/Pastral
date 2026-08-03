@@ -24,6 +24,8 @@ try {
             $path = $_
             ($forbiddenTrackedPaths -contains $path) -or
             $path.StartsWith('target/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $path.StartsWith('.vs/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $path -match '(?i)^apps/manager/.+/(x64|Generated Files|AppPackages)/' -or
             $path.StartsWith('.env', [System.StringComparison]::OrdinalIgnoreCase) -or
             ($forbiddenTrackedExtensions -contains [System.IO.Path]::GetExtension($path).ToLowerInvariant())
         }
@@ -34,7 +36,8 @@ try {
     }
 
     $textExtensions = @(
-        '.rs', '.toml', '.ps1', '.yml', '.yaml', '.md', '.json', '.txt', '.props', '.targets'
+        '.rs', '.toml', '.ps1', '.yml', '.yaml', '.md', '.json', '.txt', '.props', '.targets',
+        '.cpp', '.c', '.h', '.hpp', '.idl', '.xaml', '.vcxproj', '.filters', '.resw', '.xml'
     )
     $secretPatterns = @(
         'AKIA[0-9A-Z]{16}',
