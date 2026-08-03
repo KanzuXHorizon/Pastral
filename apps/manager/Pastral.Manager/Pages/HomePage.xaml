@@ -17,6 +17,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <StackPanel Spacing="6">
@@ -33,134 +34,276 @@
                     Text="A calm operational overview of capture, privacy, and local history." />
             </StackPanel>
 
-            <InfoBar
+            <StackPanel
                 Grid.Row="1"
-                x:Uid="HomeConnectionStatus"
-                AutomationProperties.Name="Manager connection status"
-                IsClosable="False"
-                IsOpen="True"
-                Message="Start the resident agent after its verified IPC slice is available. This manager does not read the clipboard database directly."
-                Severity="Informational"
-                Title="Agent not connected" />
+                Spacing="12">
+                <InfoBar
+                    x:Name="HomeConnectionStatus"
+                    AutomationProperties.Name="Manager connection status"
+                    IsClosable="False"
+                    IsOpen="True"
+                    Severity="Informational" />
+                <InfoBar
+                    x:Name="HomeSyntheticNotice"
+                    AutomationProperties.Name="Synthetic preview disclosure"
+                    IsClosable="False"
+                    IsOpen="True"
+                    Message="These six bounded examples exist only in Debug builds and are not clipboard history."
+                    Severity="Informational"
+                    Title="Synthetic preview data"
+                    Visibility="Collapsed" />
+            </StackPanel>
 
-            <Grid
+            <Border
+                x:Name="HomeOperationalStateRegion"
                 Grid.Row="2"
-                ColumnSpacing="16"
-                RowSpacing="16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                AutomationProperties.Name="Operational state"
+                Style="{StaticResource PastralCardStyle}">
+                <Grid
+                    ColumnSpacing="20"
+                    RowSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="6">
+                        <TextBlock
+                            AutomationProperties.HeadingLevel="Level2"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="Manager status" />
+                        <TextBlock
+                            x:Name="HomeStatusTitle"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="Loading local status" />
+                        <TextBlock
+                            x:Name="HomeStatusDetail"
+                            MaxWidth="760"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Checking the presentation provider." />
+                    </StackPanel>
+                    <Button
+                        x:Name="RetryConnectionButton"
+                        Grid.Column="1"
+                        AutomationProperties.Name="Retry local agent connection"
+                        Click="RetryConnection_Click"
+                        Content="Retry"
+                        VerticalAlignment="Center" />
+                </Grid>
+            </Border>
+
+            <ItemsControl
+                Grid.Row="3"
+                AutomationProperties.Name="Manager summary">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid
+                            ItemWidth="328"
+                            MaximumRowsOrColumns="3"
+                            Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
 
                 <Border
-                    Style="{StaticResource PastralCardStyle}"
-                    AutomationProperties.Name="Capture state unavailable">
+                    Margin="0,0,16,16"
+                    AutomationProperties.Name="Capture state"
+                    Style="{StaticResource PastralCardStyle}">
                     <StackPanel Spacing="10">
                         <FontIcon
                             AutomationProperties.Name="Capture state"
                             FontSize="20"
                             Glyph="&#xE7C8;" />
                         <TextBlock
-                            x:Uid="HomeCaptureTitle"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Capture state" />
                         <TextBlock
-                            x:Uid="HomeCaptureValue"
+                            x:Name="HomeCaptureValue"
                             Style="{StaticResource BodyStrongTextBlockStyle}"
                             Text="Unavailable" />
                         <TextBlock
-                            x:Uid="HomeCaptureDescription"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="No live status is shown until the manager authenticates to the local agent." />
+                            Text="The manager shows only state supplied through its provider boundary." />
                     </StackPanel>
                 </Border>
 
                 <Border
-                    Grid.Column="1"
-                    Style="{StaticResource PastralCardStyle}"
-                    AutomationProperties.Name="Active profile Ordinary">
+                    Margin="0,0,16,16"
+                    AutomationProperties.Name="Active profile"
+                    Style="{StaticResource PastralCardStyle}">
                     <StackPanel Spacing="10">
                         <FontIcon
                             AutomationProperties.Name="Profile"
                             FontSize="20"
                             Glyph="&#xE77B;" />
                         <TextBlock
-                            x:Uid="HomeProfileTitle"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Profile" />
                         <TextBlock
-                            x:Uid="HomeProfileValue"
+                            x:Name="HomeProfileValue"
                             Style="{StaticResource BodyStrongTextBlockStyle}"
                             Text="Ordinary" />
                         <TextBlock
-                            x:Uid="HomeProfileDescription"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="The built-in Private profile remains unavailable until encryption and recovery gates pass." />
+                            Text="Private remains unavailable until encryption, lock, and recovery gates pass." />
                     </StackPanel>
                 </Border>
 
                 <Border
-                    Grid.Column="2"
-                    Style="{StaticResource PastralCardStyle}"
-                    AutomationProperties.Name="Local data access disconnected">
+                    Margin="0,0,0,16"
+                    AutomationProperties.Name="Local storage summary"
+                    Style="{StaticResource PastralCardStyle}">
                     <StackPanel Spacing="10">
                         <FontIcon
-                            AutomationProperties.Name="Local storage"
+                            AutomationProperties.Name="Local data"
                             FontSize="20"
                             Glyph="&#xEDA2;" />
                         <TextBlock
-                            x:Uid="HomeStorageTitle"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Local data" />
                         <TextBlock
-                            x:Uid="HomeStorageValue"
+                            x:Name="HomeStorageValue"
                             Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Disconnected" />
+                            Text="Unavailable" />
                         <TextBlock
-                            x:Uid="HomeStorageDescription"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="History and storage metrics will arrive through versioned per-user IPC, never direct database access." />
+                            Text="The manager never opens SQLite or blob storage directly." />
                     </StackPanel>
                 </Border>
-            </Grid>
+            </ItemsControl>
 
-            <Border
-                Grid.Row="3"
-                Style="{StaticResource PastralCardStyle}"
-                AutomationProperties.Name="Recent clips unavailable">
-                <Grid ColumnSpacing="20">
+            <Grid
+                Grid.Row="4"
+                RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border
-                        Width="48"
-                        Height="48"
-                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                        CornerRadius="12">
-                        <FontIcon
-                            AutomationProperties.Name="History"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            FontSize="22"
-                            Glyph="&#xE81C;" />
-                    </Border>
-                    <StackPanel
-                        Grid.Column="1"
-                        VerticalAlignment="Center"
-                        Spacing="4">
+                    <StackPanel Spacing="4">
                         <TextBlock
-                            x:Uid="HomeRecentTitle"
+                            AutomationProperties.HeadingLevel="Level2"
                             Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Recent clips will appear here" />
+                            Text="Recent clips" />
                         <TextBlock
-                            x:Uid="HomeRecentDescription"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Pastral will show privacy-safe previews only after the agent and IPC contract are verified." />
+                            Text="Privacy-safe preview metadata supplied by the active provider." />
                     </StackPanel>
+                    <TextBlock
+                        x:Name="HomeRecentCount"
+                        Grid.Column="1"
+                        AutomationProperties.LiveSetting="Polite"
+                        Style="{StaticResource PastralMetadataTextStyle}"
+                        Text="0 items"
+                        VerticalAlignment="Bottom" />
                 </Grid>
-            </Border>
+
+                <ListView
+                    x:Name="HomeRecentClipsList"
+                    Grid.Row="1"
+                    AutomationProperties.Name="Recent clips"
+                    IsItemClickEnabled="False"
+                    MaxHeight="420"
+                    SelectionMode="None"
+                    Visibility="Collapsed">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,0,0,4" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid
+                                AutomationProperties.Name="{Binding AutomationName}"
+                                Padding="12,10"
+                                ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="4">
+                                    <TextBlock
+                                        MaxLines="2"
+                                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                                        Text="{Binding SafePreview}"
+                                        TextTrimming="CharacterEllipsis"
+                                        TextWrapping="Wrap" />
+                                    <StackPanel
+                                        Orientation="Horizontal"
+                                        Spacing="6">
+                                        <TextBlock
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="{Binding Source}" />
+                                        <TextBlock
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="·" />
+                                        <TextBlock
+                                            Style="{StaticResource PastralMetadataTextStyle}"
+                                            Text="{Binding RelativeTime}" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <StackPanel
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Right"
+                                    Spacing="4">
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource BodyTextBlockStyle}"
+                                        Text="{Binding TypeLabel}" />
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource PastralMetadataTextStyle}"
+                                        Text="{Binding RepresentationSummary}" />
+                                    <TextBlock
+                                        HorizontalAlignment="Right"
+                                        Style="{StaticResource PastralMetadataTextStyle}"
+                                        Text="{Binding Profile}" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <Border
+                    x:Name="HomeEmptyStatePanel"
+                    Grid.Row="1"
+                    AutomationProperties.Name="Recent clips empty state"
+                    Style="{StaticResource PastralCardStyle}">
+                    <Grid ColumnSpacing="20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Border
+                            Width="48"
+                            Height="48"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="12">
+                            <FontIcon
+                                AutomationProperties.Name="History"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="22"
+                                Glyph="&#xE81C;" />
+                        </Border>
+                        <StackPanel
+                            Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Spacing="4">
+                            <TextBlock
+                                Style="{StaticResource SubtitleTextBlockStyle}"
+                                Text="No recent clips are available" />
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Connect the local agent to receive privacy-safe history. Release builds never invent sample data." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </ScrollViewer>
 </Page>
