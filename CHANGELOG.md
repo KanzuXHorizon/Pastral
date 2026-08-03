@@ -8,6 +8,9 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Added
 
+- Phase 1 reproducible Rust 1.97.1/Edition 2024 workspace and Windows MSVC toolchain verification/build scripts.
+- Pure `pastral-domain` crate with typed UUIDv4 identities, UTC Unix microseconds, capture order, stable clipboard format identity, protection-domain digest policy, immutable clip/audit/derived records, and fidelity aggregation.
+- Windows Rust CI and exact Phase 1 developer setup instructions.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -36,7 +39,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- No executable application or feature implementation exists yet.
+- No executable application, clipboard integration, storage, IPC, native UI, or packaging implementation exists yet.
 - No installer, package identity, signing pipeline, or public update channel exists.
 - No final logo/brand assets or legal name clearance exists.
 - Performance, fidelity, security, compatibility, and accessibility budgets are design targets pending implementation evidence.

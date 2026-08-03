@@ -8,16 +8,16 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 0.2 — bounded IPC and blob-store contract refinement.**
+**Phase 1 — repository/toolchain and pure Rust domain bootstrap.**
 
-This repository currently contains research, product scope, architecture decisions, threat/privacy models, performance budgets, UX specifications, testing strategy, repository/release plans, a post-foundation adversarial audit, and Phase 0.2 IPC/storage prototype contracts. Clipboard feature implementation has intentionally not started.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, a pure `pastral-domain` crate, unit tests for its invariants, and Windows CI for this slice. Clipboard feature implementation has intentionally not started.
 
-Feature work begins only after the Phase 0.2 documentation checks pass and a separate repository/toolchain/domain vertical-slice design and implementation plan are approved. ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
+ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
 ## Confirmed direction
 
 - Windows 11 only; x64 first.
-- Rust 1.97.1/Edition 2024 planned for agent, worker, CLI, and core modules.
+- Rust 1.97.1/Edition 2024 is pinned for the workspace; Phase 1 contains only the pure `pastral-domain` crate.
 - C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable planned for the on-demand manager.
 - One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
 - `pastral-worker.exe` runs only for bounded expensive or hostile work.
@@ -61,7 +61,9 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-No Cargo workspace, Visual Studio/MSBuild WinUI project, packaging project, installer, or executable scaffold exists yet. The next engineering slice will bootstrap the pinned Rust toolchain and a small pure-domain crate with tests, without implementing clipboard capture prematurely. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
+Phase 1 provides `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `eng/verify-toolchain.ps1`, `eng/build.ps1`, and `crates/domain`. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup commands are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
+
+No Visual Studio/MSBuild WinUI project, packaging project, installer, executable, clipboard capture, database, IPC, or native UI implementation exists yet. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
 
 ## Contributing
 

@@ -1,0 +1,46 @@
+name: Rust domain CI
+
+on:
+  push:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/domain/**"
+      - "eng/**"
+      - ".github/workflows/rust-ci.yml"
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/domain/**"
+      - "eng/**"
+      - ".github/workflows/rust-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  domain:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify toolchain
+        shell: powershell
+        run: ./eng/verify-toolchain.ps1
+      - name: Format
+        shell: powershell
+        run: cargo fmt --all -- --check
+      - name: Check
+        shell: powershell
+        run: cargo check --workspace --all-targets
+      - name: Test
+        shell: powershell
+        run: cargo test --workspace --all-targets
+      - name: Clippy
+        shell: powershell
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Documentation
+        shell: powershell
+        run: cargo doc --workspace --no-deps
