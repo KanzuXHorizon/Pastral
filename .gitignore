@@ -31,6 +31,9 @@ build-*/
 *.dll
 *.exe
 *.pdb
+/apps/manager/**/obj/
+/apps/manager/**/x64/
+/apps/manager/**/Generated Files/
 
 # vcpkg and package output
 /vcpkg_installed/

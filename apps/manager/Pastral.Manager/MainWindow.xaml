@@ -1,0 +1,15 @@
+<Window
+    x:Class="Pastral.Manager.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Pastral">
+    <Grid Padding="32">
+        <TextBlock
+            x:Name="BootstrapStatusText"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            AutomationProperties.Name="Pastral manager bootstrap status"
+            Style="{StaticResource TitleTextBlockStyle}"
+            Text="Pastral manager" />
+    </Grid>
+</Window>

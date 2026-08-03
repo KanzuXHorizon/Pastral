@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{510d89ad-98a0-449f-a46f-e1c0493f7f65}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{6f2ef9c0-3a9e-4f6d-a69c-1373508d9684}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="XAML Files">
+      <UniqueIdentifier>{52cc1954-86c4-4b0c-bf3a-214ce7984a70}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="IDL Files">
+      <UniqueIdentifier>{2e4db2af-0f9e-4fbc-b50a-5f26a24caacf}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="App.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="MainWindow.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="App.xaml.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="MainWindow.xaml.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml"><Filter>XAML Files</Filter></ApplicationDefinition>
+    <Page Include="MainWindow.xaml"><Filter>XAML Files</Filter></Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="App.idl"><Filter>IDL Files</Filter></Midl>
+    <Midl Include="MainWindow.idl"><Filter>IDL Files</Filter></Midl>
+  </ItemGroup>
+</Project>
