@@ -1,0 +1,8 @@
+namespace Pastral.Manager
+{
+    [default_interface]
+    runtimeclass HistoryPage : Microsoft.UI.Xaml.Controls.Page
+    {
+        HistoryPage();
+    }
+}

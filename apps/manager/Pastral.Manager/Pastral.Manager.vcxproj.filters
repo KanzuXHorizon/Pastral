@@ -18,18 +18,30 @@
     <ClCompile Include="pch.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="App.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="MainWindow.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Pages\HomePage.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Pages\HistoryPage.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="App.xaml.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="MainWindow.xaml.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Pages\HomePage.xaml.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Pages\HistoryPage.xaml.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Filter>XAML Files</Filter></ApplicationDefinition>
     <Page Include="MainWindow.xaml"><Filter>XAML Files</Filter></Page>
+    <Page Include="Pages\HomePage.xaml"><Filter>XAML Files</Filter></Page>
+    <Page Include="Pages\HistoryPage.xaml"><Filter>XAML Files</Filter></Page>
+    <Page Include="Themes\PastralTheme.xaml"><Filter>XAML Files</Filter></Page>
   </ItemGroup>
   <ItemGroup>
     <Midl Include="App.idl"><Filter>IDL Files</Filter></Midl>
     <Midl Include="MainWindow.idl"><Filter>IDL Files</Filter></Midl>
+    <Midl Include="Pages\HomePage.idl"><Filter>IDL Files</Filter></Midl>
+    <Midl Include="Pages\HistoryPage.idl"><Filter>IDL Files</Filter></Midl>
+  </ItemGroup>
+  <ItemGroup>
+    <PRIResource Include="Strings\en-US\Resources.resw"><Filter>XAML Files</Filter></PRIResource>
   </ItemGroup>
 </Project>

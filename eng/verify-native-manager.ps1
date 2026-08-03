@@ -61,7 +61,10 @@ function Invoke-StaticVerification {
     $textExtensions = @('.cpp', '.h', '.hpp', '.idl', '.xaml', '.vcxproj', '.props', '.resw', '.xml')
     $managerFiles = @(
         Get-ChildItem -LiteralPath $managerRoot -Recurse -File |
-            Where-Object { $textExtensions -contains $_.Extension.ToLowerInvariant() }
+            Where-Object {
+                ($textExtensions -contains $_.Extension.ToLowerInvariant()) -and
+                ($_.FullName -notmatch '\\(?:obj|x64|bin|AppPackages|Generated Files)\\')
+            }
     )
 
     $forbiddenPatterns = @(
@@ -180,7 +183,7 @@ function Invoke-BuildVerification {
 
     foreach ($configuration in @('Debug', 'Release')) {
         Write-Host "Building manager $configuration|x64"
-        & $msbuild $projectPath '/restore' '/m' '/nologo' '/verbosity:minimal' `
+        & $msbuild $projectPath '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:minimal' `
             "/p:Configuration=$configuration" '/p:Platform=x64' `
             "/p:RestoreLockedMode=$locked"
         if ($LASTEXITCODE -ne 0) {

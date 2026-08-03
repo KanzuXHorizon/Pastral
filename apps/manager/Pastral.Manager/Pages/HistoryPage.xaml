@@ -1,0 +1,204 @@
+<Page
+    x:Class="Pastral.Manager.HistoryPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Enabled">
+
+    <Grid
+        x:Name="HistoryLayoutRoot"
+        MaxWidth="{StaticResource PastralContentMaxWidth}"
+        Padding="24,20,24,32"
+        RowSpacing="16">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="HistoryLayoutStates">
+                <VisualState x:Name="NarrowHistory">
+                    <VisualState.Setters>
+                        <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="*" />
+                        <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="0" />
+                        <Setter Target="DetailsPane.Visibility" Value="Collapsed" />
+                    </VisualState.Setters>
+                </VisualState>
+                <VisualState x:Name="WideHistory">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="920" />
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="3*" />
+                        <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="2*" />
+                        <Setter Target="DetailsPane.Visibility" Value="Visible" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="6">
+                <TextBlock
+                    x:Uid="HistoryPageTitle"
+                    AutomationProperties.HeadingLevel="Level1"
+                    Style="{StaticResource PastralPageHeaderStyle}"
+                    Text="History" />
+                <TextBlock
+                    x:Uid="HistoryPageSubtitle"
+                    MaxWidth="720"
+                    Style="{StaticResource BodyTextBlockStyle}"
+                    Text="Find copied content by preview, source, type, profile, and time." />
+            </StackPanel>
+            <TextBlock
+                Grid.Column="1"
+                x:Uid="HistoryResultCount"
+                VerticalAlignment="Bottom"
+                Style="{StaticResource PastralMetadataTextStyle}"
+                Text="0 items" />
+        </Grid>
+
+        <InfoBar
+            Grid.Row="1"
+            x:Uid="HistoryConnectionStatus"
+            AutomationProperties.Name="History availability status"
+            IsClosable="False"
+            IsOpen="True"
+            Message="Search and privacy-safe previews become available after a verified connection to the local agent."
+            Severity="Informational"
+            Title="History is not connected" />
+
+        <Grid
+            Grid.Row="2"
+            ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <AutoSuggestBox
+                x:Uid="HistorySearchBox"
+                AutomationProperties.HelpText="History search is disabled until the local agent is connected"
+                AutomationProperties.Name="Search clipboard history"
+                IsEnabled="False"
+                PlaceholderText="Search history" />
+            <ComboBox
+                Grid.Column="1"
+                x:Uid="HistoryTypeFilter"
+                MinWidth="132"
+                AutomationProperties.HelpText="Type filters are disabled until history is connected"
+                AutomationProperties.Name="Filter history by type"
+                Header="Type"
+                IsEnabled="False"
+                SelectedIndex="0">
+                <x:String>All types</x:String>
+            </ComboBox>
+            <ComboBox
+                Grid.Column="2"
+                x:Uid="HistoryProfileFilter"
+                MinWidth="132"
+                AutomationProperties.HelpText="Profile filters are disabled until history is connected"
+                AutomationProperties.Name="Filter history by profile"
+                Header="Profile"
+                IsEnabled="False"
+                SelectedIndex="0">
+                <x:String>All profiles</x:String>
+            </ComboBox>
+        </Grid>
+
+        <Grid
+            x:Name="HistoryColumns"
+            Grid.Row="3"
+            ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="2*" />
+            </Grid.ColumnDefinitions>
+
+            <Border
+                Style="{StaticResource PastralCardStyle}"
+                AutomationProperties.Name="History results empty state">
+                <Grid MinHeight="360">
+                    <StackPanel
+                        MaxWidth="420"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="12">
+                        <Border
+                            Width="56"
+                            Height="56"
+                            HorizontalAlignment="Center"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            CornerRadius="14">
+                            <FontIcon
+                                AutomationProperties.Name="Clipboard history"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontSize="24"
+                                Glyph="&#xE81C;" />
+                        </Border>
+                        <TextBlock
+                            x:Uid="HistoryEmptyTitle"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="No history is available" />
+                        <TextBlock
+                            x:Uid="HistoryEmptyDescription"
+                            TextAlignment="Center"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="The manager intentionally remains empty instead of opening storage directly or inventing sample clips." />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border
+                x:Name="DetailsPane"
+                Grid.Column="1"
+                Style="{StaticResource PastralCardStyle}"
+                AutomationProperties.Name="Clip details placeholder">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            x:Uid="HistoryDetailsTitle"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="Clip details" />
+                        <TextBlock
+                            x:Uid="HistoryDetailsDescription"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Select a connected history item to inspect representations, provenance, fidelity, and privacy policy." />
+                    </StackPanel>
+                    <Border
+                        Height="1"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        IsHitTestVisible="False" />
+                    <Grid RowSpacing="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            x:Uid="HistoryDetailsRepresentation"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Representations · Unavailable" />
+                        <TextBlock
+                            Grid.Row="1"
+                            x:Uid="HistoryDetailsSource"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Source · Unavailable" />
+                        <TextBlock
+                            Grid.Row="2"
+                            x:Uid="HistoryDetailsPolicy"
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Protection policy · Unavailable" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>
