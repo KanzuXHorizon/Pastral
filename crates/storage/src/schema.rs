@@ -180,6 +180,8 @@ mod tests {
         let (_root, mut connection) = open_test_connection();
         configure_and_migrate(&mut connection).unwrap();
         let first = runtime_info(&connection).unwrap();
+        assert_eq!(first.sqlite_version, "3.53.2");
+        eprintln!("SQLite runtime: {}", first.sqlite_version);
         assert_eq!(first.schema_version, SCHEMA_VERSION);
         assert_eq!(first.journal_mode.to_ascii_lowercase(), "delete");
         assert_eq!(first.synchronous, 2);
