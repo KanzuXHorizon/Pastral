@@ -35,10 +35,10 @@ Unit tests run cross-platform only where the module has no Windows contract. Win
 - SQLite repositories and constraints;
 - FTS query semantics/ranking/filter composition;
 - schema migration from every supported version;
-- blob staging/finalization/reconciliation;
+- internal SQLite BLOB and external-file backends behind one `BlobStore`, threshold-policy selection, `sha256-raw-v1` backend independence, staging/finalization, transactional migration, reference counting, and reconciliation;
 - rollback-journal/WAL selected configuration;
 - encryption round trip/tamper/key rotation;
-- IPC serialization, negotiation, cross-user/session peer validation, first-instance anti-squatting, authorization classes, pagination, cancellation, and same-user limitation assertions;
+- fixed 36-byte IPC frame parsing with explicit bulk sequence, Protobuf Edition 2024 control-schema parsing/post-parse validation, DTO-domain conversion, selected generator/generated-code/runtime compatibility checks, official-kernel versus credible wire-compatible Rust-runtime footprint/build evidence, negotiation, cross-user/session peer validation, first-instance anti-squatting, authorization classes, pagination, cancellation, and same-user limitation assertions;
 - agent-worker job validation;
 - profile switching, immutable capture-profile preservation, Private protection domain, and retention boundaries;
 - import/export and diagnostic redaction.
@@ -106,13 +106,13 @@ Follow `docs/performance/benchmark-methodology.md` for idle, capture, overlay, Q
 
 ### Security tests
 
-- fuzz clipboard/custom-format adapters, HTML/RTF/image metadata, query parser, IPC, import, and encryption envelope;
+- fuzz clipboard/custom-format adapters, HTML/RTF/image metadata, query parser, fixed IPC frame parser, protobuf parser/validator, DTO-domain conversion, bulk-transfer state machine, import, and encryption envelope;
 - oversized/truncated/decompression/path traversal/reparse cases;
 - named-pipe explicit DACL, remote rejection, first-instance squatting, cross-user/session access, PID/token/session checks, bounded impersonation/revert, and documented same-user residual boundary;
-- handshake replay and unauthorized operations;
-- capture STA blocking/re-entrancy/cancellation-refusal while the control/overlay thread remains responsive;
+- handshake replay, invalid/unknown frame kind/flags/sequence/length/UUID, unknown Protobuf action/enum, missing explicit presence, duplicate keys, capability mismatch, adjacent-version golden fixtures, and unauthorized operations;
+- clipboard-platform STA blocking/re-entrancy/cancellation-refusal and replay-callback isolation while the control/overlay thread remains responsive;
 - worker no-network/limits/escape checks;
-- tampered blobs/database/encrypted envelopes;
+- tampered internal/external blobs, backend/reference mismatches, database, and encrypted envelopes;
 - wrong-user DPAPI access and checks that documentation does not present user-scope DPAPI as a same-user malware boundary;
 - secret canaries across DB, FTS, SQLite freelists/journal/WAL where testable, blobs, logs, overlay, UI Automation, diagnostics, export, and crash artifacts;
 - whole-message and chunked AEAD authentication-before-release, chunk reorder/duplicate/truncate/splice cases;
@@ -154,13 +154,13 @@ Required lanes before release:
 
 - formatting and repository policy;
 - Rust build/tests and Clippy warnings denied;
-- C++ build with project warnings as errors;
+- C++ build with project warnings as errors plus exact selected Protobuf generator/generated-code/runtime verification when IPC exists;
 - native manager/UI tests where environment supports them;
 - migration and storage recovery tests;
 - clipboard fixture smoke tests on Windows;
 - dependency advisory and license checks;
 - secret scan and static analysis;
-- fuzz smoke corpus;
+- fuzz smoke corpus for frame/Protobuf/domain/bulk-transfer and other hostile parsers;
 - package validation and clean-install smoke;
 - documentation link/consistency checks;
 - performance smoke without noisy user-facing claims.

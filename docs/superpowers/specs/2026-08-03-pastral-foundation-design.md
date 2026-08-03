@@ -1,7 +1,7 @@
 # Pastral Foundation Design
 
 **Date:** 2026-08-03
-**Status:** Historical Phase 0 baseline; amended for implementation readiness by ADR 0015–0017 and [`../../reviews/phase-0-adversarial-audit.md`](../../reviews/phase-0-adversarial-audit.md)
+**Status:** Historical Phase 0 baseline; amended for implementation readiness by ADR 0015–0017, the ADR 0006 hybrid-blob amendment, proposed ADR 0018, and [`../../reviews/phase-0-adversarial-audit.md`](../../reviews/phase-0-adversarial-audit.md)
 **Product:** Pastral — Native Windows Clipboard Intelligence and History Platform
 
 ## 1. Purpose
@@ -54,7 +54,7 @@ Deliverables:
 - `pastral-manager.exe`: C++/WinRT + WinUI 3; runs on demand, hosts Quick Paste as an activation/window mode, and never opens the database directly.
 - `pastral-cli.exe`: Rust diagnostics and administration client.
 - Agent owns SQLite and blob storage.
-- Local IPC uses a versioned named-pipe protocol granting ordinary access through a least-privilege current logon-SID ACE, with runtime user/logon-session/token validation, anti-squatting/remote rejection, peer validation, and operation authorization. It is not claimed as a secure enclave against fully compromised same-user code.
+- Local IPC uses a versioned named-pipe protocol granting ordinary access through a least-privilege current logon-SID ACE, with runtime user/logon-session/token validation, anti-squatting/remote rejection, peer validation, and operation authorization. Proposed ADR 0018 adds bounded 36-byte framing, Protobuf Edition 2024 control schemas, and sequenced bulk transfer while keeping the resident runtime unselected pending evidence. IPC is not claimed as a secure enclave against fully compromised same-user code.
 
 ### 3.3 Rendering
 
@@ -69,7 +69,7 @@ A Windows.UI.Composition prototype may be benchmarked before implementation. Swi
 - Durable public identity uses opaque UUIDv4; civil time uses UTC microseconds; installation-local order uses storage-assigned `capture_order`; ordinary raw blob identity uses versioned `sha256-raw-v1`.
 - Raw bytes and fidelity metadata are preserved where safe.
 - Transformations create derived representations and never mutate originals.
-- Payload storage is content-addressed for ordinary clips.
+- Payload storage is content-addressed for ordinary clips through one `BlobStore` contract; internal SQLite BLOB versus external-file placement is selected by versioned Windows benchmark policy rather than assumed universally.
 - Sensitive/Private clips use random blob identifiers and no persistent plaintext digest/deduplication by default; a future keyed-equality scheme requires a separate accepted privacy decision.
 - Duplicate payload storage may be deduplicated while every meaningful copy occurrence remains recorded.
 

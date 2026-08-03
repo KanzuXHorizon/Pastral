@@ -1,6 +1,6 @@
 # Repository initialization plan
 
-**Status:** Phase 0.1-hardened bootstrap plan; no feature scaffold is created by this document.
+**Status:** Phase 0.2-refined bootstrap plan; no feature scaffold is created by this document.
 **Repository root:** `F:\Pastral`
 
 ## 1. Current state
@@ -8,8 +8,8 @@
 - Git repository initialized on `main`.
 - Existing local `Start-DevSpace-MCP-Cloudflared.ps1` remains at repository root but is ignored; it is not product source and must not be committed because it is machine/workflow-specific.
 - Phase 0 foundation and Phase 0.1 adversarial hardening documentation/governance exist.
-- ADR 0015–0017 define capture threading, durable identity/time/digests, and Quick Paste hosting.
-- Normative architecture now includes dedicated clipboard-platform STA ownership, transient observation versus durable clip/audit records, stable clipboard-format names, source confidence, format adapters, IPC limits, UIPI fallback, and Private/sensitive protection domains.
+- ADR 0015–0017 define capture threading, durable identity/time/digests, and Quick Paste hosting; ADR 0018 proposes bounded IPC framing/Protobuf schemas while keeping the resident runtime unselected pending evidence.
+- Normative architecture now includes dedicated clipboard-platform STA ownership, transient observation versus durable clip/audit records, stable clipboard-format names, source confidence, format adapters, IPC limits, UIPI fallback, Private/sensitive protection domains, and a benchmark-gated internal-SQLite-BLOB/external-file `BlobStore` policy.
 - No Cargo workspace, Visual Studio/MSBuild WinUI project, packaging project, installer, CI workflow, executable, database, or runtime data exists.
 - No public license has been selected; `LICENSE` remains intentionally absent.
 
@@ -34,6 +34,7 @@ Revalidate all versions against official sources on the bootstrap date. Initial 
 - C++20.
 - x64 build presets first.
 - SQLite compiled with FTS5 and pinned through a reviewed source/package path.
+- Protocol Buffers v35.0 release train is the initial ADR 0018 prototype candidate, revalidated before the IPC slice. Edition 2024 schemas and exact supported generator/generated-code/runtime matching are required; the official Rust kernel path and a credible wire-compatible Rust alternative are measured before any resident runtime is accepted. No Protobuf dependency is added to the pure-domain bootstrap.
 - `windows`/`windows-sys` versions selected and locked after API-surface/dependency review.
 - Visual Studio/MSVC/MSBuild component versions, Windows App SDK templates/NuGet packages, formatter/static-analysis tools, and CI runner images are pinned/recorded when their slice is introduced. vcpkg is added only for an actual reviewed C++ dependency. Experimental Windows App SDK CMake support is not a release prerequisite.
 
@@ -99,7 +100,8 @@ pastral/
 │  ├─ diagnostics/
 │  └─ test-support/
 ├─ protocols/
-│  ├─ ipc-schema/
+│  ├─ ipc-schema/                  # .proto authority added with IPC slice
+│  ├─ fixtures/                    # adjacent-version golden bytes
 │  └─ versioning.md
 ├─ database/
 │  ├─ migrations/
@@ -189,6 +191,7 @@ The verified setup guide will include:
 - Windows Application Packaging Project tooling for the multi-executable MSIX;
 - vcpkg at a pinned baseline only if used by an actual C++ dependency;
 - Windows package/signing test tools without production private keys;
+- exact Protocol Buffers v35.0 release-train compiler/schema tools for the prototype plus exact compatible artifacts for each C++/Rust runtime candidate; final resident runtime remains gated by ADR 0018 footprint/build/security evidence;
 - Accessibility Insights, Windows SDK inspection tools, WPR/WPA, and debugger for later validation.
 
 The setup command checks versions and exits with actionable mismatches. It never downloads/executes arbitrary tools silently.
@@ -248,7 +251,7 @@ Its bootstrap includes:
 
 - Windows clipboard fixtures;
 - SQLite/migration tests;
-- IPC tests/fuzz smoke;
+- fixed 36-byte frame/Protobuf Edition 2024 schema, DTO-domain conversion, exact runtime-match, adjacent-version, sequenced bulk-transfer, footprint, and IPC security/fuzz smoke;
 - manager/UI tests;
 - worker restriction/no-network tests;
 - package validation.
@@ -321,4 +324,4 @@ Tests and implementation may be combined into coherent test-first commits when s
 
 ## 14. Next design after bootstrap
 
-The next independent specification covers domain model, SQLite/blob storage, and lexical search together only if their schema contracts can be reviewed coherently. Clipboard capture remains a separate specification built around the native fixture producer/consumer and COM apartment evidence.
+The next independent specification covers domain model, the backend-neutral `BlobStore` contract plus SQLite/FTS5 metadata/search, and lexical search together only if their schema contracts can be reviewed coherently. It must benchmark/version internal SQLite BLOB versus external-file placement rather than hardcoding a universal threshold. Clipboard capture remains a separate specification built around the native fixture producer/consumer and COM apartment evidence.

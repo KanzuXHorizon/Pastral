@@ -1,4 +1,4 @@
-# ADR 0015: Hybrid Win32/OLE capture and replay ownership on a dedicated clipboard STA
+# ADR 0015: Hybrid Win32/OLE capture and replay ownership on a dedicated clipboard-platform STA
 
 **Status:** Accepted
 **Date:** 2026-08-04
@@ -15,10 +15,10 @@ Use a hybrid capture model inside `pastral-agent.exe`:
 
 1. A **control/overlay message thread** receives clipboard notifications, snapshots cheap source/foreground state, owns tray/hotkey/session messages and overlay HWNDs, and never calls foreign `IDataObject` methods.
 2. A **dedicated clipboard platform STA** initialized with `OleInitialize` owns all foreign clipboard/OLE objects/media plus Pastral `OleSetClipboard` replay-object publication/lifetime, and has its own message pump/private helper HWND.
-3. The control thread posts bounded `ClipboardObservation` and paste-publication intents to the clipboard STA. The queue/state machine is bounded and tracks latest-state pressure without pretending every intermediate clipboard state remains observable.
-4. The clipboard STA first inspects Win32 clipboard formats/privacy flags and captures reviewed standard formats through adapters.
+3. The control thread posts bounded `ClipboardObservation` and paste-publication intents to the clipboard-platform STA. The queue/state machine is bounded and tracks latest-state pressure without pretending every intermediate clipboard state remains observable.
+4. The clipboard-platform STA first inspects Win32 clipboard formats/privacy flags and captures reviewed standard formats through adapters.
 5. OLE `IDataObject` enumeration and `GetData` are supplemental and used only for adapters requiring `FORMATETC`, `lindex`, `IStream`, virtual-file, or richer medium semantics.
-6. Foreign `STGMEDIUM` values are copied into Pastral-owned bytes/handles/staging files and released on the clipboard STA with the correct ownership semantics. Foreign COM interfaces do not cross into storage/UI code. Pastral replay callbacks use only prevalidated owned memory or immutable pre-opened resources and never synchronously call SQLite, IPC, rules, or UI.
+6. Foreign `STGMEDIUM` values are copied into Pastral-owned bytes/handles/staging files and released on the clipboard-platform STA with the correct ownership semantics. Foreign COM interfaces do not cross into storage/UI code. Pastral replay callbacks use only prevalidated owned memory or immutable pre-opened resources and never synchronously call SQLite, IPC, rules, or UI.
 7. `CoEnableCallCancellation`/`CoCancelCall` may be prototyped around eligible marshaled calls. It is defense in depth, not the capture deadline contract.
 8. A supervisor records clipboard-apartment progress. If the apartment is stuck beyond the health threshold, Pastral enters a visible degraded capture/paste state; it does not terminate the thread unsafely or spawn unbounded replacements.
 9. If fixtures show that a blocked clipboard apartment cannot be recovered acceptably, a separate short-lived capture-broker process or replay-apartment split is designed through a new ADR before broad OLE/custom-format support.
@@ -49,7 +49,7 @@ Costs:
 
 ## Review triggers
 
-- clipboard STA hangs, replay callbacks block, or recovery fails under malicious fixtures;
+- clipboard-platform STA hangs, replay callbacks block, or recovery fails under malicious fixtures;
 - virtual-file/custom-format fidelity requires broader OLE use;
 - thread/working-set budget is missed;
 - process-launch benchmarks make an on-demand broker practical;

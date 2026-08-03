@@ -8,7 +8,7 @@ stateDiagram-v2
     Idle --> Observed: WM_CLIPBOARDUPDATE
     Observed --> Ignored: equivalent/validated self-generated current state
     Observed --> Queued: bounded observation handoff
-    Queued --> Opening: clipboard STA selects current observation
+    Queued --> Opening: clipboard-platform STA selects current observation
     Opening --> Retrying: clipboard busy
     Retrying --> Opening: bounded jitter delay
     Retrying --> Audit: retry budget exhausted
@@ -37,7 +37,7 @@ stateDiagram-v2
 - `WM_CLIPBOARDUPDATE` is a signal to inspect the current state, not proof of a unique copy operation; it carries no event identity.
 - Read `GetClipboardSequenceNumber` immediately on the control thread and handle zero/wrap/delayed-render semantics described in `clipboard-event-identity.md`.
 - Snapshot cheap source/foreground evidence, active profile/policy version, and active Pastral transaction marker.
-- Post a bounded `ClipboardObservation` to the dedicated clipboard STA and return from the window procedure.
+- Post a bounded `ClipboardObservation` to the dedicated clipboard-platform STA and return from the window procedure.
 - Sequence equality alone never proves self-generation; validate the private origin marker and transaction/ownership timing.
 - Coalesce only equivalent current-state observations. Identical content copied again remains a meaningful event when separately observed and captured.
 - Under pressure, prioritize the final current state and record possible intermediate-state loss honestly; Windows provides no historical clipboard-state queue.
@@ -59,13 +59,13 @@ Exact timings are selected through contention fixtures and capture-latency bench
 
 ## Format enumeration
 
-Accepted hybrid order on the clipboard STA:
+Accepted hybrid order on the clipboard-platform STA:
 
 1. open/inspect the current Win32 clipboard and enumerate registered privacy/history flags before payload reads where technically possible;
 2. enumerate standard and registered Win32 format identities;
 3. capture reviewed common formats through format-specific adapters with strict lengths and ownership rules;
 4. obtain a short-lived OLE `IDataObject` only for adapters that require `FORMATETC`, `lindex`, `IStream`, virtual-file, or richer medium semantics;
-5. copy foreign media into Pastral-owned storage and release it on the clipboard STA;
+5. copy foreign media into Pastral-owned storage and release it on the clipboard-platform STA;
 6. classify unknown custom formats as metadata-only/unsupported by default, not opaque-replayable merely because bytes are obtainable.
 
 Registered formats are persisted by exact name, not runtime numeric ID. Format priority for replay is recorded separately from capture order. See `clipboard-format-policy.md`.

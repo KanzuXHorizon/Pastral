@@ -144,13 +144,33 @@ Fixture destinations advertise/inspect supported formats and can emulate synchro
 
 Correct bytes/formats and destination safety are prerequisites; fast incorrect paste is a failure.
 
-## 12. Storage and recovery benchmark
+## 12. IPC schema and transfer benchmark
+
+Measure with the exact selected Protobuf release-train generator/generated-code/runtime candidates:
+
+- Rust agent binary size and steady-state private working-set delta for the official Rust-kernel path and at least one credible wire-compatible alternative, each linked but idle;
+- C++ manager binary/package size using lite control runtime where supported;
+- fixed 36-byte frame parse latency and allocation count for minimum, typical, and maximum control bodies;
+- protobuf parse, post-parse validation, and DTO-domain conversion latency/allocations;
+- Rust-to-C++ and C++-to-Rust serialize/parse golden compatibility;
+- malformed, deeply nested, unknown action/enum, missing presence, duplicate-key, and limit rejection cost;
+- 256 KiB control and 1 MiB bulk-chunk boundaries;
+- bulk streaming throughput, staging disk I/O, cancellation/disconnect cleanup, low-disk response, and peak memory;
+- 16 in-flight requests per connection, 64 globally, one active bulk stream per connection, backpressure, and slow-client isolation behavior;
+- proof that linking IPC does not add periodic wakeups, gRPC, Tokio, reflection, JSON/TextFormat, or an unbounded allocation pattern.
+
+Compare against a minimal framed protocol stub. Missing the resident/build/security gates keeps ADR 0018 Proposed and triggers a measured runtime/schema alternative decision rather than hiding dependency cost.
+
+## 13. Storage and recovery benchmark
 
 Scenarios:
 
+- internal SQLite BLOB versus external-file backend across realistic payload sizes/distributions (for example 64 B–10 MiB), duplicate ratios, 100k and 1M metadata histories, warm/cold cache, Defender/antivirus enabled, random/sequential reads, durable grouped writes, preview/search access, backup/export, cleanup, and file/database space;
+- threshold sweeps and transactional migration between backends, preserving `sha256-raw-v1`, protection domains, reference counts, crash recovery, and no duplicate event semantics;
+- incremental SQLite BLOB I/O where applicable versus ordinary SQL retrieval and external streamed I/O;
 - rollback journal versus WAL prototype, including FTS/freelist/journal/WAL deletion remnants;
 - clean and dirty shutdown;
-- forced termination at each blob/database commit phase;
+- forced termination at each internal-BLOB, external staging/rename, reference/database commit, and backend-migration phase;
 - low disk and quota crossing;
 - antivirus/file lock interference;
 - migration from every supported prior schema;
@@ -158,9 +178,9 @@ Scenarios:
 - retention cleanup with pinned/shared blobs and usage above the 5 GB automatic-cleanup target;
 - encrypted write/read/rotation, whole-message authentication-before-release, independently authenticated chunk behavior, and equal Private plaintext producing non-equal storage identity.
 
-Use disposable synthetic data only.
+Use disposable synthetic data only. Record the selected storage-policy version and threshold with confidence intervals and retain the runner-up; do not promote one backend as universally faster.
 
-## 13. Reporting
+## 14. Reporting
 
 Create reports under `docs/performance/reports/YYYY-MM-DD-<commit>-<machine>.md` containing:
 

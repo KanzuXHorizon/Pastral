@@ -94,14 +94,14 @@ Out of scope as a guaranteed defense:
 
 **Controls:**
 
-- control/overlay thread never invokes foreign clipboard/OLE methods;
-- dedicated capture STA owns foreign interfaces/media and has its own message pump;
+- control/overlay thread never invokes foreign clipboard/OLE methods or serves replay callbacks;
+- dedicated clipboard-platform STA owns foreign interfaces/media plus Pastral replay-object publication/lifetime and has its own message pump;
 - bounded observation queue and soft capture deadlines;
 - eligible COM call cancellation is prototyped as best effort, never relied on as a universal hard timeout;
 - sequence/current-state recheck where safe;
 - short-lived foreign object references and no foreign interfaces crossing into storage/UI;
 - watchdog-visible degraded/paused capture state rather than `TerminateThread` or unbounded replacement threads;
-- separate capture-broker review if non-cooperative fixtures cannot be recovered acceptably;
+- separate capture-broker or replay-apartment split review if non-cooperative fixtures cannot be recovered acceptably;
 - fixture producer for delayed rendering, blocked Win32/OLE calls, owner exit, cancellation refusal, and re-entrancy.
 
 ### T3 — Hard-deny or exclusion bypass
@@ -162,17 +162,19 @@ Out of scope as a guaranteed defense:
 - no content-returning defaults in CLI; private/sensitive output requires separate authorization;
 - IPC fuzzing, first-instance squatting, remote, cross-user/session, stale-client, replay, and same-user residual-risk tests/documentation.
 
-### T7 — IPC resource exhaustion
+### T7 — IPC parser, bulk-transfer, or resource exhaustion
 
-**Threat:** Same-user client opens many connections, streams requests, or triggers expensive searches/exports.
+**Threat:** A client opens many connections/requests, sends malformed 36-byte frames or hostile Protobuf bodies, exploits parser defaults/unknown enums, creates excessive internal allocations from a bounded wire body, reorders/gaps bulk chunks, holds staging resources, or triggers expensive searches/exports.
 
 **Controls:**
 
-- per-client and global connection limits;
-- request deadlines, pagination, cancellation, and quotas;
-- bounded subscriptions and outbound queues;
-- cheap authentication before expensive parsing;
-- rate limits for destructive/expensive operations;
+- validate 36-byte header/kind/flags/sequence/UUID/body ceiling before body-buffer allocation;
+- 256 KiB control ceiling, parser recursion/total-byte controls where available, measured peak parser allocation, post-parse validation, and no domain/expensive operation before conversion succeeds;
+- Protobuf Edition 2024 explicit presence, known operation `oneof`, security-critical zero/unknown enum rejection, reserved-field compatibility, and parser defaults that never authorize;
+- 16 in-flight requests per connection, 64 globally, bounded connections/subscriptions/outbound queues, pagination, deadlines, cancellation, and rate/operation quotas;
+- one active bulk stream per connection initially with explicit sequence/count/total limits, connection/operation binding, authorization freshness, disk reserve, and staging cleanup on gap/duplicate/reorder/overflow/cancel/disconnect;
+- cheap peer/handshake checks before expensive parse/work and no giant clipboard payload in control messages;
+- frame/Protobuf/DTO/bulk state fuzzing and Rust/C++ golden compatibility;
 - abandon blocked clients without blocking capture.
 
 ### T8 — Worker escape or excessive access
@@ -199,12 +201,12 @@ Out of scope as a guaranteed defense:
 - authenticated encryption for sensitive blobs;
 - hashes and length checks for ordinary blobs;
 - schema constraints and foreign keys where appropriate;
-- staging/atomic rename/reconciliation;
+- one logical `BlobStore` with versioned internal-SQLite-BLOB/external-file backend policy, transactional references, staged external rename, internal BLOB commit, threshold migration, and reconciliation;
 - integrity check tooling;
 - never execute/open content automatically;
 - evaluate SQLite `secure_delete`, freelist/vacuum, rollback journal/WAL checkpoint/retention, snapshots, and backup copies; describe deletion as logical rather than guaranteed forensic erasure;
 - quarantine corruption and continue with unaffected data;
-- crash/power-loss and tampered-blob tests.
+- crash/power-loss and tampered-blob tests across both backends and migration phases.
 
 ### T10 — Path traversal, reparse points, and unsafe file lists
 
@@ -299,7 +301,8 @@ Out of scope as a guaranteed defense:
 - signed MSIX and publisher verification;
 - protected signing keys and least-privilege CI;
 - pinned dependencies/toolchains and lockfiles;
-- dependency/license/advisory/secret scans;
+- reproducible Protobuf schema/codegen hashes and exact supported generator/generated-code/runtime matching; stale or mismatched generated artifacts fail CI/build;
+- dependency/license/advisory/secret scans, including native kernels/transitive code linked into the resident agent;
 - reproducibility metadata and artifact provenance;
 - no unsigned in-app execution;
 - staged update and incident rollback plan.

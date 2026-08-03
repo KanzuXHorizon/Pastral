@@ -7,9 +7,9 @@ sequenceDiagram
     participant Src as Source application
     participant Win as Windows clipboard
     participant Control as Agent control/overlay thread
-    participant Capture as Agent clipboard STA
+    participant Capture as Agent clipboard-platform STA
     participant Policy as Capture policy
-    participant Store as SQLite/blob store
+    participant Store as SQLite + BlobStore
     participant Worker as pastral-worker.exe
     participant Overlay as Passive overlay
 
@@ -35,7 +35,7 @@ sequenceDiagram
             Capture->>Win: Short-lived OleGetClipboard / FORMATETC request
             Win-->>Capture: Foreign IDataObject / STGMEDIUM
         end
-        Capture->>Store: Pastral-owned staged blobs + metadata transaction
+        Capture->>Store: Owned payload + metadata transaction intent
         Store-->>Capture: Durable clip ID / recovery token
         Capture-->>Control: Immutable confirmation view model
         Control->>Overlay: Show focus-safe confirmation
@@ -45,7 +45,7 @@ sequenceDiagram
             Capture->>Store: Commit derived representation
         end
     end
-    Capture->>Win: Release foreign clipboard/data object on clipboard STA
+    Capture->>Win: Release foreign clipboard/data object on clipboard-platform STA
 ```
 
 ## Query flow
@@ -87,15 +87,24 @@ flowchart TD
 
 ## Blob commit flow
 
-Ordinary payload commit is designed around recoverable staging:
+The normative lifecycle is defined in [`blob-store-lifecycle.md`](blob-store-lifecycle.md). Ordinary payloads share one logical content-addressed identity while a versioned benchmark policy selects the physical backend.
 
-1. create an unpredictable temporary file in the blob staging directory;
-2. stream bytes while enforcing size limits and computing the selected hash;
-3. flush and close the staging handle according to durability policy;
-4. derive the final content-addressed path for non-sensitive data;
-5. atomically rename when possible, accepting an existing identical blob;
-6. commit metadata references in SQLite;
-7. recovery reconciliation removes orphan staging files and identifies unreferenced final blobs after grace periods.
+### Internal SQLite BLOB
+
+1. validate the bounded owned payload and compute `sha256-raw-v1`;
+2. begin the SQLite storage transaction and look up an existing compatible logical blob;
+3. insert the internal BLOB object when absent and attach representation/reference metadata;
+4. commit atomically; rollback cannot expose an incomplete referenced internal object.
+
+### External file
+
+1. create an unpredictable staging file under the controlled data root;
+2. stream bytes while enforcing limits/reserve and computing `sha256-raw-v1`;
+3. flush/close, deduplicate against an existing compatible logical blob, or atomically finalize to a controlled object key;
+4. commit the external locator plus metadata references in SQLite;
+5. reconciliation removes stale staging/orphan candidates only after grace/recheck.
+
+Threshold changes do not rewrite blobs on the capture path. Backend migration copies/verifies a candidate, transactionally switches the authoritative locator, then removes the old location after reader/recovery safety.
 
 Sensitive payload flow differs:
 

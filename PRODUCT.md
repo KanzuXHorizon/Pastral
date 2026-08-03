@@ -47,11 +47,11 @@ Primary surfaces:
 Confirmed capabilities and constraints:
 
 - Windows 11 only; x64 first;
-- Rust resident agent with a responsive control/overlay message thread and a dedicated capture STA for foreign Win32/OLE calls;
+- Rust resident agent with a responsive control/overlay message thread and a dedicated clipboard-platform STA for foreign Win32/OLE capture objects/media and Pastral replay-object publication/lifetime;
 - C++/WinRT and WinUI 3 manager;
 - event-driven capture with no clipboard polling;
 - immutable originals and derived representations;
-- SQLite/FTS5 plus recoverable blob storage;
+- SQLite/FTS5 plus one recoverable content-addressed blob contract whose internal/external physical placement is benchmark-selected;
 - profiles and explainable deterministic rules;
 - local-first, network-silent core;
 - no mandatory AI, OCR, semantic search, account, or cloud sync;

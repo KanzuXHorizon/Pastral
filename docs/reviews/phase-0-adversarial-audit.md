@@ -266,6 +266,43 @@ Official sources:
 - https://learn.microsoft.com/en-us/windows/apps/windows-app-sdk/single-project-msix
 - https://github.com/microsoft/WindowsAppSDK/releases
 
+### F-21 — IPC serialization/framing remained unspecified
+
+**Severity:** High
+
+**Affected baseline:** ADR 0008, protocol directory plan, Rust/C++ dependency/toolchain plan, fuzz/compatibility gates.
+
+**Problem:** “Select a schema during bootstrap” left core wire compatibility, framing limits, large-payload behavior, parser/runtime dependencies, presence/default semantics, and schema evolution unresolved. Implementers could choose incompatible Rust/C++ serializers or put clipboard payloads into unbounded control messages.
+
+**Correction:** ADR 0018 proposes a fixed 36-byte bounded Pastral frame with explicit bulk sequence, Protobuf Edition 2024 control schemas, and a separate authorized raw bulk-chunk state machine. Protocol Buffers v35.0 is the current prototype release-train candidate, but the resident Rust runtime is not accepted until official-kernel and credible wire-compatible alternatives are measured for binary/working-set/build/security impact. Large clipboard payloads never live in ordinary control messages. Security-critical enums/presence are validated after parsing, deleted fields are reserved, and DTOs do not become domain/storage models.
+
+Official sources:
+
+- https://protobuf.dev/
+- https://protobuf.dev/reference/rust/
+- https://protobuf.dev/reference/cpp/cpp-generated/
+- https://protobuf.dev/support/cross-version-runtime-guarantee/
+- https://github.com/protocolbuffers/protobuf/releases
+
+### F-22 — Forcing every payload into a separate file was not evidence-based
+
+**Severity:** High
+
+**Affected baseline/amendment draft:** ADR 0006, data model, storage/recovery benchmarks, quota/backup behavior.
+
+**Problem:** A file-per-payload design simplifies large-stream staging but can create hundreds of thousands of tiny files, filesystem-block waste, open/close cost, antivirus scans, backup overhead, and expensive cleanup for ordinary text histories. Conversely, forcing large images/streams into SQLite can inflate database/journal/checkpoint costs. SQLite's official guidance shows a workload-dependent crossover and supports incremental BLOB I/O, so neither universal backend is justified without Windows evidence.
+
+**Correction:** Use one content-addressed `BlobStore` contract with internal SQLite BLOB and external-file physical backends. Event/representation rows hold references, not duplicated payload columns. A versioned threshold/policy is selected through Windows 11 x64 benchmarks with realistic payload distributions, 100k–1M records, Defender enabled, warm/cold cache, crash, backup, low disk, deletion, and migration tests. Ordinary digest/protection/deduplication semantics remain independent of backend; Private/sensitive policy remains separately protected.
+
+Official sources:
+
+- https://www.sqlite.org/fasterthanfs.html
+- https://www.sqlite.org/intern-v-extern-blob.html
+- https://www.sqlite.org/appfileformat.html
+- https://www.sqlite.org/c3ref/blob.html
+
+**Residual risk:** A hybrid backend adds migration/recovery complexity and can still produce poor file/database behavior if the threshold is chosen from synthetic benchmarks that do not match user histories. Threshold changes require transactional migration and release evidence.
+
 ## Decisions retained after audit
 
 The audit did not reverse:
@@ -274,7 +311,7 @@ The audit did not reverse:
 - Rust resident core and C++/WinRT WinUI manager;
 - one resident agent and agent-owned database;
 - immutable originals and derived provenance;
-- SQLite + FTS5 + external blob store direction;
+- SQLite + FTS5 + content-addressed `BlobStore` direction with benchmark-selected internal/external physical backends;
 - local-first/network-silent core;
 - deterministic rules before ML;
 - DirectComposition/Direct2D/DirectWrite overlay prototype;
@@ -283,27 +320,21 @@ The audit did not reverse:
 
 ## Verification evidence
 
-The Phase 0.1 working tree was checked after all corrections with read-only repository commands:
+### Phase 0.1 historical evidence
 
-- local Markdown links: PASS across 67 Markdown files;
-- Markdown code-fence balance: PASS across 67 files;
-- ADR structure and index: PASS for ADR 0001–0017;
-- architecture finding coverage: PASS for F-01 through F-20;
-- contradiction scan: PASS for empty `ClipEvent`, hard 5 GB quota, optional sensitive-audit default, broad user-SID pipe access, unstable registered numeric identity, stale digest name, and unsupported security/losslessness wording;
-- Windows SDK `10.0.28000.2270`: present only in this historical correction and the Phase 0.1 execution-plan instruction; active bootstrap documents use `10.0.28000.2526`;
-- unresolved implementation placeholders: none outside historical checker examples;
-- secret-signature scan: PASS;
-- `git diff --check`: PASS;
-- machine-local DevSpace launcher remains ignored; accidental `NUL` artifact is absent;
-- stable manager build authority uses Visual Studio/MSBuild/XAML, with no empty root CMake graph or unconditional vcpkg manifest in the pure Rust/domain bootstrap.
+Commit `2aec1c7` was verified with 67 Markdown files, 17 ADRs, and findings F-01 through F-20; local links/fences, ADR structure, contradiction/version scope, secret-signature scan, whitespace, documentation-only scope, ignored launcher, and absent `NUL` artifact passed. That evidence applies to the exact committed tree and is not retroactively expanded to cover later ADR 0018 or F-21/F-22.
 
-These checks establish documentation consistency and repository scope only. They do not validate runtime behavior, security, performance, accessibility, packaging, or clipboard compatibility.
+### Phase 0.2 evidence
+
+ADR 0018, F-21, F-22, the hybrid `BlobStore`, and the follow-up build/runtime refinements are verified separately in [`phase-0-2-ipc-storage-verification.md`](phase-0-2-ipc-storage-verification.md). That file records fresh commands and results for the exact follow-up commit candidate.
+
+Documentation checks establish consistency and repository scope only. They do not validate runtime behavior, security, performance, accessibility, packaging, or clipboard compatibility.
 
 ## Readiness gate
 
 Repository/toolchain bootstrap may begin only after:
 
-1. ADR 0015–0017 and new architecture documents are accepted;
+1. ADR 0015–0017 are accepted; ADR 0018 framing/schema prototype requirements are recorded with its runtime acceptance gate; ADR 0006 uses a benchmark-gated hybrid blob backend rather than a universal file/SQLite assumption;
 2. all affected baseline documents are corrected;
 3. the new security limitations are reflected in tests and user-facing policy;
 4. the documentation consistency and link checks pass;

@@ -24,9 +24,9 @@ Exact thread count is measured. The table defines ownership, not a requirement t
 
 1. Control thread receives `WM_CLIPBOARDUPDATE`.
 2. It reads the current sequence, active Pastral transaction marker, foreground HWND/process snapshot, session/profile state, and monotonic observation timestamp using nonblocking calls.
-3. It posts a bounded `ClipboardObservation` to the capture STA.
+3. It posts a bounded `ClipboardObservation` to the clipboard-platform STA.
 4. It returns from the window procedure immediately.
-5. Capture STA rejects stale/equivalent observations, acquires current clipboard state through its own helper HWND (or an explicitly justified null-owner read path), and emits an owned capture result or audit outcome. It does not pass the control-thread listener HWND to `OpenClipboard` as an implicit cross-thread ownership shortcut.
+5. The clipboard-platform STA rejects stale/equivalent observations, acquires current clipboard state through its own helper HWND (or an explicitly justified null-owner read path), and emits an owned capture result or audit outcome. It does not pass the control-thread listener HWND to `OpenClipboard` as an implicit cross-thread ownership shortcut.
 6. Storage executor commits the result.
 7. Control thread receives only an immutable overlay/status view model.
 
@@ -35,12 +35,12 @@ The source snapshot is evidence at notification time, not proof that the same pr
 ## 4. Foreign-call rules
 
 - Never invoke a foreign `IDataObject`, `IEnumFORMATETC`, `IStream`, `IStorage`, or `pUnkForRelease` method from the control/overlay, storage, IPC, or UI thread.
-- Do not transfer raw `STGMEDIUM`, GDI handles, global-memory pointers, or foreign COM interfaces outside the capture STA.
+- Do not transfer raw `STGMEDIUM`, GDI handles, global-memory pointers, or foreign COM interfaces outside the clipboard-platform STA.
 - Copy validated data to owned buffers, duplicated handles, or staged files first.
 - Balance every successful medium acquisition with the documented release path, normally `ReleaseStgMedium`, on the owning apartment.
 - Wrap re-entrant state with explicit transaction guards; do not hold database or UI locks during foreign calls.
 - A newer observation may make a result stale, but stale cancellation must not leak acquired media or staging files.
-- Pastral replay `IDataObject` callbacks execute on the clipboard STA and use only prevalidated owned memory, immutable pre-opened blob/stream resources, and bounded adapter state. They do not query SQLite, IPC, rule engines, or UI synchronously.
+- Pastral replay `IDataObject` callbacks execute on the clipboard-platform STA and use only prevalidated owned memory, immutable pre-opened blob/stream resources, and bounded adapter state. They do not query SQLite, IPC, rule engines, or UI synchronously.
 - Capture and replay commands are serialized by an explicit state machine. Publishing a new object, flushing/retiring an old object, and processing a foreign update cannot race ownership teardown.
 
 ## 5. Cancellation and health
@@ -55,7 +55,7 @@ A capture attempt has a soft deadline used for metrics, newer-sequence cancellat
 
 ### Stuck apartment
 
-A supervisor tracks last-progress phase without inspecting payloads. When the capture STA exceeds the hard health threshold:
+A supervisor tracks last-progress phase without inspecting payloads. When the clipboard-platform STA exceeds the hard health threshold:
 
 - stop queueing unbounded work;
 - retain only bounded latest-state intent;
@@ -66,7 +66,7 @@ A supervisor tracks last-progress phase without inspecting payloads. When the ca
 - activate per-source safe mode only when source evidence is sufficiently reliable;
 - open the capture-broker ADR review if fixtures reproduce the issue.
 
-Do not call `TerminateThread`. A blocked clipboard STA also delays replay publication/callback service, so the degraded-state UI must not promise paste availability; explicit process restart and a future capture-broker/replay-apartment split are review paths.
+Do not call `TerminateThread`. A blocked clipboard-platform STA also delays replay publication/callback service, so the degraded-state UI must not promise paste availability; explicit process restart and a future capture-broker/replay-apartment split are review paths.
 
 ## 6. Manager and Quick Paste apartments
 
@@ -78,7 +78,7 @@ Worker job type declares whether COM is forbidden, MTA, or STA. A worker initial
 
 ## 8. Shutdown and session transitions
 
-- Stop accepting new capture observations before tearing down the capture STA.
+- Stop accepting new capture observations/paste publications before tearing down the clipboard-platform STA.
 - Cancel/finish owned staging work before `OleUninitialize`.
 - Do not uninitialize COM while foreign interfaces/media remain.
 - Overlay/device teardown occurs independently from capture health.
@@ -90,7 +90,7 @@ Worker job type declares whether COM is forbidden, MTA, or STA. A worker initial
 - delayed-render owner that sleeps, re-enters, exits, and ignores cancellation;
 - standard Win32 render callback that blocks;
 - `IStream` partial reads and never-ending stream;
-- overlay/tray/hotkey responsiveness while capture STA is blocked;
+- overlay/tray/hotkey responsiveness while the clipboard-platform STA is blocked;
 - bounded queue under rapid updates;
 - medium/handle leak counts;
 - clean shutdown at every capture phase;

@@ -4,7 +4,7 @@
 
 **Goal:** Correct factual and architectural gaps in the Phase 0 baseline so clipboard capture, IPC, data identity, source attribution, Quick Paste, privacy, paste dispatch, and testing can be implemented without relying on unsafe or impossible assumptions.
 
-**Architecture:** Phase 0.1 remains documentation/governance work. It selects a hybrid Win32/OLE capture strategy on a dedicated STA, formalizes durable domain identities and clipboard-format identity, scopes IPC security honestly, hosts Quick Paste in the on-demand manager process, and expands test/release gates. No Rust, C++, database, package, or UI implementation is created.
+**Architecture:** Phase 0.1 remains documentation/governance work. It selects a hybrid Win32/OLE capture/replay strategy on a dedicated clipboard-platform STA, formalizes durable domain identities and clipboard-format identity, scopes IPC security honestly, proposes Protobuf Edition 2024 plus bounded framing/sequenced bulk transfer behind runtime acceptance gates, hosts Quick Paste in the on-demand manager process, and expands test/release gates. No Rust, C++, database, package, or UI implementation is created.
 
 **Tech Stack:** Markdown, Mermaid, Git, Windows 11, Win32 clipboard/OLE/COM, named pipes, DPAPI, SQLite/FTS5, C++/WinRT/WinUI 3, Rust architecture decisions.
 
@@ -14,7 +14,7 @@
 - x64 first; ARM64 follows only after x64 quality gates.
 - One always-running process remains the default.
 - No clipboard polling.
-- Foreign clipboard/OLE calls never run on the agent control/overlay message thread.
+- Foreign clipboard/OLE calls and Pastral replay callbacks never run on the agent control/overlay message thread.
 - A successful `ClipEvent` contains at least one captured representation; denied/failed/skipped observations use separate audit records.
 - Registered clipboard format numeric IDs are runtime-local; durable identity uses standard IDs or registered names.
 - Named-pipe ACLs and DPAPI secrets do not claim protection from fully compromised same-user processes.
@@ -76,11 +76,11 @@ Expected: no matches except a historical correction entry in the adversarial aud
 
 **Interfaces:**
 - Consumes: Win32 clipboard listener/sequence contracts, OLE call-cancellation limitations, existing process model.
-- Produces: a nonblocking control thread, dedicated capture STA, bounded best-effort capture, honest gap accounting, and confidence-bearing source context.
+- Produces: a nonblocking control thread, dedicated clipboard-platform STA, bounded best-effort capture/replay ownership, honest gap accounting, and confidence-bearing source context.
 
 - [x] **Step 1: Accept the hybrid capture/threading ADR**
 
-Select a control/overlay message thread that never invokes foreign `IDataObject`, a dedicated capture STA with a message pump, a serialized storage executor, and supplemental OLE adapters only when required. Document COM cancellation as best effort, not a hard timeout.
+Select a control/overlay message thread that never invokes foreign `IDataObject` or serves replay callbacks, a dedicated clipboard-platform STA with a message pump/helper HWND for foreign capture media and Pastral replay-object lifetime, a serialized storage executor, and supplemental OLE adapters only when required. Document COM cancellation as best effort, not a hard timeout.
 
 - [x] **Step 2: Define event and sequence semantics**
 
@@ -195,7 +195,52 @@ Hard-deny source signals create no durable history/audit row. High-confidence se
 
 Define 5 GB as an automatic-cleanup target rather than an absolute cap because pinned items are exempt. Low-disk reserve pauses new payload capture without deleting pinned data silently.
 
-### Task 6: Expand tests, release gates, and consistency evidence
+### Task 6: Select IPC schema/framing and close build-system gaps
+
+**Files:**
+- Create: `docs/adr/0018-ipc-schema-and-framing.md`
+- Create: `docs/architecture/ipc-schema-and-framing.md`
+- Create: `docs/architecture/blob-store-lifecycle.md`
+- Modify: `docs/adr/0008-ipc-protocol.md`
+- Modify: `docs/architecture/ipc-security-model.md`
+- Modify: `docs/research/official-sources.md`
+- Modify: `docs/testing/strategy.md`
+- Modify: `docs/testing/compatibility-matrix.md`
+- Modify: `docs/release/checklist.md`
+- Modify: `docs/operations/repository-initialization.md`
+- Modify: `docs/reviews/phase-0-adversarial-audit.md`
+- Modify: `docs/adr/0006-sqlite-blob-store.md`
+- Modify: `docs/architecture/data-model.md`
+- Modify: `docs/architecture/data-flow.md`
+- Modify: `docs/architecture/overview.md`
+- Modify: `docs/architecture/README.md`
+- Modify: `docs/performance/benchmark-methodology.md`
+
+**Interfaces:**
+- Consumes: Rust/C++ cross-language requirements, named-pipe security model, resident footprint budget, supported MSBuild manager path.
+- Produces: one bounded schema/framing/bulk-transfer contract, reproducible codegen/runtime policy, and one backend-neutral BlobStore lifecycle covering commit, recovery, migration, deletion, and low-disk behavior.
+
+- [x] **Step 1: Define and approve the IPC schema/framing prototype contract**
+
+Define a fixed 36-byte little-endian Pastral frame with explicit bulk sequence, Protobuf Edition 2024 control schemas, and authorized raw bulk chunks. Keep ADR 0018 Proposed until the official Rust-kernel path and at least one credible actively maintained wire-compatible Rust alternative pass footprint/build/security gates; Protocol Buffers v35.0 is the current release-train candidate and is revalidated at prototype time.
+
+- [x] **Step 2: Define parser, evolution, and authorization invariants**
+
+Validate every frame header before allocating its bounded body buffer; constrain/measure selected Protobuf parser recursion, total bytes, and peak allocation; reject unknown actions/security enums/missing presence; reserve deleted fields; keep DTOs separate from domain/storage; never put clipboard payloads into control messages.
+
+- [x] **Step 3: Define bulk-transfer state machine and evidence**
+
+Bind transfer UUID/connection/operation, enforce ordered chunks/limits/deadline/cancellation/staging cleanup, preserve Private/sensitive no-plaintext-digest policy, and add Rust/C++ golden/fuzz/footprint gates.
+
+- [x] **Step 4: Correct stable manager build authority**
+
+Use a Visual Studio C++ WinUI `.vcxproj` with MSBuild/NuGet/XAML as the stable manager build path and a `.wapproj` for the four-executable package. Remove empty root CMake/vcpkg bootstrap requirements; CMake remains optional for a future isolated native library and Windows App SDK CMake consumption is not a stable release dependency while Microsoft labels it Experimental.
+
+- [x] **Step 5: Correct the universal external-blob assumption**
+
+Use one content-addressed `BlobStore` reference contract with benchmark-selected internal SQLite BLOB and external-file physical backends. Keep digest, protection-domain, deduplication, immutability, backup, recovery, and deletion semantics independent of backend. Select/version the threshold through Windows/Defender tests instead of creating one file per tiny clip or putting every large stream into SQLite.
+
+### Task 7: Expand tests, release gates, and consistency evidence
 
 **Files:**
 - Modify: `docs/testing/strategy.md`
@@ -204,34 +249,32 @@ Define 5 GB as an automatic-cleanup target rather than an absolute cap because p
 - Modify: `docs/performance/benchmark-methodology.md`
 - Modify: `docs/release/checklist.md`
 - Modify: `docs/adr/0002-winui3-manager.md`
+- Modify: `docs/adr/0018-ipc-schema-and-framing.md`
 - Modify: `docs/adr/README.md`
 - Modify: `docs/operations/repository-initialization.md`
 - Modify: `README.md`
 - Modify: `PRODUCT.md`
 - Modify: `docs/reviews/phase-0-consistency-review.md`
+- Create: `docs/reviews/phase-0-2-ipc-storage-verification.md`
 - Modify: `docs/superpowers/plans/2026-08-04-pastral-phase-0-1-hardening.md`
 
 **Interfaces:**
-- Consumes: all Phase 0.1 decisions.
-- Produces: regression coverage, updated decision index, revised baseline summary, and a verified hardening commit.
+- Consumes: all Phase 0.1 decisions plus the Phase 0.2 IPC/runtime/storage refinements.
+- Produces: regression coverage, updated decision index, revised baseline summary, explicit verification evidence, and a distinct refinement commit.
 
 - [x] **Step 1: Add regression and compatibility gates**
 
-Cover registered-format ID changes, sequence zero/wrap/gaps, delayed rendering, capture STA hang, source confidence, hard-deny no-record behavior, same-user boundary statements, elevated/UIPI paste fallback, Quick Paste cold/warm host, format adapters, FTS/WAL deletion remnants, encrypted chunk authentication, and private-profile isolation.
+Cover registered-format ID changes, sequence zero/wrap/gaps, delayed rendering, clipboard-platform STA hang/replay callback isolation, source confidence, hard-deny no-record behavior, same-user boundary statements, elevated/UIPI paste fallback, Quick Paste cold/warm host, format adapters, FTS/WAL deletion remnants, encrypted chunk authentication, and private-profile isolation.
 
 - [x] **Step 2: Update indexes and baseline summaries**
 
-Add ADR 0015–0017 and link new architecture documents. Mark the old consistency review as superseded by the adversarial hardening review where applicable without rewriting historical command evidence.
+Add ADR 0015–0017 as accepted hardening decisions, ADR 0018 as a Proposed prototype/runtime-gated decision, and link the new architecture documents. Mark the old consistency review as superseded where applicable without rewriting historical command evidence.
 
-- [x] **Step 3: Correct stable manager build authority**
-
-Use a Visual Studio C++ WinUI `.vcxproj` with MSBuild/NuGet/XAML as the stable manager build path and a `.wapproj` for the four-executable package. Remove empty root CMake/vcpkg bootstrap requirements; CMake remains optional for a future isolated native library and Windows App SDK CMake consumption is not a stable release dependency while Microsoft labels it Experimental.
-
-- [x] **Step 4: Run full documentation checks**
+- [x] **Step 3: Run full documentation checks**
 
 Run placeholder, stale-version, architecture-term, local-link, ADR-heading, secret-signature, whitespace, and Git scope checks.
 
-- [x] **Step 5: Inspect and commit**
+- [x] **Step 4: Inspect and commit**
 
 Run:
 
@@ -242,8 +285,8 @@ git diff --stat
 git diff --cached --check
 ```
 
-Commit only the Phase 0.1 documentation/governance changes with:
+Commit only the additional Phase 0.2 documentation/governance changes on top of the existing Phase 0.1 hardening commit with:
 
 ```bash
-git commit -m "docs: harden Pastral architecture assumptions"
+git commit -m "docs: define bounded IPC and blob contracts"
 ```

@@ -115,7 +115,7 @@ No heuristic is described as certain unless destination-specific evidence suppor
 - Synthetic-input failure, UIPI restriction, or uncertain focus restoration leaves the selected item on the clipboard so the user can paste manually.
 - Destination change, integrity mismatch, or uncertain restoration/dispatch cancels synthetic paste rather than risking a wrong target.
 - Corrupt or tampered encrypted blobs are quarantined and reported without plaintext logging.
-- Agent crash or blocked clipboard STA during delayed rendering is covered by shutdown/restart, degraded paste availability, and `OleFlushClipboard` compatibility tests; no callback performs storage/business work that could deadlock the core.
+- Agent crash or blocked clipboard-platform STA during delayed rendering is covered by shutdown/restart, degraded paste availability, and `OleFlushClipboard` compatibility tests; no callback performs storage/business work that could deadlock the core.
 
 ## Compatibility evidence
 

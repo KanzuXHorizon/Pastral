@@ -26,7 +26,7 @@ Every server instance uses:
 
 - `FILE_FLAG_FIRST_PIPE_INSTANCE` for the first creation attempt to detect/suppress name squatting;
 - `PIPE_REJECT_REMOTE_CLIENTS`;
-- overlapped I/O rather than compatibility `PIPE_NOWAIT`;
+- `PIPE_TYPE_BYTE`/`PIPE_READMODE_BYTE` with overlapped I/O rather than Windows message-boundary semantics or compatibility `PIPE_NOWAIT`; the Pastral 36-byte header is the sole application-frame boundary;
 - explicit security descriptor, never a null/default descriptor;
 - least-privilege allow ACE for the current **logon SID** as the normal client-access principal; SYSTEM only for a documented package/update need;
 - no ordinary allow ACE for the broad user SID, because DACL allow entries are additive and a user-SID ACE would let another logon session of the same account bypass logon-SID isolation;
@@ -66,13 +66,17 @@ This detects stale/wrong installations and simple replay/confusion. Because same
 
 ## 6. Message framing and schemas
 
-- Fixed endian/versioned length prefix with strict maximum before allocation.
-- Explicit request/response/event discriminants; no arbitrary object deserialization.
-- Unknown mandatory variants rejected; optional fields follow negotiated capability rules.
-- Checked arithmetic, bounded strings/collections/nesting, deadlines, cancellation, pagination, and backpressure.
-- Per-client/global limits for connections, in-flight requests, subscriptions, search cost, export bytes, and destructive operations.
-- Incremental results carry query/request IDs so obsolete responses cannot mutate current UI state.
-- Payload transfer uses bounded chunks or separately opened handles/shared memory only after a dedicated measured design; no giant unbounded message.
+ADR 0018 and [`ipc-schema-and-framing.md`](ipc-schema-and-framing.md) define the prototype's fixed 36-byte Pastral frame, Protobuf Edition 2024 control bodies, explicit bulk-frame sequence, and raw authorized bulk chunks. Header validation bounds body buffering before parse; selected runtime parser recursion/total-byte/peak-allocation behavior is separately constrained and measured. Post-parse DTO/domain validation and operation authorization remain mandatory; successful parsing alone never authorizes a request. The resident Protobuf runtime remains gated by footprint/build/security evidence.
+
+- Validate magic, framing/protocol major, known frame kind, reserved flags, frame sequence, UUID use, and unsigned body length before allocating the bounded body buffer.
+- Use explicit protobuf request/response/event `oneof` discriminants; no arbitrary object deserialization, reflection, `Any`, JSON/TextFormat, or giant control-message payload.
+- Reject unknown mandatory operations/security enums, absent required presence, duplicate keyed records, and unnegotiated capability; informational unknown fields cannot grant authority.
+- Apply checked arithmetic, bounded strings/collections/nesting, deadlines, cancellation, pagination, and backpressure.
+- Enforce per-client/global limits for connections, in-flight requests, subscriptions, search cost, bulk/export bytes, and destructive operations.
+- Bind protocol version/capabilities through the HELLO transcript and connection state; post-handshake body fields cannot self-grant capabilities. The frame-header UUID is the sole request/response/event correlation authority.
+- Incremental results carry correlation/query IDs so obsolete responses cannot mutate current UI state.
+- Bulk transfers bind to the validated connection/request, exact authorized object, direction, byte/chunk limits, deadline, order, staging target, cancellation, and final commit result.
+- Clipboard payloads never appear in ordinary protobuf control messages. Shared memory/duplicated handles require a later dedicated measured security design.
 
 ## 7. Authorization classes
 
@@ -137,7 +141,7 @@ Mitigation emphasis:
 - impersonation failure and guaranteed `RevertToSelf`;
 - wrong user/session/integrity/package/publisher evidence;
 - handshake replay, wrong installation, rotated secret, nonce reuse, transcript tamper;
-- oversized/nested/malformed frames and subscription backpressure;
+- invalid/truncated/oversized 36-byte frame headers/bodies, unknown flags/kinds/sequence/UUID use, Protobuf nesting/presence/enums/actions/duplicate keys, adjacent-version Rust/C++ golden fixtures, bulk duplicate/gap/reorder/count/length/cancel/disconnect/low-disk, and subscription backpressure;
 - unauthorized sensitive reveal/export/delete/rule/key operations;
 - CLI cannot retrieve Private/sensitive content without authorized flow;
 - disconnect/lock clears protected view models;

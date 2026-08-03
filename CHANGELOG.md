@@ -19,9 +19,11 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Provisional brand guidelines and name-clearance research.
 - Repository initialization and release planning.
 - Phase 0.1 adversarial architecture audit and hardening plan.
-- ADRs for dedicated capture STA/hybrid Win32-OLE capture, durable UUID/time/order/digest semantics, and Quick Paste hosting.
+- ADRs for dedicated clipboard-platform STA/hybrid Win32-OLE capture/replay ownership, durable UUID/time/order/digest semantics, and Quick Paste hosting.
 - Normative data model, clipboard observation identity, format-adapter policy, source-confidence model, threading/COM ownership, and IPC security model.
 - Stable manager build authority based on Visual Studio/MSBuild/XAML with `Pastral.slnx`; multi-executable packaging remains a separate `.wapproj`, while experimental Windows App SDK CMake support is not a release prerequisite.
+- Proposed ADR 0018 for Protobuf Edition 2024 control schemas, an explicit 36-byte bounded named-pipe frame, sequenced bulk transfer, and measured resident-runtime acceptance gates.
+- Content-addressed `BlobStore` contract with benchmark-selected internal SQLite BLOB and external-file backends; event/representation rows store references, and backend choice does not change digest/protection semantics.
 
 ### Security
 

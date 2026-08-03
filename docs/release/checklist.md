@@ -13,7 +13,7 @@ A release is blocked until every required item is checked with artifact-specific
 
 ## 2. Toolchain and dependency evidence
 
-- [ ] Rust, Windows SDK, Windows App SDK, Visual Studio/MSVC/MSBuild/XAML toolset, SQLite, and Windows Application Packaging Project versions/components are recorded; vcpkg/CMake are recorded only if a reviewed dependency actually uses them.
+- [ ] Rust, Windows SDK, Windows App SDK, Visual Studio/MSVC/MSBuild/XAML toolset, SQLite, Protocol Buffers release-train/schema compiler plus the exact selected C++/Rust generated-code/runtime artifacts accepted by ADR 0018, and Windows Application Packaging Project versions/components are recorded; vcpkg/CMake are recorded only if a reviewed dependency actually uses them.
 - [ ] Lockfiles/manifests match the released source.
 - [ ] Dependency advisory scan passes or accepted residual risk is documented.
 - [ ] License/source review passes.
@@ -33,7 +33,7 @@ A release is blocked until every required item is checked with artifact-specific
 - [ ] Migration tests pass from every supported prior schema.
 - [ ] Clipboard fixture suite passes for required formats/media.
 - [ ] End-to-end capture → restart → search → replay passes.
-- [ ] IPC serialization, anti-squatting, remote rejection, peer/session validation, authorization/user-intent, replay, cancellation, and same-user-boundary documentation tests pass.
+- [ ] ADR 0018 has moved from Proposed to Accepted using Windows x64 evidence: fixed 36-byte IPC frame parser, 256 KiB control ceiling, Protobuf Edition 2024 parser/post-parse validation, DTO-domain conversion, exact selected generator/generated-code/runtime compatibility, official Rust-kernel versus credible alternative footprint/build/security results, adjacent-version golden fixtures, sequenced bulk-transfer state machine, anti-squatting, remote rejection, peer/session validation, authorization/user-intent, replay, cancellation, and same-user-boundary tests pass.
 - [ ] Worker restriction and no-network tests pass.
 - [ ] Security fuzz smoke tests pass; longer campaign results are reviewed.
 - [ ] Packaging validation and clean-install smoke pass.
@@ -58,7 +58,7 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] Listener registration/recovery passes across startup/session transitions.
 - [ ] Sequence unavailable/zero/wrap, queued duplicate notification, pressure/coalescing, final-current-state, and validated self-origin marker tests pass without claiming complete intermediate history.
 - [ ] Clipboard contention retries are bounded and measured.
-- [ ] Foreign clipboard/OLE calls and `STGMEDIUM` ownership remain on the capture STA; blocked/re-entrant/cancellation-refusing owners do not freeze control/overlay/tray/hotkeys.
+- [ ] Foreign clipboard/OLE calls, `STGMEDIUM` ownership, and Pastral replay-object publication/lifetime remain on the clipboard-platform STA; callbacks use only prevalidated owned resources, and blocked/re-entrant/cancellation-refusing owners do not freeze control/overlay/tray/hotkeys.
 - [ ] Unicode, ANSI/OEM/locale fallback, HTML, RTF, URL, `CF_HDROP`, virtual-file gate, DIB/DIBV5/bitmap/encoded image, multiple formats, registered-name/runtime-ID change, and unknown custom-format policy pass expected fidelity outcomes.
 - [ ] Delayed rendering, owner exit, rapid updates, malformed lengths/media, large streams, and empty clipboard are contained.
 - [ ] Source context records evidence/confidence, handles absent/conflicting owner/foreground/PID reuse, avoids title-based domain/project claims, and obeys redaction/privacy policy.
@@ -68,7 +68,8 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 ## 6. Storage, search, and recovery
 
 - [ ] Selected SQLite journal/pragmas have crash/backup/AV/low-disk evidence.
-- [ ] Blob staging/finalization/reconciliation passes forced termination at each phase.
+- [ ] Versioned internal-SQLite-BLOB/external-file threshold is supported by Windows/Defender warm/cold benchmark evidence; no universal backend claim remains.
+- [ ] Internal BLOB, external staging/finalization, reference commit, threshold migration, and reconciliation pass forced termination at each phase.
 - [ ] UUIDv4 public IDs, UTC-microsecond civil time, persistent installation-local `capture_order`, agent-restart/clock-rollback ordering, import/restore remapping, and pagination cursors pass invariant tests.
 - [ ] `sha256-raw-v1` ordinary dedup preserves every meaningful event and never crosses incompatible protection domains.
 - [ ] Private/sensitive equal plaintext uses random non-equality-revealing storage identity, no persistent plaintext digest, and no default plaintext deduplication.
@@ -78,7 +79,7 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] Cleanup is incremental/cancellable and does not freeze capture/UI.
 - [ ] FTS/structured query correctness passes at 1k, 10k, 100k, and release-target scale.
 - [ ] Sensitive/Private/excluded content is absent from FTS, suggestions, snippets, OCR, semantic indexes, duplicate stacks, and ordinary exports; SQLite/FTS/freelist/journal/WAL deletion-remnant policy is tested and documented.
-- [ ] Backup/restore/export/import round trips and corruption handling pass according to documented scope.
+- [ ] Backup/restore/export/import round trips include both physical blob backends, threshold-policy version, migration, and corruption handling according to documented scope.
 
 ## 7. Paste and replay
 

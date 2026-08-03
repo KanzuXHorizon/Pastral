@@ -78,7 +78,7 @@ Required invariants:
 - exactly one immutable capture-profile snapshot;
 - one observed UTC timestamp, originating per-process observation ordinal, and durable installation-local `capture_order` assigned by the storage transaction;
 - aggregate fidelity derived deterministically from representation states;
-- no payload bytes inline in metadata except explicitly bounded small-value storage selected by a later storage schema decision;
+- no captured/derived payload bytes are duplicated in event/representation metadata rows; every payload uses the `BlobStore` reference contract, whose physical backend may be an internal SQLite BLOB row or an external file selected by the versioned storage policy; bounded search/index text is a separate derived/indexed projection with explicit privacy policy;
 - no sensitive-skip/denied/failure placeholder represented as a clip;
 - immutable original representation membership after commit. Late recovery of a format creates an explicitly linked supplement event/representation only under a future accepted design, not silent mutation.
 
@@ -169,8 +169,10 @@ erDiagram
 
 ## 5. Blob identity and protection domains
 
-- Ordinary raw representation bytes use persisted digest suite `sha256-raw-v1`: SHA-256 over the exact stored bytes, with no text normalization or format metadata mixed into the digest.
-- Byte length, format identity, adapter version, and protection domain remain separate metadata and are checked before reusing an existing blob.
+Physical commit/migration/recovery semantics are defined in [`blob-store-lifecycle.md`](blob-store-lifecycle.md).
+
+- Ordinary raw representation bytes use persisted digest suite `sha256-raw-v1`: SHA-256 over the exact logical raw bytes, with no text normalization or format metadata mixed into the digest. Physical backend/encoding is separate from this identity.
+- Byte length, format identity, adapter version, protection domain, physical backend, and storage-policy version remain separate metadata and are checked before reusing or migrating an existing blob.
 - Ordinary deduplication occurs only inside a compatible ordinary protection domain and never merges distinct `ClipEvent` records.
 - Private/sensitive plaintext uses random blob identifiers, no persistent plaintext digest, and no default plaintext deduplication.
 - Derived output computes its own permitted digest over its own exact bytes and retains parent/transformation provenance.

@@ -18,7 +18,7 @@ Use Windows named pipes with the detailed model in `../architecture/ipc-security
 - a per-installation random component and per-session scope in the pipe name; the name is not treated as a secret;
 - protocol major/minor version negotiation and capability flags;
 - length-prefixed messages with strict maximum sizes;
-- a schema format selected during protocol bootstrap that rejects unknown dangerous variants and never deserializes executable/arbitrary object types;
+- the bounded 36-byte framing, Protobuf Edition 2024 control-schema prototype, and sequenced bulk-transfer state machine proposed by ADR 0018; never deserialize executable/arbitrary object types or put large clipboard payloads in control messages; final resident runtime adoption remains gated by footprint/build/security evidence;
 - instance/transcript-bound challenge-response using a per-installation secret protected by user-scope DPAPI, for stale/wrong-client and replay/confusion resistance rather than a claimed barrier against fully compromised same-user processes;
 - correlation IDs, deadlines, cancellation, pagination, and bounded subscriptions;
 - server and client PID/token/user/logon-session validation through Windows pipe APIs, with bounded impersonation and guaranteed `RevertToSelf`;
@@ -54,8 +54,8 @@ Costs:
 
 ## Review triggers
 
-- schema/serialization library selection;
-- fuzzing reveals ambiguity or resource exhaustion;
+- selected Protobuf generator/runtime footprint, build integration, security, or reproducibility fails ADR 0018 acceptance gates;
+- framing/schema/parser fuzzing, resource limits, or adjacent-version compatibility reveals ambiguity;
 - packaged app identity changes pipe ACL or activation constraints;
 - large payload transfer becomes a measured bottleneck;
 - cross-session or service communication is proposed;

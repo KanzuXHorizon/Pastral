@@ -12,7 +12,7 @@ flowchart LR
     Manager[pastral-manager.exe\nC++/WinRT + WinUI 3]
     CLI[pastral-cli.exe\nRust]
     DB[(SQLite + FTS5)]
-    Blobs[(Content-addressed / encrypted blobs)]
+    Blobs[(BlobStore\ninternal SQLite BLOB / external file)]
 
     Windows -->|WM_CLIPBOARDUPDATE, Win32 formats, supplemental IDataObject| Agent
     Agent -->|bounded jobs| Worker
@@ -28,7 +28,7 @@ flowchart LR
 - Domain models depend on no Windows or database implementation.
 - Platform clipboard adapters depend on domain format abstractions, not storage.
 - Capture/replay orchestration depends on domain, policy, clipboard adapters, storage interfaces, and worker scheduler; all clipboard/OLE ownership remains inside the dedicated clipboard platform apartment.
-- Storage implements domain repositories and owns SQLite/blob details.
+- Storage implements domain repositories and owns SQLite plus the `BlobStore` abstraction; internal SQLite BLOB versus external-file placement is a versioned benchmark-selected policy.
 - Search parses typed queries and compiles parameterized SQL/FTS through storage interfaces.
 - Overlay consumes immutable view models and emits action intents.
 - Manager and CLI consume only IPC contracts.
@@ -113,7 +113,7 @@ The agent avoids a continuously running general async executor. Accepted respons
 - named-pipe I/O using overlapped handles/IOCP or a measured equivalent;
 - worker process completion through job objects and completion notifications.
 
-The control thread converts `WM_CLIPBOARDUPDATE` into a bounded transient `ClipboardObservation`. A durable `ClipEvent` exists only after at least one representation is captured and committed. COM cancellation is best effort; a stuck clipboard STA degrades capture and replay availability visibly rather than freezing control surfaces or being terminated unsafely. See `threading-and-com-apartments.md` and ADR 0015.
+The control thread converts `WM_CLIPBOARDUPDATE` into a bounded transient `ClipboardObservation`. A durable `ClipEvent` exists only after at least one representation is captured and committed. COM cancellation is best effort; a stuck clipboard-platform STA degrades capture and replay availability visibly rather than freezing control surfaces or being terminated unsafely. See `threading-and-com-apartments.md` and ADR 0015.
 
 ## Data principles
 
@@ -122,7 +122,7 @@ The control thread converts `WM_CLIPBOARDUPDATE` into a bounded transient `Clipb
 - Denied/failed/skipped observations use separate content-free audit records where policy permits; source-owned hard deny creates no durable row.
 - Originals are immutable.
 - Derived outputs preserve provenance.
-- Ordinary duplicate payloads may share blobs while occurrences remain distinct.
+- Ordinary duplicate payloads may share logical blobs while occurrences remain distinct; physical backend does not alter identity/provenance.
 - Ordinary raw blobs use a versioned digest policy; sensitive/private payload identifiers must not reveal plaintext equality and are not deduplicated by plaintext by default.
 - Standard clipboard formats persist defined IDs; registered formats persist exact names rather than runtime-local numeric IDs.
 - Source claims carry evidence type and confidence; unknown source remains unknown.
@@ -131,7 +131,7 @@ The control thread converts `WM_CLIPBOARDUPDATE` into a bounded transient `Clipb
 ## Failure containment
 
 - Agent capture failure cannot block the source copy; Pastral does not claim every intermediate state is recoverable during extremely rapid clipboard replacement.
-- A blocked foreign clipboard call cannot directly block tray/hotkey/overlay/session handling because it runs on the clipboard STA; it may still degrade capture/replay until restart or a future broker split.
+- A blocked foreign clipboard call cannot directly block tray/hotkey/overlay/session handling because it runs on the clipboard-platform STA; it may still degrade capture/replay until restart or a future broker split.
 - Worker crash cannot crash the agent.
 - Manager crash cannot corrupt the database.
 - Overlay rendering/device loss falls back or suppresses itself.

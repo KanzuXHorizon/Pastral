@@ -4,7 +4,7 @@ Read these documents in this order before implementation:
 
 1. [`overview.md`](overview.md) — system shape, dependencies, executables, storage ownership.
 2. [`process-model.md`](process-model.md) — process lifetimes, privileges, activation, session isolation.
-3. [`threading-and-com-apartments.md`](threading-and-com-apartments.md) — control thread, capture STA, storage/IPC/worker execution contexts.
+3. [`threading-and-com-apartments.md`](threading-and-com-apartments.md) — control thread, clipboard-platform STA, storage/IPC/worker execution contexts.
 4. [`clipboard-event-identity.md`](clipboard-event-identity.md) — notification/sequence semantics, observations, coalescing, self-origin marker, ordering.
 5. [`source-context.md`](source-context.md) — source evidence classes, confidence, privacy, rule safety.
 6. [`clipboard-format-policy.md`](clipboard-format-policy.md) — adapter support matrix, stable format identity, ownership, limits, replay policy.
@@ -12,7 +12,9 @@ Read these documents in this order before implementation:
 8. [`clipboard-lifecycle.md`](clipboard-lifecycle.md) — capture state machine, policy, persistence, enrichment, retention.
 9. [`paste-lifecycle.md`](paste-lifecycle.md) — replay object, publication, destination validation, UIPI/manual fallback, restoration.
 10. [`ipc-security-model.md`](ipc-security-model.md) — pipe creation, logon-session isolation, peer validation, handshake, authorization, residual risk.
-11. [`data-flow.md`](data-flow.md) — end-to-end sequence and trust-boundary diagrams.
+11. [`ipc-schema-and-framing.md`](ipc-schema-and-framing.md) — proposed Protobuf Edition 2024 control schema, fixed 36-byte framing, compatibility, and sequenced bulk-transfer state machine.
+12. [`blob-store-lifecycle.md`](blob-store-lifecycle.md) — logical blob identity, benchmark-selected internal/external backends, commit, migration, recovery, deletion, backup, and low-disk behavior.
+13. [`data-flow.md`](data-flow.md) — end-to-end sequence and trust-boundary diagrams.
 
 ## Normative priority
 
@@ -26,9 +28,11 @@ When documents conflict:
 
 Current hardening decisions:
 
-- ADR 0015: dedicated capture STA and hybrid Win32/OLE capture;
+- ADR 0015: dedicated clipboard-platform STA and hybrid Win32/OLE capture/replay;
 - ADR 0016: UUIDv4 identities, UTC/monotonic time split, persistent installation-local `capture_order`, `sha256-raw-v1`, protection domains;
-- ADR 0017: Quick Paste hosted by the on-demand manager process.
+- ADR 0017: Quick Paste hosted by the on-demand manager process;
+- ADR 0018 (Proposed): Protobuf Edition 2024 control-schema prototype with bounded 36-byte Pastral frame and sequenced bulk-transfer protocol; resident runtime choice remains gated.
+- ADR 0006 amendment: one content-addressed `BlobStore` with benchmark-selected internal SQLite BLOB/external-file physical backends.
 
 ## Architecture invariants
 

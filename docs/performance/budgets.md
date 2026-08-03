@@ -36,10 +36,10 @@ A miss on the 25 MB target is not hidden. Record component/dependency contributi
 | Control-thread notification handling and observation handoff | p95 under 1 ms; no foreign clipboard/OLE call or wait |
 | Capture-queue wait | reported separately; target p95 under 2 ms without pressure |
 | Win32 clipboard acquisition excluding external contention | p95 under 3 ms |
-| Synchronous capture-critical path on capture STA | target p95 under 10 ms for ordinary text |
+| Synchronous capture-critical path on clipboard-platform STA | target p95 under 10 ms for ordinary text |
 | Clipboard-open/foreign-object hold duration | measured explicitly and minimized; owner/call delay reported separately |
 | Pastral-owned capture result queued to storage | p95 under 20 ms for ordinary text |
-| Durable lightweight metadata/payload persistence | p95 under 50 ms for ordinary text, off control and capture apartments after ownership transfer |
+| Durable lightweight metadata/payload persistence | p95 under 50 ms for ordinary text, off control and clipboard-platform apartments after ownership transfer |
 | Overlay view-model readiness after successful durable capture | p95 under 20 ms from commit acknowledgement |
 
 External clipboard contention, delayed rendering, foreign COM/stream time, cancellation attempts, and capture-queue pressure are reported separately. They are not hidden inside the normal-path budget.
@@ -53,7 +53,7 @@ External clipboard contention, delayed rendering, foreign COM/stream time, cance
 
 ### Capture-health and blocked-owner budget
 
-- While a fixture blocks the capture STA, control-thread tray/hotkey/session handling remains responsive and passive overlay never reports a false successful capture.
+- While a fixture blocks the clipboard-platform STA, control-thread tray/hotkey/session handling remains responsive and passive overlay never reports a false successful capture or paste availability.
 - Observation queue remains bounded; latest-state pressure and dropped/coalesced observations are counted without payload.
 - Soft deadline, cancellation attempt, degraded-state transition, and explicit restart recovery are timed separately.
 - No unsafe thread termination and no unbounded capture-thread creation.
@@ -111,21 +111,39 @@ Initial target: first result page under 30 ms at 100k on reference hardware. A s
 - Copy-only mode: no focus change.
 - Elevated/UIPI or uncertain destination fallback adds no unbounded retry; data publication completes and manual-paste guidance appears without false success.
 
-## 8. Storage and maintenance
+## 8. IPC protocol
 
-- Startup recovery scans only staging/reference state needed for safety; no full payload read.
+| Metric | Initial budget/gate |
+|---|---|
+| Agent idle impact after linking a candidate Protobuf runtime/schema | Included in the under-25 MB target; official Rust-kernel and credible wire-compatible alternative deltas are reported separately before selection |
+| Control frame body | Hard maximum 256 KiB; typical requests remain far smaller |
+| Bulk chunk body | Hard maximum 1 MiB per frame; one active bulk transfer per connection initially; logical total is operation/policy-specific |
+| In-flight control requests | Maximum 16 per connection and 64 globally with backpressure |
+| Fixed-header parse | No body-buffer allocation before validated header length/kind/sequence/state |
+| Selected Protobuf parser allocation | Peak/aggregate allocation at 256 KiB malicious and valid limits is measured and bounded; runtime recursion/total-byte controls enabled where available |
+| Typical control request parse + post-parse validation + domain conversion | target p95 under 1 ms warm on reference hardware after prototype |
+| Idle wakeups/network | No additional periodic wakeup; no gRPC/HTTP/Tokio runtime solely for IPC |
+| Bulk transfer memory | Bounded by chunk/window/staging policy; never whole-payload buffering by default |
+
+Generator, generated code, and runtime artifacts are exact-matched according to the selected language/toolchain support policy. ADR 0018 remains Proposed until the official Rust-kernel path and at least one credible wire-compatible Rust alternative are measured. If no candidate meets the resident-agent/build/security gates, the framing/schema runtime choice is revised rather than hiding the cost inside generic IPC memory.
+
+## 9. Storage and maintenance
+
+- Startup recovery scans only staging/reference/backend state needed for safety; no full payload read.
+- Internal SQLite BLOB versus external-file placement uses a versioned, benchmark-selected threshold/policy; neither backend is declared universally faster.
+- Threshold evidence includes Windows/Defender warm/cold cache, realistic payload distributions, file/database size/count, 100k–1M histories, durable writes, random reads, preview access, backup/export, cleanup, and migration.
 - Retention/quota cleanup is incremental, cancellable, and yields to capture/search.
-- Delete shared blob only after reference check.
+- Delete shared blob only after reference check; backend migration preserves `sha256-raw-v1`, protection domain, reference count, and crash recovery.
 - The 5 GB value is an automatic-cleanup target for ordinary unpinned history, not a hard cap when pinned/protected data exceeds it.
 - Low-disk detection uses a separately benchmarked reserve/hysteresis policy, avoids repeated failing writes, pauses new payload capture before filesystem exhaustion, and never silently deletes pinned data.
 - Migration benchmarks include largest supported test database and interruption at persisted phases.
 - Integrity check may be long-running but must expose progress/cancellation and never freeze the UI.
 
-## 9. Startup and lifecycle
+## 10. Startup and lifecycle
 
 Measure:
 
-- agent cold startup to control listener ready and capture STA ready as separate points;
+- agent cold startup to control listener ready and clipboard-platform STA ready as separate points;
 - warm startup;
 - database recovery/migration variants;
 - manager/Quick Paste cold process activation, warm window activation, bounded warm-lifetime cost, and idle teardown;
@@ -136,7 +154,7 @@ Measure:
 
 No startup target is claimed until a representative executable exists. Initial goal: agent listener readiness fast enough not to miss normal post-login copies, with exact budget derived from prototype traces.
 
-## 10. Regression gates
+## 11. Regression gates
 
 A performance-sensitive change fails review when, on the same controlled benchmark:
 
@@ -144,6 +162,8 @@ A performance-sensitive change fails review when, on the same controlled benchma
 - idle introduces periodic CPU/disk/network activity;
 - agent steady working set grows more than 2 MB or 10%, whichever is larger, without dependency attribution and approval;
 - large-payload peak memory introduces an additional full-size copy;
+- frame/Protobuf/domain validation or bulk transfer exceeds accepted limits, introduces unbounded allocation/backpressure, or adds periodic wakeups;
+- a storage threshold/backend change regresses capture/search/preview/backup/recovery or creates unacceptable tiny-file/database growth without accepted evidence;
 - correctness/privacy/security behavior is weakened to gain speed.
 
 CI smoke tests use wider thresholds for noisy virtual hardware. Manual release benchmarks are authoritative for user-facing claims.

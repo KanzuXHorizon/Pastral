@@ -49,7 +49,7 @@ Accepted boundary:
 - overlapped named-pipe I/O and worker completion notifications;
 - no periodic timer except narrowly scheduled retention/maintenance jobs with documented wake behavior.
 
-The control thread posts bounded `ClipboardObservation` and paste-publication intents to the clipboard STA and returns immediately. The STA copies validated foreign data into Pastral-owned buffers/handles/staging files before storage handoff and serves Pastral delayed-render callbacks only from prevalidated owned resources—never SQLite/IPC/business queries. COM cancellation is best effort; a stuck clipboard STA creates a visible degraded capture/paste state rather than unsafe thread termination or unbounded replacement threads.
+The control thread posts bounded `ClipboardObservation` and paste-publication intents to the clipboard-platform STA and returns immediately. The STA copies validated foreign data into Pastral-owned buffers/handles/staging files before storage handoff and serves Pastral delayed-render callbacks only from prevalidated owned resources—never SQLite/IPC/business queries. COM cancellation is best effort; a stuck clipboard-platform STA creates a visible degraded capture/paste state rather than unsafe thread termination or unbounded replacement threads.
 
 Thread count and executor choice are benchmarked. Idle thread existence is acceptable; periodic wakeups are not. Detailed ownership is defined in `threading-and-com-apartments.md`.
 
@@ -135,4 +135,4 @@ Exit codes are stable and documented for automation:
 
 ADR 0015 selects a dedicated clipboard platform STA for capture and replay ownership. The prototype still measures Win32-only versus supplemental OLE adapters, eligible COM cancellation overhead, replay callback latency, and whether a separate capture broker or replay apartment is required for non-cooperative owners.
 
-Fixtures cover delayed rendering, OLE private formats, owner exit, re-entrancy, blocked calls, contention, shutdown, medium ownership, and control-thread responsiveness. Raw foreign COM interfaces or `STGMEDIUM` values never leave the capture apartment.
+Fixtures cover delayed rendering, OLE private formats, owner exit, re-entrancy, blocked calls, contention, shutdown, medium ownership, and control-thread responsiveness. Raw foreign COM interfaces or `STGMEDIUM` values never leave the clipboard-platform apartment.

@@ -1,12 +1,12 @@
 # Phase 0 consistency review
 
-> **Historical status:** This review records the checks performed for commit `3445122`. Its readiness conclusion is superseded by [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md) and the Phase 0.1 hardening decisions. It is retained to preserve audit history rather than rewritten as if the later findings had been known.
+> **Historical status:** This review records the checks performed for commit `3445122`. Its readiness conclusion is superseded by [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md), the Phase 0.1 hardening decisions, and [`phase-0-2-ipc-storage-verification.md`](phase-0-2-ipc-storage-verification.md). It is retained to preserve audit history rather than rewritten as if the later findings had been known.
 
 **Date:** 2026-08-03
 **Scope:** Research, product, architecture, ADR, security, privacy, performance, testing, UX, brand, repository, and release-planning artifacts.
 **Historical conclusion at commit `3445122`:** Phase 0 documentation appeared internally consistent enough to begin the separate repository/toolchain/domain-bootstrap design cycle. It did not establish that Pastral was implemented, benchmarked, secure, accessible, compatible, packaged, or ready for release.
 
-> **Superseded readiness notice (2026-08-04):** The adversarial review in [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md) found material gaps in same-user IPC claims, foreign OLE threading, sequence/event semantics, registered-format identity, domain IDs/time/digests, format adapters, source confidence, Quick Paste hosting, UIPI fallback, hard-deny audit behavior, Private-profile guarantees, authenticated streaming, quota semantics, SQLite deletion remnants, toolchain freshness, and naming risk. Repository/toolchain bootstrap is gated on the Phase 0.1 hardening commit and checks. The command evidence below remains an accurate historical record for commit `3445122` and is not rewritten as if Phase 0.1 existed then.
+> **Superseded readiness notice (2026-08-04):** The adversarial review in [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md) found material gaps in same-user IPC claims, foreign OLE threading, sequence/event semantics, registered-format identity, domain IDs/time/digests, format adapters, source confidence, Quick Paste hosting, UIPI fallback, hard-deny audit behavior, Private-profile guarantees, authenticated streaming, quota semantics, SQLite deletion remnants, toolchain freshness, and naming risk. Repository/toolchain bootstrap is gated on the Phase 0.1 hardening commit plus the Phase 0.2 IPC/storage refinement checks. The command evidence below remains an accurate historical record for commit `3445122` and is not rewritten as if Phase 0.1 existed then.
 
 ## 1. Artifact coverage
 

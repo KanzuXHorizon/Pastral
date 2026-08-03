@@ -56,10 +56,10 @@ Rules:
 | Registered `PNG` and reviewed encoded image formats | Preserve exact encoded bounded bytes | Raw encoded bytes | Re-register name and publish exact bytes | Preferred for encoded original; decoder only in worker/preview path |
 | `CF_ENHMETAFILE` / `CF_METAFILEPICT` | Deferred until dedicated safe duplication/serialization adapter | None in MVP by default | Unsupported | Handle/object semantics and parser risk require separate design |
 | OLE `TYMED_HGLOBAL` | Adapter-specific bounded copy | Adapter-defined bytes | Adapter-defined | `HGLOBAL` is a medium, not a generic safe schema |
-| OLE `TYMED_ISTREAM` | Read bounded stream on the clipboard STA to staging with cancellation/limits | Stream bytes only for a named adapter | Adapter-defined stream/HGLOBAL replay | Never read unbounded; stream may block/re-enter |
+| OLE `TYMED_ISTREAM` | Read bounded stream on the clipboard-platform STA to staging with cancellation/limits | Stream bytes only for a named adapter | Adapter-defined stream/HGLOBAL replay | Never read unbounded; stream may block/re-enter |
 | OLE `TYMED_ISTORAGE` | Deferred | None by default | Unsupported | Compound-storage parsing requires isolated adapter/fuzzing |
 | OLE `TYMED_FILE` | Treat path as untrusted reference; no automatic content read | Metadata/reference only if adapter explicitly supports it | Deferred | Prevent traversal/reparse/network side effects |
-| OLE `TYMED_GDI`/`ENHMF`/`MFPICT` | Dedicated adapter only | Never serialize raw handle values | Adapter-dependent | Ownership/release on the clipboard STA |
+| OLE `TYMED_GDI`/`ENHMF`/`MFPICT` | Dedicated adapter only | Never serialize raw handle values | Adapter-dependent | Ownership/release on the clipboard-platform STA |
 | Unknown registered/custom format | Enumerate name/medium/size availability only under privacy policy | Metadata descriptor only; no raw durable bytes by default | `UnsafeOrUnsupported` | Allowlist adapter required before capture/replay |
 | Application-private format with process-local object/handle | Do not serialize blindly | Metadata-only unsupported descriptor | No | Honest limitation; preserve safe common fallbacks from same clip |
 
@@ -79,7 +79,7 @@ A source advertising multiple media for one format may yield multiple acquisitio
 
 ## 5. Medium ownership
 
-- Every successful OLE `GetData` result is released according to `STGMEDIUM` rules, normally through `ReleaseStgMedium`, on the clipboard STA.
+- Every successful OLE `GetData` result is released according to `STGMEDIUM` rules, normally through `ReleaseStgMedium`, on the clipboard-platform STA.
 - Honor `pUnkForRelease`; do not manually free the medium behind it.
 - Never persist raw pointer, handle value, COM interface pointer, or `pUnkForRelease` identity.
 - Duplicate/copy data before release using the adapter's documented ownership method.

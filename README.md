@@ -8,20 +8,20 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 0.1 — adversarial architecture hardening.**
+**Phase 0.2 — bounded IPC and blob-store contract refinement.**
 
-This repository currently contains research, product scope, architecture decisions, threat/privacy models, performance budgets, UX specifications, testing strategy, repository/release plans, and a post-foundation adversarial audit. Clipboard feature implementation has intentionally not started.
+This repository currently contains research, product scope, architecture decisions, threat/privacy models, performance budgets, UX specifications, testing strategy, repository/release plans, a post-foundation adversarial audit, and Phase 0.2 IPC/storage prototype contracts. Clipboard feature implementation has intentionally not started.
 
-Feature work begins only after the Phase 0.1 hardening checks pass and a separate repository/toolchain/domain vertical-slice design and implementation plan are approved.
+Feature work begins only after the Phase 0.2 documentation checks pass and a separate repository/toolchain/domain vertical-slice design and implementation plan are approved. ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
 ## Confirmed direction
 
 - Windows 11 only; x64 first.
 - Rust 1.97.1/Edition 2024 planned for agent, worker, CLI, and core modules.
 - C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable planned for the on-demand manager.
-- One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated capture STA for foreign clipboard/OLE calls.
+- One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
 - `pastral-worker.exe` runs only for bounded expensive or hostile work.
-- SQLite + FTS5 metadata with recoverable blob storage.
+- SQLite + FTS5 metadata with one content-addressed `BlobStore`; internal SQLite BLOB versus external-file placement is selected by Windows benchmark, not assumed globally.
 - Native focus-safe overlay using Win32 and a compositor/Direct2D/DirectWrite path subject to prototype evidence.
 - Local-first and network-silent core.
 - No clipboard polling, mandatory AI, Electron, Tauri, or embedded browser primary UI.
@@ -39,6 +39,7 @@ Versions are pinned when the repository bootstrap implementation begins and are 
 - Encrypted sensitive retention, when implemented, is explicit and narrowly scoped.
 - The built-in Private profile is unavailable until mandatory encryption, random blob identity, non-indexing, lock, and recovery gates pass.
 - Named-pipe ACLs and user-scope DPAPI strongly separate users/sessions but are not claimed as a secure enclave against fully compromised code already running as the same unlocked user.
+- ADR 0018 proposes Protobuf Edition 2024 control schemas with a bounded 36-byte frame and sequenced bulk transfer; the resident Rust runtime remains unselected until footprint/build/security prototypes pass.
 
 See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`docs/security/threat-model.md`](docs/security/threat-model.md).
 

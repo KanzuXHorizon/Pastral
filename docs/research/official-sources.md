@@ -113,7 +113,7 @@ Sources:
 Design consequence:
 
 - Use reviewed Win32 adapters for common formats and supplemental OLE access where `FORMATETC`, `lindex`, `IStream`, virtual-file, or richer medium semantics are required.
-- Copy data out promptly; never retain a foreign data object longer than required or move raw foreign COM interfaces/media outside the capture STA.
+- Copy data out promptly; never retain a foreign data object longer than required or move raw foreign COM interfaces/media outside the clipboard-platform STA.
 - Preserve `FORMATETC`, medium type, and fidelity notes where safe.
 - Complex/custom formats are hostile input and may be isolated in the worker.
 - Replay object lifetime is part of the paste transaction and cannot end immediately after `OleSetClipboard`.
@@ -165,9 +165,9 @@ Sources:
 Design consequence:
 
 - Foreign `IDataObject`/delayed-render calls do not run on the agent control/overlay thread.
-- A dedicated capture STA owns foreign OLE objects and their release.
+- A dedicated clipboard-platform STA owns foreign OLE objects/media and Pastral replay-object publication/lifetime.
 - Call cancellation is evaluated as defense in depth, never as proof of a hard deadline.
-- A permanently blocked capture apartment requires a visible degraded state and a broker/process-isolation review rather than unsafe thread termination.
+- A permanently blocked clipboard-platform apartment requires a visible degraded capture/paste state and a broker/replay-apartment/process-isolation review rather than unsafe thread termination.
 
 ## 8. Focus-safe overlay primitives
 
@@ -247,7 +247,7 @@ Design consequence:
 
 ## 11. SQLite, FTS5, and journaling
 
-SQLite documents FTS5 as its full-text virtual table module. SQLite transactions are atomic and durable across application, OS, and power interruption when used correctly. WAL adds `-wal` and `-shm` files and shared-memory behavior; its operational trade-offs differ from rollback journaling.
+SQLite documents FTS5 as its full-text virtual table module. SQLite transactions are atomic and durable across application, OS, and power interruption when used correctly. WAL adds `-wal` and `-shm` files and shared-memory behavior; its operational trade-offs differ from rollback journaling. SQLite's official internal-versus-external BLOB guidance reports that small BLOBs can be faster and more space-efficient inside SQLite on tested systems, while larger BLOBs can favor separate files; incremental BLOB I/O is available through `sqlite3_blob_*`. These are workload-dependent observations, not a universal threshold for Pastral on Windows 11.
 
 Sources:
 
@@ -256,6 +256,10 @@ Sources:
 - https://www.sqlite.org/atomiccommit.html
 - https://www.sqlite.org/wal.html
 - https://www.sqlite.org/tempfiles.html
+- https://www.sqlite.org/fasterthanfs.html
+- https://www.sqlite.org/intern-v-extern-blob.html
+- https://www.sqlite.org/appfileformat.html
+- https://www.sqlite.org/c3ref/blob.html
 
 Design consequence:
 
@@ -264,6 +268,9 @@ Design consequence:
 - One agent process owns the database connection pool and schema changes.
 - WAL is an evidence-based configuration decision, not a default copied from common recipes.
 - Backup and diagnostic tools must treat sidecar files correctly when WAL is enabled.
+- Use one logical content-addressed `BlobStore` with benchmark-selected internal SQLite BLOB and external-file backends; do not create a file for every tiny clip or put every large stream into SQLite by assumption.
+- Select/version the backend threshold on supported Windows reference hardware with Defender/antivirus, realistic 100k–1M histories, warm/cold cache, crash/backup/low-disk/deletion tests, and migration evidence.
+- Event/representation metadata stores blob references; backend location does not change `sha256-raw-v1`, protection-domain, deduplication, or immutable-original semantics.
 
 ## 12. Encryption and key protection
 
@@ -279,6 +286,7 @@ Design consequence:
 - Generate independent random vault/data-encryption keys.
 - Wrap root key material with user-scope DPAPI and `CRYPTPROTECT_UI_FORBIDDEN` for background operations.
 - Use a versioned authenticated-encryption envelope for payloads; DPAPI is key protection, not the entire blob format.
+- User-scope DPAPI is an offline/cross-user/account-boundary control, not a strong barrier against fully compromised code already running as that unlocked user.
 - Backup/export documentation must state that DPAPI-bound data is not automatically portable.
 
 ## 13. Worker isolation
@@ -313,14 +321,17 @@ Design consequence:
 - Never use a null/default pipe security descriptor.
 - Grant normal client access through the current logon SID and narrowly justified SYSTEM access. Do not add a broad current-user allow ACE merely alongside the logon SID: allow ACEs are additive, so that would permit another logon session of the same account. Validate token user SID, logon SID, and session at runtime.
 - Use individual access rights rather than broad `GENERIC_WRITE` where it could permit pipe-instance creation.
-- Reject remote clients, prevent first-instance squatting, and validate peer token/session/PID where supported.
+- Reject remote clients, prevent first-instance squatting, and validate both client/server PID evidence plus peer token/session where supported.
+- Use byte-type/read-mode named pipes with overlapped I/O; the Pastral 36-byte header, not Windows write/message boundaries, defines application frames.
 - Add protocol versioning, message-size limits, instance-bound handshake, request correlation, timeouts, and strict schemas.
 - State explicitly that a user-scope DACL and DPAPI secret do not create a strong boundary against a fully compromised process already running as that user.
 
 Additional sources:
 
-- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipea
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createnamedpipew
+- https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-type-read-and-wait-modes
 - https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getnamedpipeclientprocessid
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-getnamedpipeserverprocessid
 - https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipe-client-impersonation
 
 ## 15. Paste input and integrity levels
@@ -370,7 +381,32 @@ Design consequence:
 - Primary public path is signed packaged MSIX with framework-dependent Windows App SDK for Store/managed deployment.
 - Produce self-contained unpackaged builds only for controlled CI/diagnostic scenarios until portable update and data-location semantics are designed.
 
-## 18. Research limits
+## 18. Protocol Buffers IPC schema
+
+Protocol Buffers is a language-neutral extensible binary schema system with official C++ and Rust generated-code support. The current official release train is v35.0. Its evolution guidance requires stable field numbers and reserving removed fields/names. Official compatibility documentation states that C++ and Rust generated code/runtime versions require an exact match rather than relying on a cross-minor compatibility window. The official Rust implementation is backed by upb/C++ kernels, so it is not assumed to be a zero-cost pure-Rust dependency for the resident agent.
+
+Sources:
+
+- https://protobuf.dev/
+- https://protobuf.dev/editions/overview/
+- https://protobuf.dev/editions/features/
+- https://protobuf.dev/reference/cpp/cpp-generated/
+- https://protobuf.dev/reference/rust/rust-generated/
+- https://protobuf.dev/reference/rust/building-rust-protos/
+- https://protobuf.dev/reference/rust/rust-design-decisions/
+- https://protobuf.dev/support/version-support/
+- https://protobuf.dev/support/cross-version-runtime-guarantee/
+- https://github.com/protocolbuffers/protobuf/releases
+
+Design consequence:
+
+- Use `.proto` as the sole Rust/C++ control-schema authority. Prototype with Edition 2024 and the v35.0 release train, while matching generator/generated-code/runtime artifacts according to the official per-language exact-match policy.
+- Use explicit presence, reserved deleted numbers/names, zero `UNSPECIFIED` enum members, and post-parse invariant/authorization validation.
+- Avoid reflection, `Any`, TextFormat, ProtoJSON, extensions, gRPC, and large `bytes` payloads in core IPC.
+- Place a fixed 36-byte bounded Pastral frame with explicit bulk sequence in front of Protobuf control bodies and stream authorized bulk bytes through a separate state machine.
+- Measure the official Rust kernel/Cargo path against a credible actively maintained wire-compatible alternative before accepting the resident implementation. Runtime choice amends ADR 0018 without silently changing its framing/schema contract.
+
+## 19. Research limits
 
 - Documentation describes APIs and support contracts; it does not prove Pastral meets latency, focus, fidelity, security, or accessibility goals.
 - All critical assumptions require fixture tests and measurements on supported Windows 11 builds.

@@ -86,7 +86,10 @@ Required combinations:
 - HTML Clipboard Format with valid and malformed offsets;
 - RTF;
 - URL formats plus text fallback;
-- `CF_HDROP` with Unicode file paths;
+- `CF_HDROP` with Unicode file paths, unavailable targets, reparse points, and network paths;
+- `FileGroupDescriptorW` + indexed `FileContents` virtual files with multiple files, delayed streams, cancellation, and owner exit;
+- `Shell IDList Array`/CIDA valid and malformed offsets/PIDLs as `ReferenceOnly` without automatic namespace binding;
+- `Preferred DropEffect`, `Performed DropEffect`, and `DropDescription` as validated companion metadata rather than standalone clips;
 - DIB and DIBV5;
 - bitmap handle scenario;
 - encoded PNG registered format;
@@ -156,7 +159,23 @@ Manual and automated coverage:
 - accessible manual-paste fallback after blocked/uncertain synthetic input;
 - display-affinity disabled/unsupported while hidden content remains absent from UI Automation/view models.
 
-## 9. Packaging compatibility
+## 9. IPC protocol compatibility
+
+Required Rust/C++ cross-language cases:
+
+- exact 36-byte frame header at arbitrary alignment, including explicit bulk frame sequence;
+- invalid magic, framing/protocol major, kind, reserved flags, UUID use, body length, truncation, slow/disconnected peer;
+- hello order, challenge replay, wrong instance/session, capability/minor negotiation;
+- Protobuf Edition 2024 explicit presence, zero/unknown security-critical enums, unknown fields/actions, deleted-field reservation, duplicate key records, nesting/string/repeated limits, and body fields that cannot override header correlation or negotiated connection capabilities;
+- exact generator/generated-code/runtime compatibility enforced for whichever Rust/C++ implementation passes ADR 0018 acceptance; the official v35.0 release-train Rust-kernel path and at least one credible wire-compatible Rust alternative are compared rather than assumed;
+- adjacent supported client/server version golden bytes in both directions;
+- DTO-domain conversion rejects parser-valid but invariant-invalid input;
+- bulk open/chunk/end/cancel/disconnect, duplicate/gap/reorder/wrong connection/direction/sequence/count/length/digest, low disk, expired authorization, and staging cleanup;
+- sensitive/Private transfer creates no plaintext digest/equality metadata or content-bearing error/log;
+- agent idle/binary/working-set delta with protocol runtime linked;
+- manager built through supported `.vcxproj`/MSBuild/XAML path and multi-executable `.wapproj`, not experimental Windows App SDK CMake support.
+
+## 10. Packaging compatibility
 
 - clean standard-user install;
 - packaged process activation for all executables;
@@ -170,7 +189,7 @@ Manual and automated coverage:
 - code-signing/publisher verification;
 - no Windows 10 installation claim.
 
-## 10. Result states
+## 11. Result states
 
 Every tested cell records one of:
 
