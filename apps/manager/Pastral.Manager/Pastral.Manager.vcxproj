@@ -146,6 +146,10 @@
     <ClInclude Include="Pages\HistoryPage.xaml.h">
       <DependentUpon>HistoryPage.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="ViewModels\ManagerState.h" />
+    <ClInclude Include="ViewModels\ClipPreviewViewModel.h" />
+    <ClInclude Include="Services\IManagerDataProvider.h" />
+    <ClInclude Include="Services\ManagerDataProvider.h" />
   </ItemGroup>
 
   <ItemGroup>
@@ -176,6 +180,8 @@
     <ClCompile Include="Pages\HistoryPage.xaml.cpp">
       <DependentUpon>HistoryPage.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="ViewModels\ClipPreviewViewModel.cpp" />
+    <ClCompile Include="Services\ManagerDataProvider.cpp" />
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
   </ItemGroup>
 
@@ -195,6 +201,9 @@
     <Midl Include="Pages\HistoryPage.idl">
       <SubType>Code</SubType>
       <DependentUpon>HistoryPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="ViewModels\ClipPreviewViewModel.idl">
+      <SubType>Code</SubType>
     </Midl>
   </ItemGroup>
 

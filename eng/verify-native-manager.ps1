@@ -46,7 +46,14 @@ function Invoke-StaticVerification {
         'apps/manager/Pastral.Manager/MainWindow.xaml',
         'apps/manager/Pastral.Manager/Themes/PastralTheme.xaml',
         'apps/manager/Pastral.Manager/Pages/HomePage.xaml',
-        'apps/manager/Pastral.Manager/Pages/HistoryPage.xaml'
+        'apps/manager/Pastral.Manager/Pages/HistoryPage.xaml',
+        'apps/manager/Pastral.Manager/ViewModels/ClipPreviewViewModel.idl',
+        'apps/manager/Pastral.Manager/ViewModels/ClipPreviewViewModel.h',
+        'apps/manager/Pastral.Manager/ViewModels/ClipPreviewViewModel.cpp',
+        'apps/manager/Pastral.Manager/ViewModels/ManagerState.h',
+        'apps/manager/Pastral.Manager/Services/IManagerDataProvider.h',
+        'apps/manager/Pastral.Manager/Services/ManagerDataProvider.h',
+        'apps/manager/Pastral.Manager/Services/ManagerDataProvider.cpp'
     )
 
     $missing = @(
@@ -143,13 +150,28 @@ function Invoke-StaticVerification {
         }
     }
 
-    $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
-    if (Test-Path -LiteralPath $provider -PathType Leaf) {
-        Assert-Contains $provider '#if\s+defined\(_DEBUG\)' 'Debug-only synthetic provider guard'
-        Assert-Contains $provider '#else' 'Release provider branch'
-        Assert-Contains $provider 'synthetic-clip-' 'bounded synthetic IDs'
-        Assert-Contains $provider 'ConnectionState::Disconnected' 'Release disconnected state'
+    $viewModelIdl = Join-Path $managerRoot 'ViewModels\ClipPreviewViewModel.idl'
+    foreach ($property in @(
+        'String\s+Id\s*\{\s*get;',
+        'String\s+SafePreview\s*\{\s*get;',
+        'String\s+Source\s*\{\s*get;',
+        'String\s+RelativeTime\s*\{\s*get;',
+        'String\s+TypeLabel\s*\{\s*get;',
+        'String\s+Profile\s*\{\s*get;',
+        'String\s+RepresentationSummary\s*\{\s*get;',
+        'String\s+AutomationName\s*\{\s*get;',
+        'Boolean\s+Pinned\s*\{\s*get;',
+        'Boolean\s+Unavailable\s*\{\s*get;'
+    )) {
+        Assert-Contains $viewModelIdl $property 'immutable clip preview property'
     }
+
+    $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
+    Assert-Contains $provider '#if\s+defined\(_DEBUG\)' 'Debug-only synthetic provider guard'
+    Assert-Contains $provider '#else' 'Release provider branch'
+    Assert-Contains $provider 'synthetic-clip-' 'bounded synthetic IDs'
+    Assert-Contains $provider 'ConnectionState::Disconnected' 'Release disconnected state'
+    Assert-Contains $provider 'snapshot\.synthetic\s*=\s*false' 'Release synthetic exclusion'
 
     Write-Host 'Native manager static policy: PASS'
 }

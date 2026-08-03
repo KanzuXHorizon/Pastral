@@ -1,0 +1,17 @@
+namespace Pastral.Manager
+{
+    [default_interface]
+    runtimeclass ClipPreviewViewModel
+    {
+        String Id{ get; };
+        String SafePreview{ get; };
+        String Source{ get; };
+        String RelativeTime{ get; };
+        String TypeLabel{ get; };
+        String Profile{ get; };
+        String RepresentationSummary{ get; };
+        String AutomationName{ get; };
+        Boolean Pinned{ get; };
+        Boolean Unavailable{ get; };
+    }
+}
