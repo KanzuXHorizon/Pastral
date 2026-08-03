@@ -8,9 +8,11 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 2B — Rust domain, storage/search, and Win32 clipboard-platform foundation.**
+**Phase 3A — Rust foundations plus a native WinUI manager UI foundation.**
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, the pure `pastral-domain` crate, synchronous `pastral-storage`, and a Windows-only `pastral-clipboard-win` boundary for message-only listener notifications, transient sequence evidence, read-only format inspection, bounded HGLOBAL copying, and exact `CF_UNICODETEXT` extraction. A resident capture agent and end-to-end clipboard history flow have intentionally not started.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, the pure `pastral-domain` crate, synchronous `pastral-storage`, the Windows-only `pastral-clipboard-win` boundary, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`. The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit disconnected/empty states, and a provider boundary that prevents direct SQLite or blob access.
+
+Debug builds expose six bounded, clearly labeled synthetic preview records for layout and accessibility verification. Release builds contain no synthetic history and remain honestly disconnected until versioned local IPC and the resident agent are implemented. A resident capture agent and end-to-end clipboard history flow have intentionally not started.
 
 ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
@@ -18,7 +20,7 @@ ADR 0018 remains Proposed and must pass its own runtime evidence gates before th
 
 - Windows 11 only; x64 first.
 - Rust 1.97.1/Edition 2024 is pinned for the workspace; `pastral-domain` remains platform-independent, `pastral-storage` owns persistence, and `pastral-clipboard-win` isolates the first reviewed unsafe/native boundary.
-- C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable planned for the on-demand manager.
+- C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable are pinned for the on-demand manager; Debug and Release x64 builds are verified through MSBuild/XAML.
 - One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
 - `pastral-worker.exe` runs only for bounded expensive or hostile work.
 - SQLite + FTS5 metadata with one logical `BlobStore`; Phase 2A implements both internal SQLite BLOB and controlled external-file placement behind a caller-supplied versioned policy, without inventing a production threshold before Windows benchmarks.
@@ -61,11 +63,19 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-The implemented Rust foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, pinned workspace manifests, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup and storage limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
+The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
+
+From Windows PowerShell:
+
+- `.\eng\build.ps1 -Task All` runs the Rust foundation gates only.
+- `.\eng\build.ps1 -Task Full` runs Rust gates plus native static policy and Debug/Release manager builds.
+- `.\eng\build.ps1 -Task Manager` additionally launches the Debug manager, navigates to History through UI Automation, exercises filtering/selection/no-results states, and verifies clean shutdown.
+
+Exact setup and current limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
 
 Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
 
-No Visual Studio/MSBuild WinUI project, packaging project, installer, executable capture agent, COM/OLE pipeline, IPC, encryption, or native UI implementation exists yet. Automated clipboard tests do not write to the user's clipboard. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
+The WinUI manager project and native UI foundation now exist and use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. Packaging, signing, installer, resident capture agent, COM/OLE pipeline, IPC, encryption, Quick Paste, passive overlay, and live history/search/paste remain unimplemented. Automated clipboard tests do not write to the user's clipboard, and the manager does not open storage directly.
 
 ## Contributing
 

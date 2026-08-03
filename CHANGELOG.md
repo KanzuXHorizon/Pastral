@@ -15,6 +15,11 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Lockfile-enforced PowerShell dependency and source-policy verification that rejects async, serialization, alternate database, IPC, logging, network, unauthorized Windows-binding, and UI dependencies, plus common secret/private-key signatures, unsafe code outside the reviewed native boundary, product-network/process APIs, machine-local launchers, build output, SQLite extension loading, database attachment, and WAL activation in the current foundation.
 - Windows-only `pastral-clipboard-win` foundation with a message-only clipboard listener, bounded/coalescing notifications, transient sequence evidence, thread-bound read sessions, ordered runtime-format enumeration, stable registered-name identity, bounded HGLOBAL copying, and exact validated `CF_UNICODETEXT` extraction.
 - Listener shutdown fallback through the listener thread message queue, isolated and documented Win32 unsafe code in one module, and automated native tests that never write to the user's clipboard.
+- C++20/C++/WinRT WinUI 3 manager bootstrap with pinned Windows App SDK `2.3.1`, C++/WinRT `3.0.260715.1`, locked NuGet restore, x64 Debug/Release MSBuild verification, and an unpackaged Windows App Runtime `2.3.1` smoke path.
+- Native manager design system and shell using Mica, TitleBar, NavigationView, system semantic brushes, localized resources, adaptive layout, and explicit accessibility names/headings.
+- Immutable manager presentation-state/provider boundary: six clearly labeled Debug-only synthetic preview records and an empty disconnected Release provider that never opens SQLite or blob storage directly.
+- Professional Home operational, disconnected, synthetic, recent-item, and empty states plus adaptive History search, list, selection details, unavailable-item warnings, disabled-action explanations, and no-results recovery.
+- Native static policy, Debug/Release builds, runtime window lifecycle checks, and UI Automation coverage for History navigation, search filtering, selection details, no-results state, and clean shutdown.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -43,10 +48,10 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- No executable application, resident clipboard capture coordinator, COM/OLE pipeline, IPC, encryption, native UI, or packaging implementation exists yet.
+- The native manager executable and Home/History UI foundation exist, but the resident clipboard capture coordinator, COM/OLE pipeline, versioned IPC, encryption, Quick Paste, passive overlay, and packaging implementation do not yet exist.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
-- No installer, package identity, signing pipeline, or public update channel exists.
+- The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.
 - No final logo/brand assets or legal name clearance exists.
 - Performance, fidelity, security, compatibility, and accessibility budgets are design targets pending implementation evidence.
 - Extremely rapid clipboard replacements may make intermediate states unobservable; Pastral targets bounded behavior and final-current-state capture rather than claiming complete event history.
