@@ -111,7 +111,7 @@ Change this ADR to Accepted only after a Windows x64 release prototype demonstra
 1. exact Rust/C++ round-trip and malformed-input behavior for the same schemas;
 2. reproducible generated artifacts/schema hashes from the pinned toolchain;
 3. no unsupported generator/generated-code/runtime skew;
-4. frame parser, selected Protobuf parser, post-parse validator, and DTO conversion fuzzing with recursion/total-byte/peak-allocation limits;
+4. byte-mode frame parser tests/fuzzing cover every header/body fragmentation point, coalesced multiple frames, short reads/writes, disconnects, and independence from `WriteFile` boundaries; selected Protobuf parser, post-parse validator, and DTO conversion fuzzing enforce recursion/total-byte/peak-allocation limits;
 5. resident-agent binary/private-working-set impact attributed and accepted against the 25 MB target;
 6. control parse/serialize latency and allocation results at limit boundaries;
 7. MSBuild/Cargo/CI integration without unreviewed tool downloads or stale generated code;

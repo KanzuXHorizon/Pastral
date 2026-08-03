@@ -164,6 +164,7 @@ Manual and automated coverage:
 Required Rust/C++ cross-language cases:
 
 - exact 36-byte frame header at arbitrary alignment, including explicit bulk frame sequence;
+- byte-mode fragmentation/coalescing: every header/body split point, one byte per read, multiple complete/partial frames in one read, short writes/reads, and no dependence on a `WriteFile` or Windows message boundary;
 - invalid magic, framing/protocol major, kind, reserved flags, UUID use, body length, truncation, slow/disconnected peer;
 - hello order, challenge replay, wrong instance/session, capability/minor negotiation;
 - Protobuf Edition 2024 explicit presence, zero/unknown security-critical enums, unknown fields/actions, deleted-field reservation, duplicate key records, nesting/string/repeated limits, and body fields that cannot override header correlation or negotiated connection capabilities;

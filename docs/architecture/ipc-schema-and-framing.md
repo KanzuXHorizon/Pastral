@@ -171,6 +171,7 @@ Initial release-train candidate is Protocol Buffers v35.0 with Edition 2024 sche
 ## 9. Required tests
 
 - every 36-byte header field boundary, unaligned input, truncation, overflow, invalid magic/version/kind/flag/sequence/UUID;
+- byte-mode transport splits at every header/body byte, one byte per read, short writes/reads, multiple complete and partial frames coalesced in one read, and no dependence on `WriteFile` or Windows message boundaries;
 - body length zero/max/max+1 and slow/disconnected reader/writer;
 - Protobuf deep nesting, repeated/string limits, unknown fields/actions/enums, absent explicit presence, duplicate key records;
 - reserved-field compatibility and golden adjacent-version round trips in Rust and C++;

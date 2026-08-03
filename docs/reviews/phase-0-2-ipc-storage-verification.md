@@ -1,185 +1,238 @@
 # Phase 0.2 IPC and storage refinement verification
 
 **Date:** 2026-08-04
-**Base commit:** `2aec1c7 docs: harden Pastral architecture assumptions`
-**Scope:** Remaining IPC schema/framing/runtime-selection debt, clipboard-platform STA terminology, replay callback ownership, payload-store abstraction, benchmark/test/release gates, and source/build scope.
+**Parent commit:** `2aec1c7 docs: harden Pastral architecture assumptions`
+**Phase 0.2 commit:** `3048d31 docs: define bounded IPC and blob contracts`
+**Verification target:** commit `3048d31` plus a six-file verification amendment: five byte-mode regression contract files and this evidence-report update.
+**Scope:** IPC schema/framing/runtime-selection constraints, named-pipe byte-mode behavior, clipboard-platform STA terminology, replay ownership, backend-neutral payload storage, benchmark/test/release gates, and documentation-only repository scope.
 
 ## 1. Purpose
 
-Phase 0.1 corrected the major Windows clipboard, privacy, security, data-identity, source-confidence, Quick Paste, packaging, and performance assumptions. A final adversarial pass found two implementation-splitting decisions still insufficiently closed:
+Phase 0.1 corrected the major Windows clipboard, privacy, security, data-identity, source-confidence, Quick Paste, packaging, and performance assumptions. Phase 0.2 closes two remaining implementation-splitting ambiguities without creating Rust, C++, WinUI, database, package, installer, or executable code:
 
-1. IPC had security and versioning requirements but no normative binary frame/schema/bulk-transfer contract or resident-runtime acceptance gate.
-2. Raw payload storage could be interpreted as either event-row inline data, an unconditional file-per-payload design, or a backend-neutral blob contract without clear identity/migration semantics.
+1. IPC had security/versioning requirements but no normative bounded frame, schema, bulk-transfer, parser-allocation, or resident-runtime acceptance contract.
+2. Raw payload storage could be interpreted as either an unconditional file-per-payload design or an all-in-SQLite design without a benchmark-selected crossover, transactional migration, and backend-independent identity contract.
 
-Phase 0.2 closes those gaps without creating Rust, C++, WinUI, database, package, installer, or executable code.
+A post-commit verification pass also found that named-pipe byte mode was specified but not yet represented by explicit fragmentation/coalescing acceptance tests. The amendment adds those gates to ADR 0018, the IPC architecture specification, compatibility matrix, test strategy, and release checklist.
 
-## 2. Decisions/refinements verified
+## 2. Decisions verified
 
 ### IPC contract
 
-- ADR 0018 is **Proposed**, not Accepted, because resident runtime cost/build/security evidence does not exist yet.
-- The prototype contract uses Protobuf Edition 2024 control schemas and a fixed 36-byte little-endian Pastral frame.
-- The frame includes an explicit 32-bit sequence so bulk duplicate/gap/reorder can be validated independently from UUID correlation.
-- The frame-header UUID is the sole request/response/event correlation authority; control bodies do not duplicate it.
-- HELLO binds negotiated protocol/capabilities to connection state, and body fields cannot self-grant capabilities.
-- Control/hello/error bodies are capped at 256 KiB.
-- Raw bulk chunks are capped at 1 MiB, with one active bulk transfer per connection initially.
-- Initial request backpressure is 16 in-flight requests per connection and 64 globally.
-- Large clipboard/export payloads never appear in normal Protobuf control messages.
-- Parsing, DTO conversion, capability negotiation, peer validation, operation authorization, and user-intent authorization are separate gates.
-- Edition fields use explicit presence and permanent field-number/name reservation on deletion.
-- Security-critical zero/unknown enums, unknown actions, missing presence, duplicate keyed records, invalid frame state, and unnegotiated capabilities fail closed.
-- The current release-train prototype candidate is Protocol Buffers v35.0 and must be revalidated at prototype time.
-- The official Rust kernel path and at least one credible actively maintained wire-compatible Rust alternative must be measured for binary size, private working set, startup, build complexity, maintenance, and security before ADR 0018 can be accepted.
-- No gRPC, loopback HTTP, Tokio solely for IPC, reflection, `Any`, TextFormat, ProtoJSON, extensions, or unbounded control-payload allocation is permitted in the resident core.
+- ADR 0018 is **Proposed**, not Accepted. Its framing/schema rules are approved for prototype, while the resident runtime requires Windows x64 footprint/build/security evidence.
+- Named pipes use `PIPE_TYPE_BYTE`/`PIPE_READMODE_BYTE`; Pastral never relies on Windows message or `WriteFile` boundaries.
+- The exact application header is 36 bytes and contains magic, framing major, frame kind, flags, body length, explicit frame sequence, and correlation/transfer UUID.
+- The frame sequence is zero for non-bulk frames, a zero-based chunk index for `BULK_CHUNK`, and the accepted chunk count for `BULK_END_PROTO`.
+- `HELLO_PROTO` binds protocol/capabilities to connection state. Body fields cannot self-grant capabilities.
+- The frame-header UUID is the sole request/response/event correlation authority. Control bodies do not duplicate it.
+- Control/hello/error bodies are capped at 256 KiB; bulk chunks at 1 MiB; initial limits are 16 in-flight control requests per connection, 64 globally, and one active bulk stream per connection.
+- Header validation bounds the body buffer before parse. Generated Protobuf parser recursion/total-byte controls are enabled where supported, and peak internal allocation must be measured/fuzzed separately.
+- Schemas use Protobuf Edition 2024 with explicit presence, reserved deleted numbers/names, zero `UNSPECIFIED` enum values, known operation `oneof`, and post-parse domain/authorization validation.
+- Protocol Buffers v35.0 is the current release-train prototype candidate, not an accepted resident dependency.
+- The official Rust kernel/Cargo path and at least one credible actively maintained wire-compatible Rust alternative must be compared for binary size, private working set, startup, parse/allocation behavior, native build complexity, reproducibility, maintenance, security, and license.
+- No gRPC, loopback HTTP, Tokio solely for IPC, reflection, `Any`, TextFormat, ProtoJSON, extensions, or large clipboard payload inside ordinary control messages is permitted.
 
-### Clipboard apartment ownership
+### Byte-mode regression amendment
 
-- The normative term is `clipboard-platform STA`, not `capture STA`.
-- The STA owns foreign Win32/OLE capture objects/media and Pastral replay `IDataObject` publication/lifetime.
-- The control/overlay thread neither invokes foreign clipboard/OLE methods nor serves replay callbacks.
-- Replay callbacks use only prevalidated Pastral-owned memory or immutable pre-opened resources and never synchronously call SQLite, IPC, rules, profiles, or UI.
-- A blocked clipboard-platform STA degrades capture and paste availability but does not freeze tray, hotkey, overlay, session, or supervision work.
+Acceptance evidence must cover:
+
+- every split position in the 36-byte header and control/bulk body;
+- one byte per read;
+- short reads and short writes;
+- multiple complete frames coalesced in one read;
+- complete plus partial next frame in one read;
+- disconnect at every header/body boundary;
+- parser independence from `WriteFile` and Windows message boundaries;
+- interaction with body limits, cancellation, bulk sequence, backpressure, and connection state.
 
 ### Payload storage
 
-- Event/representation metadata rows do not duplicate captured/derived payload bytes.
-- Every payload is addressed through one versioned `BlobStore` contract.
-- Physical storage may be an internal SQLite BLOB row or external staged/final file according to the benchmark-selected/versioned storage policy.
-- `sha256-raw-v1` identifies logical raw ordinary bytes independently of physical backend/encoding.
-- Protection domain, format, adapter, raw length, physical backend, and storage-policy version remain separate metadata.
+- Event/representation metadata rows do not duplicate payload bytes.
+- Every payload is addressed through one versioned content-addressed `BlobStore` contract.
+- Physical storage may be an internal SQLite BLOB row or an external staged/final file according to a benchmark-selected and versioned policy.
+- `sha256-raw-v1` identifies exact logical ordinary bytes independently of physical backend.
+- Protection domain, format, adapter, logical length, physical locator, and storage-policy version remain distinct metadata.
 - Private/sensitive plaintext uses random identity, no persistent plaintext digest, and no default plaintext deduplication.
-- Backend migration must be transactional and preserve identity, reference counts, protection, and recovery invariants.
-- `blob-store-lifecycle.md` defines internal/external commit order, external staging/finalization, recovery reconciliation, resumable migration switching, deletion/retention, and low-disk hysteresis without hard-coding an unmeasured backend threshold.
+- Backend migration copies and verifies a candidate, transactionally switches the authoritative locator, and removes the old location only after reader/recovery safety.
+- Threshold selection requires supported-Windows measurements with realistic payload distributions, 100k–1M histories, Defender/antivirus, warm/cold cache, durable writes, reads, preview/search, backup/export, cleanup, low disk, crash injection, and migration.
 
 ### Native build authority
 
-- The manager uses the supported Visual Studio C++ WinUI `.vcxproj` + MSBuild/NuGet/XAML path.
-- The multi-executable MSIX uses a separate `.wapproj`.
-- `Pastral.slnx` is the planned solution format subject to verified manager/packaging tool compatibility; a legacy `.sln` fallback requires recorded evidence.
+- The manager uses supported Visual Studio C++ WinUI `.vcxproj` + MSBuild/NuGet/XAML tooling.
+- The four-executable MSIX uses a separate `.wapproj`.
+- `Pastral.slnx` is the planned solution format; a legacy `.sln` fallback requires recorded tooling evidence.
 - Experimental Windows App SDK CMake integration is not a release dependency.
-- The pure-domain bootstrap does not create empty CMake, WinUI, packaging, vcpkg, or Protobuf scaffolds.
+- The pure-domain bootstrap creates no empty WinUI, packaging, CMake, vcpkg, or Protobuf scaffold.
 
-## 3. Verification commands and results
+## 3. Fresh verification evidence
 
-### Whitespace and repository scope
+### Repository baseline and object integrity
 
 Commands:
 
 ```bash
+git rev-parse HEAD
+git branch --show-current
+git fsck --no-progress --no-dangling
+git show --check --oneline --no-renames HEAD
+```
+
+Observed result:
+
+- baseline HEAD was `3048d31f87dc2ea9e61a034cc789a500e812af2a` on `main`;
+- reachable-object integrity check passed;
+- committed whitespace check passed.
+
+Ordinary unreachable blobs created by prior index/edit churn were intentionally excluded with `--no-dangling`; they are not reachable corruption and are not product artifacts.
+
+### Markdown links, code fences, and heading hierarchy
+
+A read-only Python checker:
+
+- enumerated every repository Markdown file outside `.git`;
+- resolved every local Markdown link within the repository root;
+- required balanced fenced-code markers;
+- detected duplicate headings only when the same text/level occurred under the same parent-heading path.
+
+Observed result:
+
+- **71 Markdown files** checked;
+- local links: PASS;
+- code fences: PASS;
+- heading hierarchy: PASS.
+
+### ADR structure and audit coverage
+
+Checks required:
+
+- contiguous ADR filenames 0001–0018;
+- `Status`, `Date`, `Context`, `Decision`, `Consequences`, `Alternatives considered`, and `Review triggers` in every ADR;
+- every ADR linked from `docs/adr/README.md`;
+- ADR 0018 status contains `Proposed`;
+- adversarial findings are unique and contiguous F-01–F-22;
+- the Phase 0.1/0.2 execution plan has no unchecked `Step` checkbox.
+
+Observed result:
+
+- **18 ADRs**, contiguous 0001–0018: PASS;
+- ADR structure/index: PASS;
+- ADR 0018 remains Proposed: PASS;
+- **22 findings**, contiguous F-01–F-22: PASS;
+- plan completion: PASS.
+
+### Normative contradiction and placeholder scan
+
+Current normative documents were checked for:
+
+- obsolete 32-byte/proto3 contracts;
+- control-body 1 MiB or per-connection 64-request limits;
+- wording that treats ADR 0018/runtime choice as Accepted;
+- duplicated correlation/capability authority;
+- universal external-file or universal SQLite payload backend claims;
+- zero-representation `ClipEvent`;
+- hard 5 GB quota;
+- broad user-SID + logon-SID pipe access wording;
+- persisted runtime registered-format IDs;
+- stale `sha256-v1` name;
+- stable WinUI CMake or ambiguous `.slnx or .sln` authority;
+- active `TBD`, `TODO`, `FIXME`, `XXX`, “implement later”, “fill in details”, or generic “appropriate error handling”.
+
+Observed result: no active competing normative contract or unresolved implementation placeholder remained.
+
+The obsolete Windows SDK `10.0.28000.2270` appears only in three explicitly historical/check records:
+
+- this verification document;
+- `phase-0-adversarial-audit.md`;
+- the Phase 0.1 hardening execution plan.
+
+Active bootstrap/research documents use the corrected SDK snapshot and require revalidation on the actual bootstrap date.
+
+### Authority and terminology checks
+
+Observed required terms/contracts:
+
+- `PIPE_TYPE_BYTE`/`PIPE_READMODE_BYTE`;
+- byte-mode fragmentation/coalescing tests;
+- sole frame-header correlation authority;
+- 256 KiB control ceiling;
+- official Rust-kernel versus alternative runtime evidence gate;
+- hybrid `BlobStore` with internal SQLite BLOB and external-file lifecycle;
+- `clipboard-platform STA` in current normative architecture;
+- no current `clipboard STA`, `capture STA`, or `capture apartment` terminology outside explicitly historical review text.
+
+Result: PASS.
+
+### Scope, secrets, whitespace, and local artifacts
+
+Commands/checks:
+
+```bash
 git diff --check
+git status --short
 find . -path './.git' -prune -o -type f \
   \( -name '*.rs' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.h' \
-     -o -name '*.hpp' -o -name '*.vcxproj' -o -name '*.wapproj' \
-     -o -name 'Cargo.toml' -o -name 'CMakeLists.txt' \) -print
+     -o -name '*.hpp' -o -name '*.xaml' -o -name '*.vcxproj' \
+     -o -name '*.wapproj' -o -name 'Cargo.toml' \
+     -o -name 'CMakeLists.txt' \) -print
 git check-ignore -v Start-DevSpace-MCP-Cloudflared.ps1
 ```
 
-Result:
+Secret-pattern scan covered private-key headers, AWS-style access keys, GitHub token prefixes, and common Stripe-like secret prefixes.
 
-- no whitespace errors;
-- no feature/build scaffold exists;
-- the local DevSpace launcher remains ignored at repository root.
+Observed amendment scope before this report update:
 
-### Normative contradiction checks
+- `docs/adr/0018-ipc-schema-and-framing.md`;
+- `docs/architecture/ipc-schema-and-framing.md`;
+- `docs/release/checklist.md`;
+- `docs/testing/compatibility-matrix.md`;
+- `docs/testing/strategy.md`.
 
-Checked current normative documents for:
+Results:
 
-- unresolved `TBD`/`TODO`/`FIXME`/placeholder language;
-- unsupported `production-ready`, universal-losslessness, or guaranteed-security claims;
-- stale Windows SDK `10.0.28000.2270` outside explicit historical correction records;
-- obsolete 32-byte/proto3 IPC contracts;
-- wording that treats ADR 0018/runtime choice as Accepted;
-- current use of `capture STA`/`capture apartment` instead of `clipboard-platform STA`;
-- hard 5 GB quota wording;
-- optional/underspecified sensitive-skip default;
-- durable source-owned hard-deny records;
-- same-user IPC/DPAPI confidentiality overclaims;
-- persisted runtime registered-format numeric IDs;
-- zero-representation `ClipEvent` wording;
-- complete-history claims for rapid clipboard replacement;
-- stable CMake authority for WinUI.
+- documentation-only scope: PASS;
+- no Rust/C++/WinUI/build/package scaffold: PASS;
+- secret-signature scan: PASS;
+- whitespace: PASS;
+- machine-local DevSpace launcher remains ignored;
+- accidental `NUL` artifact is absent.
 
-Result: no active competing normative contract remained. Historical audit/spec/plan statements remain only where explicitly labeled as prior findings or superseded evidence.
+## 4. What this verification does not prove
 
-### Markdown links and structure
-
-Read-only repository checks validated 71 Markdown files:
-
-- every local Markdown link resolves within the repository;
-- every fenced code block closes;
-- no duplicate same-level heading exists within the same parent heading path;
-- all 18 ADRs are contiguous from 0001 through 0018;
-- every ADR has Status, Date, Context, Decision, Consequences, Alternatives considered, and Review triggers;
-- every ADR is linked from `docs/adr/README.md`.
-
-A first duplicate-heading checker incorrectly treated repeated `Strengths`/`Lesson` headings under different competitor sections as collisions. The checker was corrected to include the parent heading hierarchy; the documents were not distorted to satisfy an invalid rule.
-
-### Secret-signature scan
-
-A first `git grep` attempt was invalid because a pattern beginning with `-----BEGIN` was parsed as an option. It is not counted as evidence. The scan was rerun correctly with explicit `-e` and checked tracked plus untracked text for private-key headers, AWS-style access keys, GitHub tokens, and common Stripe-like test/live secret prefixes.
-
-Result: no secret-like signature matched outside intentionally excluded policy/example documents.
-
-### Toolchain and policy consistency
-
-Confirmed current normative references for:
-
-- Rust 1.97.1 / Rust Edition 2024;
-- Windows SDK `10.0.28000.2526` with runtime floor still Windows 11 build 26100;
-- Windows App SDK 2.3.1 stable;
-- Protobuf Edition 2024 / v35.0 prototype candidate with ADR 0018 still Proposed;
-- 24-hour hidden sensitive-skip audit default;
-- no durable source-owned hard-deny record;
-- 5 GB automatic-cleanup target, not hard cap;
-- random/no-plaintext-digest Private/sensitive storage;
-- Private profile unavailable before encryption/non-indexing/lock/recovery gates.
-
-## 4. False-positive and historical-evidence handling
-
-Verification deliberately distinguishes current normative contracts from historical records:
-
-- the obsolete Windows SDK pin remains quoted in the adversarial finding and execution-plan correction instruction;
-- the original Phase 0 consistency review retains commands that searched for placeholders;
-- old `capture STA` or insufficient-contract language may remain inside explicit historical findings explaining what was corrected;
-- ADR 0018 framing/schema is approved for prototype design, while the runtime implementation is intentionally unaccepted pending evidence.
-
-These are not active contradictions and must not be removed merely to make naive global grep output empty.
-
-## 5. What this verification does not prove
-
-No executable or package exists. Therefore this review does not prove:
+No executable, schema compiler invocation, database, package, fixture, UI, or benchmark implementation exists. Therefore this review does not prove:
 
 - clipboard capture/replay correctness;
-- Protobuf runtime compatibility or resident footprint;
-- Windows build/toolchain availability on the target machine;
-- SQLite internal/external blob threshold;
+- named-pipe parser behavior under real fragmentation/coalescing;
+- Protobuf runtime compatibility, security, build reproducibility, or resident footprint;
+- the SQLite/internal versus external-file threshold;
+- crash recovery or backup consistency;
 - overlay focus safety;
 - paste destination consumption;
-- security containment against real malformed inputs;
+- security containment against malformed runtime inputs;
 - benchmark budgets;
 - accessibility behavior;
 - install/update/uninstall/signing behavior.
 
 Those claims remain blocked on implementation, fixtures, tests, benchmarks, and signed-package evidence.
 
-## 6. Remaining implementation gates
+## 5. Remaining implementation gates
 
-Before accepting ADR 0018 or implementing production IPC:
+Before accepting ADR 0018 or implementing release IPC:
 
-1. build the 36-byte frame parser and state machine with red/green unit/fuzz tests;
+1. write red/green tests for the 36-byte byte-mode frame parser, including every fragmentation/coalescing boundary;
 2. compile identical Edition 2024 schemas for C++ and each Rust runtime candidate;
-3. produce cross-language golden vectors and exact compatibility checks;
-4. measure agent binary/private-working-set/startup/idle impact and build complexity;
-5. test all control/bulk bounds, sequencing, cancellation, disconnect, low-disk, and authorization paths;
-6. amend ADR 0018 with the measured runtime/toolchain decision.
+3. generate cross-language golden vectors and exact compatibility checks;
+4. fuzz frame, selected Protobuf parser, post-parse validator, DTO conversion, and bulk state machine;
+5. measure parser peak allocation plus agent binary/private-working-set/startup/idle impact and build complexity;
+6. test all control/bulk bounds, sequence, cancellation, disconnect, low disk, backpressure, capability, correlation, peer/session, and authorization paths;
+7. amend ADR 0018 with the measured runtime/toolchain decision.
 
-Before selecting the final BlobStore backend threshold:
+Before selecting the final `BlobStore` threshold:
 
-1. benchmark internal SQLite BLOB rows versus external files on supported Windows hardware with Defender enabled;
-2. test crash/recovery, backup/export, low disk, retention, deletion remnants, migration, and 100k–1M metadata distributions;
-3. record threshold/backend policy, journal mode, synchronization, vacuum, and recovery evidence in ADR 0006 or an explicit amendment.
+1. implement both physical backends behind one contract;
+2. benchmark them on supported Windows hardware with Defender enabled;
+3. test crash/recovery, deduplication, reference races, backup/export, low disk, deletion remnants, threshold migration, and 100k–1M metadata distributions;
+4. record threshold policy, journal mode, synchronization, vacuum, recovery, and migration evidence in ADR 0006 or a dedicated amendment.
 
-## 7. Readiness conclusion
+## 6. Readiness conclusion
 
-The documentation is ready to be committed as a distinct Phase 0.2 refinement on top of `2aec1c7`. It closes the schema/framing and storage-contract ambiguity while preserving evidence gates. It does not authorize claiming that Pastral is implemented, performant, secure, lossless, accessible, packaged, or production-ready.
+The documentation contract is coherent enough to preserve Phase 0.2 as a design baseline and to proceed to a separate repository/toolchain/pure-domain bootstrap design cycle. ADR 0018 intentionally remains Proposed, and the physical `BlobStore` threshold intentionally remains unselected. This verification does not authorize claims that Pastral is implemented, performant, secure, lossless, accessible, packaged, or production-ready.

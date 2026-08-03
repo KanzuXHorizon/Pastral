@@ -33,7 +33,7 @@ A release is blocked until every required item is checked with artifact-specific
 - [ ] Migration tests pass from every supported prior schema.
 - [ ] Clipboard fixture suite passes for required formats/media.
 - [ ] End-to-end capture → restart → search → replay passes.
-- [ ] ADR 0018 has moved from Proposed to Accepted using Windows x64 evidence: fixed 36-byte IPC frame parser, 256 KiB control ceiling, Protobuf Edition 2024 parser/post-parse validation, DTO-domain conversion, exact selected generator/generated-code/runtime compatibility, official Rust-kernel versus credible alternative footprint/build/security results, adjacent-version golden fixtures, sequenced bulk-transfer state machine, anti-squatting, remote rejection, peer/session validation, authorization/user-intent, replay, cancellation, and same-user-boundary tests pass.
+- [ ] ADR 0018 has moved from Proposed to Accepted using Windows x64 evidence: fixed 36-byte IPC frame parser, byte-mode fragmentation/coalescing at every header/body split and multiple frames per read without `WriteFile`-boundary assumptions, 256 KiB control ceiling, Protobuf Edition 2024 parser/post-parse validation, DTO-domain conversion, exact selected generator/generated-code/runtime compatibility, official Rust-kernel versus credible alternative footprint/build/security results, adjacent-version golden fixtures, sequenced bulk-transfer state machine, anti-squatting, remote rejection, peer/session validation, authorization/user-intent, replay, cancellation, and same-user-boundary tests pass.
 - [ ] Worker restriction and no-network tests pass.
 - [ ] Security fuzz smoke tests pass; longer campaign results are reviewed.
 - [ ] Packaging validation and clean-install smoke pass.
