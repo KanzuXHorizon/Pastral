@@ -18,13 +18,19 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - UX design system, interaction, overlay, Quick Paste, manager, and accessibility specifications.
 - Provisional brand guidelines and name-clearance research.
 - Repository initialization and release planning.
+- Phase 0.1 adversarial architecture audit and hardening plan.
+- ADRs for dedicated capture STA/hybrid Win32-OLE capture, durable UUID/time/order/digest semantics, and Quick Paste hosting.
+- Normative data model, clipboard observation identity, format-adapter policy, source-confidence model, threading/COM ownership, and IPC security model.
+- Stable manager build authority based on Visual Studio/MSBuild/XAML with `Pastral.slnx`; multi-executable packaging remains a separate `.wapproj`, while experimental Windows App SDK CMake support is not a release prerequisite.
 
 ### Security
 
 - Defined local-first/network-silent default.
 - Defined hard-deny clipboard-source policy.
 - Defined default non-storage of highly confident secrets.
-- Defined explicit named-pipe ACL/authentication and restricted-worker boundaries.
+- Defined explicit logon-session named-pipe ACL, anti-squatting/remote rejection, peer validation, operation authorization, and restricted-worker boundaries.
+- Corrected same-user threat claims: user-scope DPAPI and pipe authentication are defense in depth, not a secure enclave against fully compromised same-user code.
+- Defined source-owned hard-deny as no durable record, hidden 24-hour sensitive-skip audit defaults, mandatory encrypted Private-profile gates, authenticated-before-release decryption, and best-effort display-affinity limits.
 
 ### Known limitations
 
@@ -32,3 +38,5 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - No installer, package identity, signing pipeline, or public update channel exists.
 - No final logo/brand assets or legal name clearance exists.
 - Performance, fidelity, security, compatibility, and accessibility budgets are design targets pending implementation evidence.
+- Extremely rapid clipboard replacements may make intermediate states unobservable; Pastral targets bounded behavior and final-current-state capture rather than claiming complete event history.
+- `Pastral` remains an internal codename; similarity to the clipboard product `Pastry` raises the public-brand clearance threshold.

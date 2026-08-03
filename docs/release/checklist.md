@@ -13,7 +13,7 @@ A release is blocked until every required item is checked with artifact-specific
 
 ## 2. Toolchain and dependency evidence
 
-- [ ] Rust, Windows SDK, Windows App SDK, Visual Studio/C++ toolset, CMake/generator, vcpkg baseline, SQLite, and packaging tool versions are recorded.
+- [ ] Rust, Windows SDK, Windows App SDK, Visual Studio/MSVC/MSBuild/XAML toolset, SQLite, and Windows Application Packaging Project versions/components are recorded; vcpkg/CMake are recorded only if a reviewed dependency actually uses them.
 - [ ] Lockfiles/manifests match the released source.
 - [ ] Dependency advisory scan passes or accepted residual risk is documented.
 - [ ] License/source review passes.
@@ -33,7 +33,7 @@ A release is blocked until every required item is checked with artifact-specific
 - [ ] Migration tests pass from every supported prior schema.
 - [ ] Clipboard fixture suite passes for required formats/media.
 - [ ] End-to-end capture → restart → search → replay passes.
-- [ ] IPC serialization/auth/authorization/cancellation tests pass.
+- [ ] IPC serialization, anti-squatting, remote rejection, peer/session validation, authorization/user-intent, replay, cancellation, and same-user-boundary documentation tests pass.
 - [ ] Worker restriction and no-network tests pass.
 - [ ] Security fuzz smoke tests pass; longer campaign results are reviewed.
 - [ ] Packaging validation and clean-install smoke pass.
@@ -56,38 +56,39 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 
 - [ ] No clipboard polling exists.
 - [ ] Listener registration/recovery passes across startup/session transitions.
-- [ ] Sequence/coalescing/self-generated-update tests pass.
+- [ ] Sequence unavailable/zero/wrap, queued duplicate notification, pressure/coalescing, final-current-state, and validated self-origin marker tests pass without claiming complete intermediate history.
 - [ ] Clipboard contention retries are bounded and measured.
-- [ ] Foreign `IDataObject` lifetime is short and tested.
-- [ ] Unicode, ANSI fallback, HTML, RTF, URL, file list, DIB/DIBV5/bitmap/encoded image, multiple simultaneous formats, custom/unsupported formats pass expected fidelity outcomes.
+- [ ] Foreign clipboard/OLE calls and `STGMEDIUM` ownership remain on the capture STA; blocked/re-entrant/cancellation-refusing owners do not freeze control/overlay/tray/hotkeys.
+- [ ] Unicode, ANSI/OEM/locale fallback, HTML, RTF, URL, `CF_HDROP`, virtual-file gate, DIB/DIBV5/bitmap/encoded image, multiple formats, registered-name/runtime-ID change, and unknown custom-format policy pass expected fidelity outcomes.
 - [ ] Delayed rendering, owner exit, rapid updates, malformed lengths/media, large streams, and empty clipboard are contained.
-- [ ] Source context obeys redaction/privacy policy.
-- [ ] Hard-deny history formats are never captured.
+- [ ] Source context records evidence/confidence, handles absent/conflicting owner/foreground/PID reuse, avoids title-based domain/project claims, and obeys redaction/privacy policy.
+- [ ] Source-owned hard-deny formats are never captured and create no durable clip or audit row.
 - [ ] Copy continues successfully when Pastral capture/storage/worker fails.
 
 ## 6. Storage, search, and recovery
 
 - [ ] Selected SQLite journal/pragmas have crash/backup/AV/low-disk evidence.
 - [ ] Blob staging/finalization/reconciliation passes forced termination at each phase.
-- [ ] Content-addressed dedup preserves every meaningful occurrence.
-- [ ] Sensitive blob identifiers do not reveal plaintext equality.
+- [ ] UUIDv4 public IDs, UTC-microsecond civil time, persistent installation-local `capture_order`, agent-restart/clock-rollback ordering, import/restore remapping, and pagination cursors pass invariant tests.
+- [ ] `sha256-raw-v1` ordinary dedup preserves every meaningful event and never crosses incompatible protection domains.
+- [ ] Private/sensitive equal plaintext uses random non-equality-revealing storage identity, no persistent plaintext digest, and no default plaintext deduplication.
 - [ ] Integrity check and quarantine preserve unaffected data.
 - [ ] Low-disk behavior pauses/degrades capture safely and recovers.
-- [ ] Retention default is 90 days and 5 GB; pinned exclusion is tested.
+- [ ] Retention default is 90 days with a 5 GB automatic-cleanup target; pinned/protected data may exceed it with warnings, and low-disk reserve pauses new payload capture without silent pinned deletion.
 - [ ] Cleanup is incremental/cancellable and does not freeze capture/UI.
 - [ ] FTS/structured query correctness passes at 1k, 10k, 100k, and release-target scale.
-- [ ] Sensitive/excluded content is absent from FTS, suggestions, snippets, OCR, semantic indexes, and duplicate stacks.
+- [ ] Sensitive/Private/excluded content is absent from FTS, suggestions, snippets, OCR, semantic indexes, duplicate stacks, and ordinary exports; SQLite/FTS/freelist/journal/WAL deletion-remnant policy is tested and documented.
 - [ ] Backup/restore/export/import round trips and corruption handling pass according to documented scope.
 
 ## 7. Paste and replay
 
-- [ ] Replay data object offers the expected safe format set and order.
+- [ ] Replay data object offers the expected safe adapter set/priority using fixed standard IDs or re-registered exact names, never persisted runtime-local registered IDs; captured enumeration order is evidence, not a universal destination-order guarantee.
 - [ ] Original, preferred, plain text, derived, copy-only, file/path/name, image, and supported queue modes pass.
 - [ ] Delayed-render object lifetime works for required destinations.
 - [ ] Self-generated clipboard updates do not create duplicate history.
 - [ ] Intended destination is revalidated before synthetic input.
 - [ ] Foreground changes cancel wrong-target paste.
-- [ ] Failed dispatch leaves a safe manual-paste path where possible.
+- [ ] Elevated/UIPI, focus-restoration, or dispatch uncertainty leaves data on the clipboard and presents an accessible manual-paste path without false success; no `uiAccess`, elevation, service, or focus hack is introduced.
 - [ ] Previous clipboard restoration remains off by default and passes ownership/sequence/async-consumer tests when enabled.
 - [ ] Paste failure never changes stored original.
 - [ ] Logs contain only metadata/result codes.
@@ -101,14 +102,14 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] Placement passes mixed DPI, work area, taskbar, pointer/caret policy, and topology changes.
 - [ ] Fullscreen/game/presentation/screen-share/RDP/password/sensitive suppression follows settings.
 - [ ] Reduced motion, transparency disabled, battery saver, RDP, and device-loss fallback pass.
-- [ ] Copy bursts coalesce without losing event semantics or looping distraction.
-- [ ] Quick Paste opens only by explicit invocation and revalidates destination.
+- [ ] Copy bursts keep queues bounded, capture the defined final current state, report possible unobservable intermediates honestly, and coalesce overlay presentation without inventing events.
+- [ ] Quick Paste opens only by explicit invocation as a manager-process activation/window mode, revalidates destination/integrity, and has separate cold/warm lifecycle evidence.
 - [ ] Search editing, keyboard navigation, selection stability, representation choice, and cancel/focus restoration pass.
-- [ ] Sensitive content is absent from visual, UI Automation, task thumbnail, and cache surfaces.
+- [ ] Sensitive content is absent from visual, UI Automation, task thumbnail, live region, subscription, and cache/view-model surfaces even when display-affinity capture exclusion is unsupported/disabled/bypassed; the feature is not presented as DRM.
 
 ## 9. Profiles, rules, and automation
 
-- [ ] Built-in profile defaults and migrations pass.
+- [ ] Built-in profile defaults and migrations pass; Private is unavailable until mandatory encrypted storage/non-indexing/lock/recovery gates pass.
 - [ ] Profile retention/privacy/index/encryption behavior is enforced by service logic, not UI only.
 - [ ] Auto-switch is visible, reversible, and disabled by default unless explicit rule exists.
 - [ ] Rule priority, specificity, privacy precedence, conflicts, and simulation pass.
@@ -124,10 +125,10 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] Default core processes make no network connection in controlled release tests.
 - [ ] Password-manager and reliable private-browser exclusions pass.
 - [ ] High-confidence synthetic secrets are not stored by default.
-- [ ] `SensitiveItemSkipped` contains no value/hash/snippet/OCR/reconstructable content.
+- [ ] Default hidden `SensitiveItemSkipped` has only broad detector/policy class, active profile, coarse timestamp, 24-hour retention, and no value/hash/snippet/OCR/title/path/domain/size/structure; disable/shorten controls pass.
 - [ ] Opt-in encrypted sensitive retention is narrow, explicit, and excluded from normal indexes/previews/exports.
-- [ ] DPAPI user-scope key protection, wrong-user failure, envelope test vectors, tamper detection, and rotation/recovery pass.
-- [ ] Named-pipe DACL, user/logon-session isolation, client identity, challenge replay, message limits, and authorization pass.
+- [ ] DPAPI user-scope key protection, wrong-user failure, envelope test vectors, authentication-before-plaintext-release, chunk reorder/duplicate/truncate/splice rejection, and rotation/recovery pass; docs do not claim a same-user secure enclave.
+- [ ] Named-pipe least-privilege DACL, first-instance/remote rejection, user/logon-session isolation, PID/token/session checks, bounded impersonation/revert, instance-bound challenge replay, limits, and operation/user-intent authorization pass; sensitive reveal/export/destructive actions cannot be authorized by connection alone.
 - [ ] Worker token/sandbox/job/no-network/time/memory/output/child-process limits pass.
 - [ ] Path traversal, reparse, decompression, oversized, malformed parser/import tests pass.
 - [ ] Secret canaries are absent from logs, dumps, diagnostics, screenshots, exports, CI artifacts, and accessibility tree.
@@ -155,7 +156,7 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] Agent private working set and dependency attribution are reported.
 - [ ] Ordinary capture critical path and durable persistence are reported against budgets.
 - [ ] Overlay first frame and CPU animation behavior are reported.
-- [ ] Quick Paste warm/cold activation and first results are reported.
+- [ ] Quick Paste manager-process cold activation, warm window activation, first frame/results, bounded warm-lifetime memory/energy cost, and teardown are reported separately.
 - [ ] Search at 1k/10k/100k/release-target scale is reported.
 - [ ] Large text/HTML/image/stream memory peak and I/O are reported.
 - [ ] Paste construction/publication/destination consumption is reported.

@@ -47,7 +47,7 @@ Primary surfaces:
 Confirmed capabilities and constraints:
 
 - Windows 11 only; x64 first;
-- Rust Win32/COM/OLE resident agent;
+- Rust resident agent with a responsive control/overlay message thread and a dedicated capture STA for foreign Win32/OLE calls;
 - C++/WinRT and WinUI 3 manager;
 - event-driven capture with no clipboard polling;
 - immutable originals and derived representations;
@@ -58,12 +58,16 @@ Confirmed capabilities and constraints:
 - no primary WebView/Electron/Tauri UI;
 - passive overlay must never steal focus or intercept ordinary typing;
 - highly confident secrets are not stored by default;
-- default retention is 90 days and 5 GB, with pinned clips exempt from automatic deletion;
+- default retention is 90 days with a 5 GB automatic-cleanup target for ordinary unpinned history; pinned/protected clips may exceed it with visible warnings;
+- source-owned history hard deny creates no durable record; high-confidence secret skips create a hidden content-free 24-hour audit by default;
+- the built-in Private profile is unavailable until mandatory encrypted storage, random blob identity, non-indexing, lock, and recovery gates pass;
+- local IPC strongly isolates users/logon sessions but is not represented as a secure enclave against fully compromised same-user code;
+- Quick Paste is hosted by the single-instance on-demand manager, with cold and warm activation measured separately;
 - all speed, fidelity, security, and footprint claims require measurement.
 
 ## Brand Commitments
 
-- Provisional name: Pastral.
+- Internal provisional codename: Pastral; confusing similarity with the clipboard product `Pastry` requires formal review before public branding.
 - Tagline: “Copy once. Find anything. Paste perfectly.” The last phrase is aspirational and must not be presented as universal losslessness.
 - Brand concept: a reliable trail connecting copy, preservation, search, transformation, paste, and recall.
 - Core colors: Aurora Violet `#725CFF`, Signal Cyan `#2ED3FF`, Night Ink `#0B1020`, Frost `#F7F8FC`, Success Mint `#35D49A`, Warning Amber `#F2B84B`.

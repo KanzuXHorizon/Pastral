@@ -45,6 +45,7 @@ Primary documents:
 - [`docs/security/privacy-model.md`](docs/security/privacy-model.md)
 - [`docs/security/encryption.md`](docs/security/encryption.md)
 - [`docs/security/incident-response.md`](docs/security/incident-response.md)
+- [`docs/architecture/ipc-security-model.md`](docs/architecture/ipc-security-model.md)
 
 ## Disclosure principles
 
@@ -55,4 +56,4 @@ Primary documents:
 
 ## Scope reminders
 
-The design does not guarantee protection against an attacker already running as administrator/SYSTEM, kernel compromise, same-session screen/key capture, physical access to an unlocked session, or physical secure deletion from SSDs/backups. These limits do not excuse preventable weaknesses in Pastral's own boundaries.
+The design does not guarantee protection against an attacker already running as administrator/SYSTEM, kernel compromise, same-session screen/key capture, physical access to an unlocked session, physical secure deletion from SSDs/backups, or fully compromised code already running as the same unlocked Windows user. Named-pipe ACLs, peer checks, and user-scope DPAPI provide cross-user/session isolation and defense in depth; they are not represented as a same-user secure enclave. These limits do not excuse preventable weaknesses in Pastral's own boundaries or authorization flows.

@@ -16,7 +16,7 @@ This document defines the minimum response for vulnerabilities or incidents invo
 
 ### High
 
-- same-user process can bypass IPC authorization and read/delete/export content;
+- IPC allows a client outside the documented user/logon-session boundary, or a same-user client performs sensitive/private/destructive operations without the required explicit user-intent authorization;
 - sandbox escape from worker into broad history/key access;
 - repeatable secret leakage into logs, diagnostics, or passive UI;
 - irreversible migration corruption affecting many users;
@@ -53,7 +53,7 @@ Select the narrowest safe action:
 - disable update channel or revoke package/certificate according to platform process;
 - pause migrations or exports;
 - advise users to pause capture/delete affected data only when evidence supports it;
-- rotate IPC or profile keys when compromise scope requires it.
+- rotate IPC or profile keys when compromise scope requires it, while stating that IPC-secret rotation does not remediate a still-compromised same-user session.
 
 Do not silently delete user history as a general containment technique.
 
@@ -63,7 +63,7 @@ Answer:
 
 - which versions, architectures, Windows builds, profiles, formats, and settings are affected;
 - whether content, metadata, keys, rules, updates, or availability were impacted;
-- whether exploitation crossed the worker, IPC, storage, package, or user-session boundary;
+- whether exploitation crossed the worker, cross-user/logon-session IPC, storage, package, or user-intent authorization boundary, versus operating within the documented same-user residual-risk model;
 - whether logs/dumps/backups created secondary copies;
 - whether hard-deny or sensitive policy failed;
 - whether evidence indicates active exploitation;

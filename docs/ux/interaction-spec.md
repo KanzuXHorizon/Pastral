@@ -153,13 +153,22 @@ After paste:
 ### Sensitive item skipped
 
 - no content preview or secret-derived icon/text;
-- wording such as “Sensitive content not saved”;
-- source details omitted when profile policy requires;
+- wording such as “Sensitive content not saved” only in configured privacy-safe status surfaces;
+- source details, size, structure, and precise timestamp omitted;
+- hidden audit entry contains only broad detector/policy class, active profile, coarse timestamp, and expires after 24 hours by default;
 - action links lead to policy settings, not a reveal of discarded content.
 
-### Private profile locked
+### Source-owned hard deny
 
-- cards expose type/count/time only according to metadata policy;
+- no durable clip or audit row;
+- no content/source preview or rule action;
+- passive overlay is suppressed by default; an explicitly enabled generic policy notice may state only “Not saved by source policy” and is not retained;
+- settings cannot override the storage deny.
+
+### Private profile unavailable or locked
+
+- before encrypted storage/non-indexing/recovery gates exist, the built-in Private profile is shown only as unavailable with prerequisite explanation, not as an unencrypted functional profile;
+- when implemented and locked, cards expose type/count/time only according to minimized metadata policy;
 - accessibility tree contains no hidden content;
 - search does not reveal protected terms;
 - unlock flow does not steal focus from an unrelated destination.
@@ -174,6 +183,7 @@ Errors are categorized by user impact:
 - **Protocol mismatch:** update/restart required; no direct database fallback.
 - **Corrupt item:** item quarantined; original reference not pasted.
 - **Paste rejected:** destination changed, policy denied, representation unavailable, or authorization missing.
+- **Manual paste required:** focus restoration or synthetic input was blocked/uncertain (including higher-integrity destinations); item remains on clipboard and the message contains a keyboard-accessible manual-paste instruction without payload content.
 
 Messages contain a clear outcome and next action, not raw HRESULTs. Diagnostics disclosure may show result codes separately.
 

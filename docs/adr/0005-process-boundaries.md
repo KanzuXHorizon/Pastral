@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-03
+**Amended:** 2026-08-04 — clarify that Quick Paste is a manager activation mode under ADR 0017 and does not add a fifth resident process.
 
 ## Context
 
@@ -13,7 +14,7 @@ Use four executables:
 
 - `pastral-agent.exe`: only resident process and sole database owner;
 - `pastral-worker.exe`: launched only for bounded expensive/hostile jobs;
-- `pastral-manager.exe`: on-demand UI through IPC;
+- `pastral-manager.exe`: single-instance on-demand UI through IPC, hosting both Quick Paste and the full manager shell;
 - `pastral-cli.exe`: on-demand administration through IPC.
 
 The MVP does not install a Windows service. Overlay remains inside the agent unless benchmark/security evidence requires separation.

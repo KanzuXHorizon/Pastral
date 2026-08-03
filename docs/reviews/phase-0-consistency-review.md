@@ -1,8 +1,12 @@
 # Phase 0 consistency review
 
+> **Historical status:** This review records the checks performed for commit `3445122`. Its readiness conclusion is superseded by [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md) and the Phase 0.1 hardening decisions. It is retained to preserve audit history rather than rewritten as if the later findings had been known.
+
 **Date:** 2026-08-03
 **Scope:** Research, product, architecture, ADR, security, privacy, performance, testing, UX, brand, repository, and release-planning artifacts.
-**Conclusion:** Phase 0 documentation is internally consistent enough to begin the separate repository/toolchain/domain-bootstrap design cycle. It does not establish that Pastral is implemented, benchmarked, secure, accessible, compatible, packaged, or ready for release.
+**Historical conclusion at commit `3445122`:** Phase 0 documentation appeared internally consistent enough to begin the separate repository/toolchain/domain-bootstrap design cycle. It did not establish that Pastral was implemented, benchmarked, secure, accessible, compatible, packaged, or ready for release.
+
+> **Superseded readiness notice (2026-08-04):** The adversarial review in [`phase-0-adversarial-audit.md`](phase-0-adversarial-audit.md) found material gaps in same-user IPC claims, foreign OLE threading, sequence/event semantics, registered-format identity, domain IDs/time/digests, format adapters, source confidence, Quick Paste hosting, UIPI fallback, hard-deny audit behavior, Private-profile guarantees, authenticated streaming, quota semantics, SQLite deletion remnants, toolchain freshness, and naming risk. Repository/toolchain bootstrap is gated on the Phase 0.1 hardening commit and checks. The command evidence below remains an accurate historical record for commit `3445122` and is not rewritten as if Phase 0.1 existed then.
 
 ## 1. Artifact coverage
 
@@ -84,7 +88,7 @@ Consistent decision:
 - 90-day/5-GB ordinary default;
 - pinned items excluded from automatic retention deletion;
 - highly confident secrets not stored by default;
-- optional `SensitiveItemSkipped` contains no value/hash/snippet/OCR/reconstructable content;
+- historical Phase 0 wording allowed optional `SensitiveItemSkipped`; Phase 0.1 supersedes it with a hidden coarse 24-hour default audit that remains content-free and user-disableable;
 - password-manager and reliable private-context exclusions by default;
 - `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` are hard deny;
 - encrypted sensitive retention is explicit, narrow, and excluded from ordinary indexes/previews/exports.
@@ -283,8 +287,8 @@ Implementation evidence is still required for:
 - all performance, accessibility, security, and fidelity targets;
 - final name clearance, logo assets, package identity, signing, and license.
 
-## 8. Readiness decision
+## 8. Historical readiness decision
 
-Phase 0 is ready to be committed as a documentation/governance baseline.
+At commit `3445122`, Phase 0 was considered ready to be committed as a documentation/governance baseline. The later adversarial audit found additional architecture/security/factual gaps and supersedes this conclusion for implementation readiness.
 
 The next highest-value step is a separate, test-first repository/toolchain and pure-domain bootstrap plan. It must verify the native Windows toolchain and domain invariants without implementing clipboard capture, storage, IPC, overlay, or UI prematurely.

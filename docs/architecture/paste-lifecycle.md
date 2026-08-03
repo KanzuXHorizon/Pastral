@@ -56,22 +56,24 @@ Before touching the clipboard:
 
 ## IDataObject construction
 
-The replay object:
+The replay object is created, published, and kept alive on the dedicated clipboard platform STA. It:
 
 - offers all safe preserved representations needed for original/preferred modes;
 - includes interoperable fallbacks such as Unicode text alongside rich formats when valid;
-- preserves registered format identifiers and format ordering where destination behavior depends on it;
+- reconstructs standard formats from documented fixed IDs and registered formats by re-registering their persisted exact names; runtime numeric registered-format IDs are never replay identities;
+- records captured enumeration order as evidence but uses adapter/compatibility policy for replay priority; it does not claim that all destinations honor enumeration order consistently;
 - owns all memory/stream lifetime through RAII;
-- implements only required `IDataObject` operations and validates `FORMATETC`/`TYMED` requests;
-- supports delayed rendering where it improves memory behavior and compatibility;
+- implements only required `IDataObject` operations and validates `FORMATETC`/`TYMED`, `dwAspect`, and `lindex` requests through registered adapters;
+- supports delayed rendering where it improves memory behavior and compatibility, using only prevalidated owned memory or immutable pre-opened blob/stream resources;
+- never performs SQLite, IPC, rule, profile, or UI queries from `IDataObject` callbacks;
 - never exposes worker staging paths or internal encrypted blobs directly.
 
 Derived or plain-text modes publish only the selected derived set plus appropriate fallback metadata; they do not mutate stored originals.
 
 ## Clipboard publication
 
-- Use `OleSetClipboard` for OLE-aware multi-format replay.
-- Track the resulting sequence as self-generated to prevent duplicate history capture.
+- Serialize publication/retirement with capture ownership on the clipboard platform STA and use `OleSetClipboard` for OLE-aware multi-format replay.
+- Publish a versioned private origin marker and track ownership/sequence timing as evidence for self-generated suppression; sequence equality alone is insufficient.
 - Keep the data object alive until the destination has consumed it or the bounded lifetime policy resolves.
 - Use `OleIsCurrentClipboard`/`OleFlushClipboard` only where transaction and shutdown semantics require them.
 - Never restore the prior clipboard immediately after synthetic paste; many destinations read asynchronously.
@@ -80,11 +82,14 @@ Derived or plain-text modes publish only the selected derived set plus appropria
 
 Preferred order is compatibility-profile dependent:
 
-1. return focus to the explicitly recorded destination only when Quick Paste had been user-invoked and focus restoration is safe;
-2. send the configured paste gesture through documented input APIs;
-3. observe bounded heuristics such as clipboard ownership/read patterns and foreground changes;
-4. report success, failure, or `UnknownConsumed` honestly;
-5. use Unicode typing only as an explicit compatibility fallback, never silently for rich content.
+1. return focus to the explicitly recorded destination only when Quick Paste had been user-invoked and Windows permits safe restoration;
+2. revalidate destination HWND, process lifetime identity, session, and available integrity evidence immediately before dispatch;
+3. send the configured paste gesture through documented input APIs only when the destination remains expected;
+4. observe bounded heuristics such as clipboard ownership/read patterns and foreground changes;
+5. report `Dispatched`, explicit failure, or `UnknownConsumed` honestly; synthetic input success is not proof that the destination consumed data;
+6. use Unicode typing only as an explicit compatibility fallback, never silently for rich content.
+
+`SendInput` is subject to UIPI and cannot inject into a higher-integrity destination from Pastral's standard-user process. Pastral does not request `uiAccess`, elevate itself, install a service, or use focus-stealing/thread-attachment hacks to bypass this restriction. When focus restoration or dispatch is blocked/uncertain, it leaves the selected data on the clipboard and displays a concise manual-paste instruction.
 
 Pastral must not paste into a newly foregrounded unrelated application if destination identity changed after user selection.
 
@@ -107,10 +112,10 @@ No heuristic is described as certain unless destination-specific evidence suppor
 
 - Reconstruction failure leaves the Windows clipboard unchanged where possible.
 - Publication failure does not remove or alter stored data.
-- Synthetic-input failure leaves the selected item on the clipboard so the user can press paste manually.
-- Destination change cancels paste dispatch rather than risking a wrong target.
+- Synthetic-input failure, UIPI restriction, or uncertain focus restoration leaves the selected item on the clipboard so the user can paste manually.
+- Destination change, integrity mismatch, or uncertain restoration/dispatch cancels synthetic paste rather than risking a wrong target.
 - Corrupt or tampered encrypted blobs are quarantined and reported without plaintext logging.
-- Agent crash during delayed rendering is covered by shutdown/restart and `OleFlushClipboard` compatibility tests.
+- Agent crash or blocked clipboard STA during delayed rendering is covered by shutdown/restart, degraded paste availability, and `OleFlushClipboard` compatibility tests; no callback performs storage/business work that could deadlock the core.
 
 ## Compatibility evidence
 
@@ -129,9 +134,9 @@ Test original, rich, plain, copy-only, and fallback modes against:
 
 Each application profile records:
 
-- accepted formats and priority;
+- accepted stable format identities (standard ID or registered name) and priority;
 - asynchronous-read behavior;
-- paste shortcut/input constraints;
+- paste shortcut/input constraints, destination integrity/elevation behavior, and manual-paste fallback;
 - restoration safety;
 - known failures and workarounds;
 - tested application/Windows version and date.
@@ -141,7 +146,7 @@ Each application profile records:
 Logs may contain:
 
 - transaction ID;
-- format IDs and size buckets;
+- standard format IDs or registered format names according to redaction policy, plus size buckets;
 - source/destination application identifiers according to redaction policy;
 - timings;
 - result/error codes;

@@ -33,21 +33,31 @@ A miss on the 25 MB target is not hidden. Record component/dependency contributi
 
 | Stage | Budget |
 |---|---|
-| Notification to sequence/coalescing decision | p95 under 1 ms |
-| Clipboard/OLE acquisition excluding external contention | p95 under 3 ms |
-| Synchronous capture-critical path | target p95 under 10 ms |
-| Clipboard/data-object release | as early as safely possible; measured duration reported |
-| Durable lightweight metadata/payload persistence | p95 under 50 ms for ordinary text, off message thread where possible |
-| Overlay view-model readiness after successful capture | p95 under 20 ms |
+| Control-thread notification handling and observation handoff | p95 under 1 ms; no foreign clipboard/OLE call or wait |
+| Capture-queue wait | reported separately; target p95 under 2 ms without pressure |
+| Win32 clipboard acquisition excluding external contention | p95 under 3 ms |
+| Synchronous capture-critical path on capture STA | target p95 under 10 ms for ordinary text |
+| Clipboard-open/foreign-object hold duration | measured explicitly and minimized; owner/call delay reported separately |
+| Pastral-owned capture result queued to storage | p95 under 20 ms for ordinary text |
+| Durable lightweight metadata/payload persistence | p95 under 50 ms for ordinary text, off control and capture apartments after ownership transfer |
+| Overlay view-model readiness after successful durable capture | p95 under 20 ms from commit acknowledgement |
 
-External clipboard contention is reported separately by attempt count and total bounded retry duration.
+External clipboard contention, delayed rendering, foreign COM/stream time, cancellation attempts, and capture-queue pressure are reported separately. They are not hidden inside the normal-path budget.
 
 ### Larger/common content
 
 - 1 MB text/HTML: no UI/message-thread stall over the validated capture boundary.
 - 10 MB encoded image: stream/copy with bounded memory; no decode on capture path.
 - 100 MB supported stream/reference scenario: no duplicate full-size buffers; capture policy may degrade or refuse according to configured limits.
-- 100 rapid updates: no unbounded queue, no source-copy interference, deterministic coalescing, and no lost final event under fixture semantics.
+- 100 rapid replacements: no unbounded queue or source-copy interference; capture the final current state under the defined fixture; report possible unobservable intermediate-state loss without inventing an exact count.
+
+### Capture-health and blocked-owner budget
+
+- While a fixture blocks the capture STA, control-thread tray/hotkey/session handling remains responsive and passive overlay never reports a false successful capture.
+- Observation queue remains bounded; latest-state pressure and dropped/coalesced observations are counted without payload.
+- Soft deadline, cancellation attempt, degraded-state transition, and explicit restart recovery are timed separately.
+- No unsafe thread termination and no unbounded capture-thread creation.
+- A reproducible non-recoverable stuck owner triggers capture-broker architecture review rather than a relaxed correctness claim.
 
 ## 4. Overlay
 
@@ -65,8 +75,8 @@ Under battery saver, reduced motion, transparency disabled, RDP, or device loss,
 
 | Metric | Initial budget |
 |---|---|
-| Warm invocation to interactive first frame | p95 under 80 ms |
-| Cold invocation | Measured and budgeted after manager/surface architecture prototype; no unsupported claim |
+| Warm invocation to interactive first frame | p95 under 80 ms when the single-instance manager UI process is already alive |
+| Cold invocation | Measured separately from process activation through interactive first frame; no unsupported target until the WinUI prototype exists |
 | First recent results | p95 under 30 ms at 100,000 ordinary text records |
 | Keystroke to updated first results | p95 under 30 ms at 100,000 records, obsolete queries cancelled |
 | Selection stability | No unexpected selection jump during incremental update |
@@ -99,13 +109,15 @@ Initial target: first result page under 30 ms at 100k on reference hardware. A s
 - Large replay: no unnecessary duplicate full buffers; memory peak reported.
 - Delayed-render object lifetime: bounded without breaking tested destinations.
 - Copy-only mode: no focus change.
+- Elevated/UIPI or uncertain destination fallback adds no unbounded retry; data publication completes and manual-paste guidance appears without false success.
 
 ## 8. Storage and maintenance
 
 - Startup recovery scans only staging/reference state needed for safety; no full payload read.
 - Retention/quota cleanup is incremental, cancellable, and yields to capture/search.
 - Delete shared blob only after reference check.
-- Low-disk detection avoids repeated failing writes.
+- The 5 GB value is an automatic-cleanup target for ordinary unpinned history, not a hard cap when pinned/protected data exceeds it.
+- Low-disk detection uses a separately benchmarked reserve/hysteresis policy, avoids repeated failing writes, pauses new payload capture before filesystem exhaustion, and never silently deletes pinned data.
 - Migration benchmarks include largest supported test database and interruption at persisted phases.
 - Integrity check may be long-running but must expose progress/cancellation and never freeze the UI.
 
@@ -113,10 +125,10 @@ Initial target: first result page under 30 ms at 100k on reference hardware. A s
 
 Measure:
 
-- agent cold startup to clipboard listener ready;
+- agent cold startup to control listener ready and capture STA ready as separate points;
 - warm startup;
 - database recovery/migration variants;
-- manager/Quick Paste cold and warm activation;
+- manager/Quick Paste cold process activation, warm window activation, bounded warm-lifetime cost, and idle teardown;
 - profile switch;
 - session unlock/resume;
 - shutdown with/without active paste ownership;

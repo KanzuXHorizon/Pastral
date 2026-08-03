@@ -41,7 +41,8 @@ Rules:
 Expected assertions:
 
 - high-confidence synthetic secret payload absent from ordinary DB, blobs, FTS, logs, overlay, diagnostics, and export;
-- optional `SensitiveItemSkipped` contains no value/hash/snippet;
+- default hidden `SensitiveItemSkipped` contains only broad detector/policy class, active fixture profile, coarse timestamp, and 24-hour retention metadata—no value/hash/snippet/title/path/domain/size/structure;
+- source-owned hard-deny fixture creates no durable clip or audit row;
 - uncertain/near-miss behavior matches explicit detector policy;
 - detector output includes version/class/confidence but not secret text in logs.
 
@@ -50,8 +51,8 @@ Expected assertions:
 Each fixture directory contains:
 
 - source generator definition;
-- expected offered format IDs/names/order where relevant;
-- expected bytes or cryptographic digest stored safely;
+- expected stable format identity (standard ID or exact registered name), source/runtime numeric ID only as transient evidence, and order where relevant;
+- expected exact bytes or `sha256-raw-v1` digest stored safely for ordinary fixtures; Private/sensitive plaintext fixtures do not persist a plaintext digest in simulated product state;
 - expected fidelity state;
 - expected capture/replay behavior;
 - size and parser limits;
@@ -89,6 +90,9 @@ Tests must not enumerate or copy outside the fixture root unless the test explic
 - one fixture for every supported prior schema version;
 - corruption variants operate on disposable copies;
 - encrypted fixtures use test-only keys and cannot be confused with production key formats/locations;
+- Private/sensitive equal-plaintext fixtures verify random blob identity and no cross-domain plaintext deduplication;
+- encrypted fixtures include whole-message and chunked authentication cases for truncation, reorder, duplicate, cross-object splice, wrong count, and no plaintext release before verification;
+- deletion-remnant fixtures inspect disposable SQLite/FTS/freelist/journal/WAL copies according to the selected policy without using real user data;
 - fixture creation is deterministic enough to reproduce result hashes where expected.
 
 Do not commit databases copied from a user profile.
@@ -97,7 +101,7 @@ Do not commit databases copied from a user profile.
 
 - CI artifacts are treated as potentially public to repository collaborators.
 - Release/debug logs use content-free structured fields.
-- screenshot tests render synthetic clips and identities.
+- screenshot tests render synthetic clips and identities; protected-content tests verify hidden payloads are absent from view models/UI Automation even when window capture exclusion is unavailable.
 - failure reporters scrub window titles, paths, usernames, domains, profile names, package identities, and clip IDs unless they are fixture values.
 - crash dumps are not uploaded automatically; development dumps use synthetic fixture processes and limited retention.
 - artifact retention is bounded and documented by workflow.
@@ -115,7 +119,7 @@ Do not commit databases copied from a user profile.
 
 When a real third-party application must be tested:
 
-- use a dedicated Windows test account/profile;
+- use dedicated Windows test accounts/logon sessions for cross-user/session IPC cases and a separate standard-user/elevated fixture pair for UIPI fallback;
 - copy only synthetic fixture content;
 - close unrelated private apps/documents;
 - disable or isolate real password managers/private browsing;

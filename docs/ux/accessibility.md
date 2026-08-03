@@ -69,6 +69,7 @@ Do not concatenate every badge into an unreadable announcement. Use descriptions
 - Passive confirmation is not focusable.
 - Optional announcement is concise and rate-limited.
 - No content is announced for sensitive skip/locked preview beyond safe policy status.
+- When synthetic paste is blocked or uncertain, including a higher-integrity destination, announce that the item was copied to the clipboard and that the user should paste manually; do not announce payload content.
 - Explicit interactive panel exposes a normal dialog/flyout structure and focus trap only while open.
 
 ## 5. Vision and contrast
@@ -119,9 +120,11 @@ Do not concatenate every badge into an unreadable announcement. Use descriptions
 ## 10. Privacy and accessibility
 
 - Hidden sensitive text is not present in offscreen accessibility nodes, live regions, tooltips, cached view models, task thumbnails, or copied automation properties.
+- Window display-affinity/capture exclusion is optional defense in depth and never substitutes for removing hidden content from UI Automation and all rendered/cached view models.
 - Unlock/reveal is explicit and state changes are announced without reading the secret automatically.
 - Source title/domain/path obeys the same redaction policy in automation properties as on screen.
 - Diagnostic technical text is selectable but excludes content.
+- Display-affinity/screen-capture exclusion is never the primary privacy control and is not announced as guaranteed protection; accessibility-safe hidden-state behavior remains correct when the API is unavailable or ignored.
 
 ## 11. Test matrix
 
@@ -144,7 +147,7 @@ Manual release candidate:
 - contrast themes/light/dark;
 - reduced motion/transparency disabled;
 - touch where hardware exists;
-- RDP;
+- RDP and screen-capture/display-affinity fallback behavior;
 - RTL and long localization;
 - copy overlay while selecting/typing/menu open.
 

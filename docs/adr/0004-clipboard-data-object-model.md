@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-03
+**Amended:** 2026-08-04 — separate notification observations/audit outcomes from successful clips, persist registered-format names, and require reviewed adapters after the Phase 0 adversarial audit.
 
 ## Context
 
@@ -9,11 +10,13 @@ One copy operation can expose Unicode text, HTML, RTF, images, URLs, file lists,
 
 ## Decision
 
-Model each meaningful clipboard update as one immutable `ClipEvent` containing multiple `ClipRepresentation` records.
+Model each successfully captured current clipboard state as one immutable `ClipEvent` containing one or more `ClipRepresentation` records. A notification/attempt is a transient `ClipboardObservation`; denied, failed, skipped, or degraded outcomes use content-free `CaptureAuditEvent` records where policy permits. Source-owned hard deny creates neither a clip nor a durable audit row.
 
-Capture prefers short-lived OLE `IDataObject` enumeration and supplements it with Win32 format enumeration where required. Each representation records format, medium, capture state, size, storage reference, fidelity, and safety notes.
+Capture uses reviewed Win32 adapters for common standard/registered formats and supplemental short-lived OLE `IDataObject` access only where `FORMATETC`, `lindex`, `IStream`, virtual-file, or richer medium semantics are required. Each representation records durable format identity, adapter/version, medium evidence, capture state, size, storage reference, protection/digest policy, fidelity, and safety notes.
 
-Transformations create versioned derived representations with parent links and never mutate originals.
+Standard formats persist defined IDs. Registered formats persist their exact registered names and are re-registered during replay; runtime numeric registered-format IDs are transient only. Unknown custom formats are not blindly serialized or replayed.
+
+Transformations create versioned derived representations with parent links and never mutate originals. Detailed invariants are defined in `../architecture/data-model.md` and adapter policy in `../architecture/clipboard-format-policy.md`.
 
 Aggregate and per-representation fidelity use:
 
@@ -37,7 +40,8 @@ Costs:
 
 - more complex schema, capture fixtures, and replay logic;
 - application-private formats require safe adapter policies;
-- exact event boundaries need sequence/source/coalescing tests.
+- event observation/current-state boundaries need sequence/source/coalescing tests without claiming every rapid intermediate copy is observable;
+- registered-name and adapter migrations must remain backward compatible.
 
 ## Alternatives considered
 

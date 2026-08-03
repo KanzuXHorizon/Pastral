@@ -68,7 +68,7 @@ Outliers are not silently deleted. State the rule and reason for exclusions.
 ## 6. Time sources and instrumentation
 
 - Use monotonic high-resolution clocks such as QueryPerformanceCounter through a reviewed wrapper.
-- Define named trace points for notification received, sequence read, clipboard acquired, first/last immediate representation captured, foreign object released, storage queued/committed, overlay submitted/visible, Quick Paste invoked/interactive, query submitted/first row, data object published, paste dispatched/result.
+- Define named trace points for notification received, sequence read, control-thread observation queued/returned, capture-queue dequeue, clipboard acquired, foreign call begin/end/cancel attempt, first/last immediate representation captured, foreign object/medium released, storage queued/committed, overlay submitted/visible, Quick Paste cold process start or warm activation/interactive, query submitted/first row, data object published, focus revalidation, input dispatched/manual fallback, and consumption result.
 - Correlation IDs link stages without payload data.
 - Development-only ETW/WPR/WPA traces inspect CPU scheduling, disk I/O, page faults, GPU/compositor, process/thread lifetime, and power wakeups.
 - Release logging remains much less verbose.
@@ -101,13 +101,14 @@ Use a native fixture producer to publish controlled clipboard data:
 - URL formats;
 - encoded PNG and DIB/DIBV5;
 - file lists;
-- custom opaque registered format;
-- delayed rendering;
+- registered format with stable name and changed runtime numeric ID;
+- unknown custom format that must remain metadata-only/unsupported;
+- delayed rendering, re-entrancy, blocked/non-cooperative owner, and cancellation refusal;
 - slow/contended owner;
 - malformed/oversized descriptors;
-- rapid sequences.
+- sequence unavailable/zero, unsigned-wrap abstraction, duplicate queued notifications, rapid replacements, and forged/stale self-origin markers.
 
-Measure source `SetClipboard`/`OleSetClipboard` completion separately from Pastral observation. Pastral must not be credited or blamed for source-side publication time. Report capture-critical latency, object hold duration, durable commit, memory peak, and dropped/degraded formats.
+Measure source `SetClipboard`/`OleSetClipboard` completion separately from Pastral observation. Pastral must not be credited or blamed for source-side publication time. Report control-thread handling, capture-queue wait, Win32 clipboard hold, foreign OLE/stream time, cancellation/degraded transition, durable commit, memory peak, final-current-state success, possible unobservable intermediate-state pressure, and dropped/degraded formats. A blocked capture fixture must prove tray/hotkey/session/overlay control responsiveness and bounded queue behavior.
 
 ## 9. Overlay benchmark
 
@@ -138,7 +139,7 @@ Fixture destinations advertise/inspect supported formats and can emulate synchro
 - destination consumption timing;
 - object lifetime;
 - memory peak for large formats;
-- foreground validation and input dispatch;
+- foreground/process/integrity validation, standard destination dispatch, elevated/UIPI blocked path, clipboard-only/manual fallback, and no false consumption claim;
 - optional restoration result.
 
 Correct bytes/formats and destination safety are prerequisites; fast incorrect paste is a failure.
@@ -147,15 +148,15 @@ Correct bytes/formats and destination safety are prerequisites; fast incorrect p
 
 Scenarios:
 
-- rollback journal versus WAL prototype;
+- rollback journal versus WAL prototype, including FTS/freelist/journal/WAL deletion remnants;
 - clean and dirty shutdown;
 - forced termination at each blob/database commit phase;
 - low disk and quota crossing;
 - antivirus/file lock interference;
 - migration from every supported prior schema;
 - integrity check and backup/restore;
-- retention cleanup with pinned/shared blobs;
-- encrypted write/read/rotation.
+- retention cleanup with pinned/shared blobs and usage above the 5 GB automatic-cleanup target;
+- encrypted write/read/rotation, whole-message authentication-before-release, independently authenticated chunk behavior, and equal Private plaintext producing non-equal storage identity.
 
 Use disposable synthetic data only.
 

@@ -38,5 +38,8 @@ Every ADR includes:
 - [0012 — OCR approach](0012-ocr-approach.md)
 - [0013 — Semantic search deferred](0013-semantic-search-deferred.md)
 - [0014 — Plugin system deferred](0014-plugin-system-deferred.md)
+- [0015 — Dedicated capture STA and hybrid Win32/OLE capture](0015-clipboard-capture-threading.md)
+- [0016 — Durable identity, time, and digest semantics](0016-data-identity-time-and-digests.md)
+- [0017 — Quick Paste hosting](0017-quick-paste-hosting.md)
 
 An ADR change is committed with the implementation or plan it governs. Historical decisions are not rewritten to conceal prior reasoning; corrections use a new ADR or an explicit amendment note.

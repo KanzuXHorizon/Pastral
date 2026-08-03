@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-03
+**Amended:** 2026-08-04 — define `sha256-raw-v1`, protection-domain boundaries, random Private/sensitive identities, and deletion-remnant evaluation after the Phase 0 adversarial audit.
 
 ## Context
 
@@ -17,11 +18,12 @@ Use:
 - one database owner process: `pastral-agent.exe`;
 - prepared statements and typed repository interfaces;
 - temporary-file staging followed by durable close and atomic final rename where supported;
-- content-addressed final paths for ordinary non-sensitive payloads;
-- random identifiers or keyed hashes for sensitive encrypted payloads;
-- startup and explicit health-check reconciliation for incomplete staging and unreferenced blobs.
+- content-addressed final paths for ordinary non-sensitive payloads using versioned `sha256-raw-v1` over logical raw bytes before optional physical storage encoding, namespaced by compatible ordinary protection domain;
+- random identifiers and no persistent plaintext digest/deduplication by default for Private or sensitive encrypted payloads;
+- startup and explicit health-check reconciliation for incomplete staging and unreferenced blobs;
+- explicit evaluation of FTS deletion, freelist reuse, `secure_delete`, vacuum strategy, rollback/WAL checkpoint retention, snapshots, and backups without promising forensic erasure.
 
-WAL is not enabled merely by convention. The storage prototype compares rollback journaling and WAL across crash, suspend, antivirus, backup, low-disk, shutdown, and single-owner workloads. The selected mode and pragmas are recorded with benchmark and recovery evidence.
+WAL is not enabled merely by convention. The storage prototype compares rollback journaling and WAL across crash, suspend, antivirus, backup, low-disk, shutdown, deletion-remnant, and single-owner workloads. The selected journal mode, checkpoint policy, `secure_delete` setting, vacuum strategy, foreign-key mode, synchronization level, and temporary-store policy are recorded with benchmark, privacy, and recovery evidence.
 
 ## Consequences
 
@@ -36,7 +38,8 @@ Costs:
 
 - two-part commit requires explicit recovery reconciliation;
 - backup/export must understand SQLite journaling and blob consistency;
-- quota cleanup must preserve shared references and pinned items.
+- quota cleanup must preserve shared references and pinned items;
+- logical deletion can leave bytes in database pages, FTS structures, journals/WAL, snapshots, or backups until later maintenance/overwrite, so UI language cannot promise secure erasure.
 
 ## Alternatives considered
 
@@ -50,4 +53,5 @@ Costs:
 - FTS5 cannot satisfy required query semantics or scale;
 - one-owner IPC becomes a measured bottleneck;
 - selected journal mode fails recovery or backup acceptance tests;
-- encrypted metadata requirements justify a separate private-profile database.
+- encrypted metadata requirements justify a separate private-profile database;
+- deletion-remnant testing shows the selected FTS/journal/vacuum policy is unacceptable.

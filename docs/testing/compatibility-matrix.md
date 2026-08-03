@@ -92,18 +92,36 @@ Required combinations:
 - encoded PNG registered format;
 - simultaneous text + HTML + RTF + URL;
 - simultaneous image + encoded image + text;
-- custom registered opaque format;
-- `HGLOBAL`, `IStream`, and supported media variants;
-- delayed rendering and owner exit;
+- registered format replayed by exact name after the runtime numeric ID changes;
+- unknown custom format retained as metadata-only/unsupported rather than blindly replayed;
+- `HGLOBAL`, `IStream`, `lindex`, `STGMEDIUM`/`pUnkForRelease`, and supported media variants;
+- delayed rendering, blocked/non-cooperative owner, re-entrancy, cancellation refusal, and owner exit;
 - empty clipboard;
-- rapid repeated sequences;
+- sequence unavailable/zero and unsigned-wrap abstraction;
+- rapid repeated notifications/replacements with final-state capture and honest intermediate-state-loss diagnostics;
+- valid, stale, forged, and malformed Pastral origin markers;
 - clipboard busy/locked;
 - malformed lengths and unsupported media;
 - `ExcludeClipboardContentFromMonitorProcessing`;
 - `CanIncludeInClipboardHistory=0`;
 - `CanUploadToCloudClipboard=0`.
 
-## 6. Overlay compatibility
+## 6. Source and paste-boundary compatibility
+
+Required scenarios:
+
+- clipboard owner and foreground application agree;
+- owner absent/destroyed/internal OLE window;
+- background copy while another app is foreground;
+- foreground changes before capture and before paste;
+- process ID reuse and package/executable identity resolution;
+- window title resembles a URL/project but does not become high-confidence domain/project evidence;
+- explicit integration valid/stale/wrong process/session;
+- standard-user destination and elevated/higher-integrity destination;
+- `SendInput` blocked/uncertain path leaves data on clipboard and requests manual paste without false success;
+- Quick Paste cold manager activation, warm activation, bounded retained lifetime, and crash/restart.
+
+## 7. Overlay compatibility
 
 For every display/session state verify:
 
@@ -120,7 +138,7 @@ For every display/session state verify:
 - RDP, transparency-disabled, reduced-motion, and device-loss fallback;
 - coalescing during copy bursts.
 
-## 7. Accessibility compatibility
+## 8. Accessibility compatibility
 
 Manual and automated coverage:
 
@@ -134,9 +152,11 @@ Manual and automated coverage:
 - UI Automation Inspect tooling;
 - RTL and long localized strings;
 - passive overlay announcement policy;
-- sensitive/locked states without content leakage.
+- sensitive/locked states without content leakage;
+- accessible manual-paste fallback after blocked/uncertain synthetic input;
+- display-affinity disabled/unsupported while hidden content remains absent from UI Automation/view models.
 
-## 8. Packaging compatibility
+## 9. Packaging compatibility
 
 - clean standard-user install;
 - packaged process activation for all executables;
@@ -150,7 +170,7 @@ Manual and automated coverage:
 - code-signing/publisher verification;
 - no Windows 10 installation claim.
 
-## 9. Result states
+## 10. Result states
 
 Every tested cell records one of:
 

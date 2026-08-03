@@ -6,7 +6,7 @@
 
 **Architecture:** Phase 0 is documentation-only plus repository governance. It records a Rust Win32/COM agent, on-demand Rust worker and CLI, C++/WinRT WinUI 3 manager, agent-owned SQLite/blob store, versioned per-user named-pipe IPC, and focus-safe native overlay. No clipboard feature code is created in this phase.
 
-**Tech Stack:** Markdown, Mermaid, Git, Windows 11, Rust 1.97.1/Edition 2024 decision record, Windows SDK 10.0.28000.2270 decision record, Windows App SDK 2.3.1 stable decision record, C++20, SQLite/FTS5 design.
+**Tech Stack:** Markdown, Mermaid, Git, Windows 11, Rust 1.97.1/Edition 2024 decision record, Windows SDK stable decision record (corrected by Phase 0.1 to 10.0.28000.2526), Windows App SDK 2.3.1 stable decision record, C++20, SQLite/FTS5 design.
 
 ## Global Constraints
 
@@ -15,7 +15,7 @@
 - x64 first; ARM64 only after x64 quality gates pass.
 - No feature implementation before Phase 0 consistency gates pass.
 - Local-first and network-silent by default.
-- Default retention is 90 days and 5 GB; pinned clips are exempt from automatic retention deletion.
+- Default retention is 90 days with a 5 GB automatic-cleanup target for ordinary unpinned history; pinned/protected clips are exempt and may exceed the target with visible warnings (clarified by Phase 0.1).
 - Highly confident secrets are not stored by default.
 - Clipboard-owner hard-deny formats cannot be overridden by normal settings.
 - No clipboard polling, embedded browser, Electron, Tauri, background Node.js, mandatory managed runtime, remote processing, or mandatory AI.

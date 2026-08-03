@@ -7,7 +7,7 @@
 ## 1. Security objectives
 
 1. Never interfere with the source application's successful copy operation.
-2. Prevent unauthorized local users/sessions/processes from reading or controlling Pastral through supported interfaces.
+2. Prevent other local users, logon sessions, remote pipe clients, stale/wrong components, and accidental clients from reading or controlling Pastral through supported interfaces. Do not claim a strong confidentiality boundary against a fully compromised process already running as the same unlocked Windows user.
 3. Keep clipboard payloads out of logs, passive notifications, crash diagnostics, update traffic, and network communication.
 4. Treat every clipboard representation, parser input, file path, database file, IPC message, import, and backup as untrusted.
 5. Preserve stored-original integrity and transformation provenance.
@@ -41,7 +41,7 @@
 
 - malformed or malicious clipboard owner in the same user session;
 - compromised application publishing hostile formats, streams, handles, paths, HTML, images, or delayed-render callbacks;
-- another local process running as the same user;
+- another local process running as the same user, including malware that may share the user's file/DPAPI authority;
 - another logged-on session or different local user;
 - malicious/corrupt import, backup, database, blob, or settings file;
 - malicious update/package or compromised signing pipeline;
@@ -56,7 +56,8 @@ Out of scope as a guaranteed defense:
 - kernel compromise;
 - screen capture/keylogging in the same interactive session;
 - secure deletion guarantees on SSDs and backup media;
-- recovery of DPAPI-protected data after destructive account credential/profile loss.
+- recovery of DPAPI-protected data after destructive account credential/profile loss;
+- strong confidentiality from a fully compromised process already running as the same unlocked user, which may access user files, invoke user-scope DPAPI, inspect the desktop, or inject into peer processes according to Windows policy.
 
 ## 4. Trust boundaries
 
@@ -87,18 +88,21 @@ Out of scope as a guaranteed defense:
 
 **Tests:** malformed lengths, huge `IStream`, decompression ratios, DIB dimensions/stride, cyclic/invalid serialized structures, cancellation, worker kill.
 
-### T2 — Delayed-render callback hangs or re-enters
+### T2 — Delayed-render or foreign clipboard call hangs/re-enters
 
-**Threat:** Foreign `IDataObject::GetData` blocks, re-enters messages, exits, changes clipboard, or returns inconsistent media.
+**Threat:** `IDataObject::EnumFormatEtc/GetData`, `IStream`, `GetClipboardData`, a delayed-render callback, or release callback blocks, re-enters messages, exits, changes clipboard, or returns inconsistent media.
 
 **Controls:**
 
-- minimal operations on the STA/message thread;
-- bounded capture deadline and attempt policy;
-- sequence recheck where safe;
-- short-lived foreign object reference;
-- cancellation/degradation rather than blocking copy;
-- fixture producer for delayed rendering, owner exit, and re-entrancy.
+- control/overlay thread never invokes foreign clipboard/OLE methods;
+- dedicated capture STA owns foreign interfaces/media and has its own message pump;
+- bounded observation queue and soft capture deadlines;
+- eligible COM call cancellation is prototyped as best effort, never relied on as a universal hard timeout;
+- sequence/current-state recheck where safe;
+- short-lived foreign object references and no foreign interfaces crossing into storage/UI;
+- watchdog-visible degraded/paused capture state rather than `TerminateThread` or unbounded replacement threads;
+- separate capture-broker review if non-cooperative fixtures cannot be recovered acceptably;
+- fixture producer for delayed rendering, blocked Win32/OLE calls, owner exit, cancellation refusal, and re-entrancy.
 
 ### T3 — Hard-deny or exclusion bypass
 
@@ -110,7 +114,8 @@ Out of scope as a guaranteed defense:
 - `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` evaluated before payload reads where technically possible;
 - deny/privacy rules outrank all transformations and learned rules;
 - no normal UI override;
-- audit metadata contains policy ID, not content.
+- source-owned hard deny creates no durable clip or audit row; only ephemeral aggregate health counters are permitted;
+- other policy skips may contain a policy ID but never content according to the privacy model.
 
 ### T4 — Secret detector false negative
 
@@ -134,26 +139,28 @@ Out of scope as a guaranteed defense:
 **Controls:**
 
 - destructive skip only at high confidence or hard policy;
-- optional content-free `SensitiveItemSkipped` event;
+- hidden content-free `SensitiveItemSkipped` audit by default with coarse metadata and 24-hour retention; user may disable/shorten it;
 - user-visible policy explanation without value;
 - configurable narrow encrypted retention for intentional use;
 - detector version/audit and false-positive fixtures.
 
-### T6 — Named-pipe unauthorized access or spoofing
+### T6 — Named-pipe unauthorized access, squatting, or spoofing
 
-**Threat:** Another process reads history, changes rules, issues paste/delete/export, or impersonates the agent.
+**Threat:** Another user/session, remote client, stale/wrong component, or accidental client reads history, changes rules, issues paste/delete/export, creates the first pipe instance, or impersonates the agent/client. A fully compromised same-user process may also attempt these operations and is not treated as a strongly isolated confidentiality principal.
 
 **Controls:**
 
-- explicit DACL for current user and logon SID;
-- validate client PID/token/session;
-- DPAPI-protected installation secret challenge-response;
-- nonce and transcript binding;
+- explicit least-privilege DACL granting normal client access to the current logon SID; do not add a broad user-SID allow ACE that would defeat same-account cross-session isolation; SYSTEM only when justified;
+- runtime validation of token user SID, enabled logon SID, and session ID;
+- `FILE_FLAG_FIRST_PIPE_INSTANCE` and `PIPE_REJECT_REMOTE_CLIENTS` where supported;
+- validate client PID, session, token user, integrity, and package/signature evidence where useful;
+- bounded impersonation only for peer checks, followed by prompt revert;
+- DPAPI-protected installation-secret challenge, nonce, and transcript/instance binding for anti-confusion/replay defense—not as a same-user malware guarantee;
 - protocol/version/capability negotiation;
 - message and response-size limits;
-- authorization per operation;
-- no content-returning defaults in CLI;
-- IPC fuzzing and cross-user/session tests.
+- authorization per operation and explicit foreground user intent for sensitive reveal/export/destructive actions;
+- no content-returning defaults in CLI; private/sensitive output requires separate authorization;
+- IPC fuzzing, first-instance squatting, remote, cross-user/session, stale-client, replay, and same-user residual-risk tests/documentation.
 
 ### T7 — IPC resource exhaustion
 
@@ -183,7 +190,7 @@ Out of scope as a guaranteed defense:
 - validated output and hashes;
 - worker binary signature/version check before launch.
 
-### T9 — Database/blob tampering or corruption
+### T9 — Database/blob tampering, deletion remnants, or corruption
 
 **Threat:** Modified metadata points to wrong blob, ciphertext is replaced, partial commit leaks or loses data, malicious local file triggers parser.
 
@@ -195,6 +202,7 @@ Out of scope as a guaranteed defense:
 - staging/atomic rename/reconciliation;
 - integrity check tooling;
 - never execute/open content automatically;
+- evaluate SQLite `secure_delete`, freelist/vacuum, rollback journal/WAL checkpoint/retention, snapshots, and backup copies; describe deletion as logical rather than guaranteed forensic erasure;
 - quarantine corruption and continue with unaffected data;
 - crash/power-loss and tampered-blob tests.
 
@@ -225,16 +233,18 @@ Out of scope as a guaranteed defense:
 - simulation before save;
 - audit, explanation, undo, pause, rollback, and versioned migrations.
 
-### T12 — Paste to wrong destination
+### T12 — Paste to wrong or higher-integrity destination
 
-**Threat:** Foreground changes after Quick Paste selection and synthetic paste enters another application.
+**Threat:** Foreground changes after Quick Paste selection, focus restoration fails, or UIPI blocks input into a higher-integrity application while Pastral mistakenly reports success or sends input elsewhere.
 
 **Controls:**
 
-- snapshot intended destination process/window/control where safely available;
+- snapshot intended destination process/window/control/integrity evidence where safely available;
 - revalidate foreground identity immediately before input;
-- cancel on unexpected change;
-- leave data on clipboard for manual paste after dispatch failure;
+- remain standard user; do not request `uiAccess`, elevation, a service, or focus-stealing bypasses;
+- cancel on unexpected change or uncertain restoration/injection;
+- treat `SendInput` result as dispatch evidence, not proof of destination consumption, and do not assume UIPI is diagnosable through `GetLastError`;
+- leave data on clipboard and prompt for manual paste when injection is blocked/uncertain;
 - compatibility profiles and bounded transaction;
 - no secret payload logging.
 
@@ -265,9 +275,9 @@ Out of scope as a guaranteed defense:
 - taskbar/Alt+Tab/multi-monitor/DPI tests;
 - privacy-safe content and placement.
 
-### T15 — Log/crash/diagnostic leakage
+### T15 — Log/crash/diagnostic/accessibility/capture leakage
 
-**Threat:** Payload, secret fragment, source title/path, or encryption key reaches logs, dumps, screenshots, support bundles, or telemetry.
+**Threat:** Payload, secret fragment, source title/path, or encryption key reaches logs, dumps, screenshots, accessibility trees, cached view models, support bundles, or telemetry.
 
 **Controls:**
 
@@ -275,6 +285,7 @@ Out of scope as a guaranteed defense:
 - content fields absent from logging types;
 - bounded rotating files and privacy tiers;
 - release crash-dump policy excludes sensitive memory where feasible;
+- hidden content is absent from view models, UI Automation, thumbnails, and caches; window display-affinity exclusion is defense in depth only;
 - diagnostic bundle preview and explicit user consent;
 - secret canary tests across logs and exports;
 - no content telemetry.
@@ -293,27 +304,41 @@ Out of scope as a guaranteed defense:
 - no unsigned in-app execution;
 - staged update and incident rollback plan.
 
-### T17 — Offline data theft
+### T17 — Offline or same-user data theft
 
-**Threat:** Attacker reads ordinary history from disk while Windows user is logged out or disk is mounted elsewhere.
+**Threat:** Attacker reads ordinary history from disk while Windows user is logged out/offline, or a malicious process running as the same unlocked user accesses files or user-scope DPAPI material.
 
 **Controls:**
 
-- document that ordinary profile payloads are not encrypted by default unless policy changes;
+- document that ordinary profile payloads are not encrypted by default and are not protected from fully compromised same-user processes;
 - recommend BitLocker/device encryption;
 - encrypted Private/sensitive profiles;
 - optional metadata encryption evaluation;
 - easy retention/delete controls.
 
-**Residual risk:** DPAPI alone does not encrypt ordinary unprotected history.
+**Residual risk:** DPAPI protects selected keys against offline/cross-user access under its Windows account model; it is not a secure enclave or a same-user malware boundary. Ordinary unprotected history remains readable to an attacker with file access.
+
+### T18 — Clipboard event/format/source identity confusion
+
+**Threat:** Pastral treats a notification or sequence as a unique copy event, persists a runtime-local registered-format number, guesses source/domain/project, or suppresses an external copy as self-generated. This can lose events, replay the wrong format, apply the wrong rule, or violate privacy policy.
+
+**Controls:**
+
+- transient `ClipboardObservation` separate from successful `ClipEvent` and content-free `CaptureAuditEvent`;
+- successful clip requires at least one representation;
+- sequence values are equality/current-state evidence only; handle zero, wrap, delayed rendering, and unobservable intermediate states;
+- self-suppression requires a validated private transaction marker plus ownership/timing evidence, not sequence alone;
+- standard formats persist defined IDs; registered formats persist exact names and are re-registered at replay;
+- source context stores evidence type/confidence and never infers domain/project from arbitrary titles by default;
+- tests for sequence zero/wrap/gaps, forged/stale markers, registered ID changes, owner/foreground conflict, and PID reuse.
 
 ## 6. Security test mapping
 
 | Boundary | Required evidence |
 |---|---|
-| Clipboard/OLE | fixture producer/consumer, malformed formats, contention, delayed rendering, owner exit, sequence storms |
+| Clipboard/OLE | fixture producer/consumer, malformed formats, contention, delayed/blocking rendering, cancellation refusal, owner exit, sequence zero/wrap/pressure, registered-name replay, control-thread responsiveness |
 | Policy | hard-deny precedence, secret corpus, denylist, profile switching, no value in skipped metadata |
-| IPC | ACL/cross-session tests, handshake replay, schema fuzz, oversized messages, authorization matrix |
+| IPC | DACL/remote/cross-user/session tests, first-instance squatting, PID/token/session checks, handshake replay/stale client, same-user limitation assertions, schema fuzz, oversized messages, authorization/user-intent matrix |
 | Worker | restricted-token capabilities, no network, memory/time/process limits, parser fuzz, kill/recovery |
 | Storage | migration paths, crash injection, low disk, hash/envelope tamper, orphan reconciliation, integrity check |
 | Paste | wrong destination, async read, intervening copy, restoration skip, corrupt blob, compatibility matrix |

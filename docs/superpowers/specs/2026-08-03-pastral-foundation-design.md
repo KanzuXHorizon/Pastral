@@ -1,7 +1,7 @@
 # Pastral Foundation Design
 
 **Date:** 2026-08-03
-**Status:** Approved for Phase 0 execution
+**Status:** Historical Phase 0 baseline; amended for implementation readiness by ADR 0015–0017 and [`../../reviews/phase-0-adversarial-audit.md`](../../reviews/phase-0-adversarial-audit.md)
 **Product:** Pastral — Native Windows Clipboard Intelligence and History Platform
 
 ## 1. Purpose
@@ -51,10 +51,10 @@ Deliverables:
 - `pastral-agent.exe`: the only always-running process; Rust + Win32/COM/OLE.
 - Overlay runs in the agent unless measurements prove isolation is necessary.
 - `pastral-worker.exe`: launched only for bounded untrusted or expensive work; no resident OCR/model.
-- `pastral-manager.exe`: C++/WinRT + WinUI 3; runs on demand and never opens the database directly.
+- `pastral-manager.exe`: C++/WinRT + WinUI 3; runs on demand, hosts Quick Paste as an activation/window mode, and never opens the database directly.
 - `pastral-cli.exe`: Rust diagnostics and administration client.
 - Agent owns SQLite and blob storage.
-- Local IPC uses a versioned named-pipe protocol with explicit per-user/per-logon-session ACLs.
+- Local IPC uses a versioned named-pipe protocol granting ordinary access through a least-privilege current logon-SID ACE, with runtime user/logon-session/token validation, anti-squatting/remote rejection, peer validation, and operation authorization. It is not claimed as a secure enclave against fully compromised same-user code.
 
 ### 3.3 Rendering
 
@@ -64,24 +64,25 @@ A Windows.UI.Composition prototype may be benchmarked before implementation. Swi
 
 ### 3.4 Data model
 
-- A clipboard update creates one immutable `ClipEvent`.
-- Each event contains zero or more `ClipRepresentation` records.
+- A clipboard notification creates a transient `ClipboardObservation`; only a successfully captured current state with at least one representation creates an immutable `ClipEvent`.
+- A successful durable `ClipEvent` contains one or more `ClipRepresentation` records. Notifications/attempts are transient observations; denied, failed, skipped, or degraded outcomes use content-free audit records where policy permits, and source-owned hard deny creates no durable row.
+- Durable public identity uses opaque UUIDv4; civil time uses UTC microseconds; installation-local order uses storage-assigned `capture_order`; ordinary raw blob identity uses versioned `sha256-raw-v1`.
 - Raw bytes and fidelity metadata are preserved where safe.
 - Transformations create derived representations and never mutate originals.
 - Payload storage is content-addressed for ordinary clips.
-- Sensitive clips use random blob identifiers or keyed hashes to avoid equality leakage.
+- Sensitive/Private clips use random blob identifiers and no persistent plaintext digest/deduplication by default; a future keyed-equality scheme requires a separate accepted privacy decision.
 - Duplicate payload storage may be deduplicated while every meaningful copy occurrence remains recorded.
 
 ### 3.5 Privacy defaults
 
 - Local-only and network-silent.
 - No account, cloud sync, remote AI, content telemetry, or content-bearing logs.
-- Default retention: 90 days and 5 GB per installation, with pinned clips exempt from automatic retention deletion but still visible in quota reporting.
+- Default retention: 90 days with a 5 GB automatic-cleanup target for ordinary unpinned history. Pinned/protected clips are exempt, may exceed the target with visible warnings, and remain included in storage reporting.
 - Password managers and reliably identified private-browser contexts are excluded by default.
 - Highly confident passwords, OTPs, API tokens, private keys, recovery codes, and similar secrets are not stored by default.
-- Optional metadata-only `SensitiveItemSkipped` events contain no preview, value hash, OCR text, or reconstructable content.
+- Hidden metadata-only `SensitiveItemSkipped` audit events are enabled by default for 24 hours and contain only broad detector/policy class, active profile, and coarse timestamp—no preview, value hash, OCR text, precise source, size, structure, or reconstructable content. Users may disable or shorten retention.
 - Users may explicitly enable encrypted sensitive retention for narrow scopes. Sensitive payloads never enter FTS, OCR, semantic indexing, duplicate stacks, previews, or notifications.
-- Clipboard-owner exclusion signals such as `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` are hard-deny signals and are not overridden by normal settings.
+- Clipboard-owner exclusion signals such as `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` are hard-deny signals, are not overridden by normal settings, and create no durable clip/audit row.
 
 ### 3.6 Storage and search
 

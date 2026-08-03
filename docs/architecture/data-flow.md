@@ -6,35 +6,46 @@
 sequenceDiagram
     participant Src as Source application
     participant Win as Windows clipboard
-    participant Agent as pastral-agent.exe
+    participant Control as Agent control/overlay thread
+    participant Capture as Agent clipboard STA
     participant Policy as Capture policy
     participant Store as SQLite/blob store
     participant Worker as pastral-worker.exe
     participant Overlay as Passive overlay
 
     Src->>Win: Publish clipboard IDataObject/formats
-    Win-->>Agent: WM_CLIPBOARDUPDATE
-    Agent->>Win: GetClipboardSequenceNumber
-    Agent->>Agent: Coalesce duplicate/self-generated sequence
-    Agent->>Win: Bounded OleGetClipboard/OpenClipboard retry
-    Win-->>Agent: Short-lived IDataObject / formats
-    Agent->>Policy: Source + format set + lightweight sensitivity signals
-    alt Hard deny or high-confidence secret
-        Policy-->>Agent: Skip payload
-        Agent->>Store: Optional metadata-only SensitiveItemSkipped
-        Agent->>Overlay: Privacy-safe suppressed/skipped status when enabled
+    Win-->>Control: WM_CLIPBOARDUPDATE
+    Control->>Win: GetClipboardSequenceNumber
+    Control->>Control: Snapshot transaction/source evidence
+    Control->>Capture: Post bounded ClipboardObservation
+    Control-->>Win: Return from window procedure
+    Capture->>Win: Bounded OpenClipboard retry
+    Win-->>Capture: Standard/registered format set
+    Capture->>Policy: Privacy flags + source evidence + safe lightweight signals
+    alt Source-owned hard deny
+        Policy-->>Capture: Hard deny
+        Capture-->>Control: Ephemeral suppressed state; no durable row
+    else High-confidence secret
+        Policy-->>Capture: Skip payload
+        Capture->>Store: Hidden content-free SensitiveItemSkipped (24h default)
+        Capture-->>Control: Privacy-safe skipped status when enabled
     else Capture allowed
-        Agent->>Agent: Capture common safe representations
-        Agent->>Store: Stage blobs + metadata transaction
-        Store-->>Agent: Durable clip ID / recovery token
-        Agent->>Overlay: Confirmation view model
+        Capture->>Capture: Capture reviewed Win32 adapters
+        opt Adapter requires OLE semantics
+            Capture->>Win: Short-lived OleGetClipboard / FORMATETC request
+            Win-->>Capture: Foreign IDataObject / STGMEDIUM
+        end
+        Capture->>Store: Pastral-owned staged blobs + metadata transaction
+        Store-->>Capture: Durable clip ID / recovery token
+        Capture-->>Control: Immutable confirmation view model
+        Control->>Overlay: Show focus-safe confirmation
         opt Expensive or hostile enrichment enabled
-            Agent->>Worker: Bounded staged input job
-            Worker-->>Agent: Validated descriptor + output hash
-            Agent->>Store: Commit derived representation
+            Capture->>Worker: Bounded staged input job
+            Worker-->>Capture: Validated descriptor + output hash
+            Capture->>Store: Commit derived representation
         end
     end
-    Agent->>Win: Release foreign clipboard/data object promptly
+    Capture->>Win: Release foreign clipboard/data object on clipboard STA
 ```
 
 ## Query flow
@@ -42,13 +53,13 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant UI as manager/Quick Paste/CLI
-    participant IPC as Authenticated named pipe
+    participant IPC as Session-isolated named pipe
     participant Agent as pastral-agent.exe
     participant Search as Typed query compiler
     participant DB as SQLite + FTS5
 
     UI->>IPC: Versioned request + cursor/page limits
-    IPC->>Agent: Authenticated validated message
+    IPC->>Agent: Peer/session checked + framed validated message
     Agent->>Search: Parse query syntax to typed AST
     Search->>Search: Validate fields, operators, ranges, privacy policy
     Search->>DB: Parameterized structured + FTS query
@@ -89,7 +100,7 @@ Ordinary payload commit is designed around recoverable staging:
 Sensitive payload flow differs:
 
 - encrypt before durable final placement;
-- use random blob identifiers or keyed hashes;
+- use random blob identifiers and no persistent plaintext digest/deduplication by default;
 - store versioned envelope metadata;
 - never use plaintext equality as a filename or public index;
 - do not create searchable preview or derivative metadata without explicit policy.
@@ -107,17 +118,17 @@ flowchart LR
     Foreign -->|Untrusted IDataObject, formats, paths, bytes| Agent
     Agent -->|Length-limited explicit jobs| Worker
     Worker -->|Untrusted until validated| Agent
-    UI -->|Untrusted local IPC messages until authenticated/validated| Agent
+    UI -->|Untrusted local IPC messages until peer/session/schema/operation checks| Agent
     Agent -->|Encrypted or policy-filtered durable state| Disk
     Disk -->|Potentially corrupt/tampered files| Agent
 ```
 
-Every arrow crossing into the agent is validated. Same-user origin is not equivalent to trusted input.
+Every arrow crossing into the agent is validated. Same-user origin is not equivalent to trusted input, and the pipe protocol is not claimed as a strong confidentiality boundary against a fully compromised same-user process.
 
 ## Data minimization
 
 - Source titles and paths are redacted or omitted according to profile policy.
-- Logs contain identifiers, durations, sizes, format IDs, and result codes, not payloads.
+- Logs contain opaque identifiers, durations, size buckets, standard format IDs or registered-format names according to redaction policy, and result codes—not payloads or unstable runtime registered-format IDs.
 - Search snippets are generated only from indexed non-sensitive data and obey preview policy.
 - Paste occurrence tracking is optional and stores metadata, not destination document content.
 - Diagnostic bundles sanitize usernames, paths, titles, domains, package identities, and clip IDs according to export level.

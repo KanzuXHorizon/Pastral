@@ -34,6 +34,22 @@ The searches did not surface a prominent clipboard manager, Windows utility, Git
 
 This is weak evidence only. Search indexes can omit unpublished, delisted, regional, private, newly registered, or unindexed uses.
 
+### Confusingly similar clipboard product: Pastry
+
+`Pastry` currently markets a clipboard-history and search product under the tagline “Your Clipboard, with Superpowers.” The name is not identical, but it is visually/phonetically close and operates in the same product category.
+
+Source observed on 2026-08-04:
+
+- https://www.getpastry.app/
+
+Risk:
+
+- users, search engines, reviewers, and trademark examiners may consider the names close in sound, spelling, and commercial context;
+- exact-name availability is therefore insufficient evidence for adopting `Pastral` publicly;
+- formal clearance must search confusing similarity, not only exact word matches.
+
+This finding does not establish trademark ownership, infringement, registration status, or legal likelihood of confusion. It raises the review threshold and strengthens the recommendation to keep `Pastral` provisional.
+
 ### Existing academic use
 
 `PASTRAL` is used as an acronym for an academic cybersecurity system:
@@ -80,13 +96,13 @@ Relevant goods/services should include software, downloadable computer programs,
 
 ## 4. Product recommendation
 
-Continue using **Pastral** internally under these constraints:
+Continue using **Pastral** only as an internal codename under these constraints:
 
 1. Treat the name as provisional in UI, namespaces, binaries, package identity, and documentation.
 2. Use replaceable internal prefixes such as `pastral_*` only behind centralized workspace/package metadata.
 3. Do not publish packages, reserve Store identity, purchase domains, create public social accounts, or file trademarks without owner authorization.
 4. Do not claim uniqueness or legal clearance.
-5. Perform formal clearance before final logo production, signing identity, Store reservation, public beta, or marketing spend.
+5. Perform formal exact, phonetic, visual, and category-similarity clearance—including comparison with `Pastry`—before final logo production, signing identity, Store reservation, public beta, or marketing spend.
 
 ## 5. Rebranding safeguards
 

@@ -22,7 +22,8 @@ Pure deterministic tests for:
 - rule priority, specificity, conflict, simulation, audit, and rollback;
 - query parser and typed AST;
 - retention/quota selection;
-- blob identity/reference counting;
+- blob identity/reference counting, `sha256-raw-v1` byte-domain semantics, and protection-domain isolation;
+- opaque UUIDv4 generation/serialization, persistent installation-local `capture_order`, and deterministic time/order behavior across wall-clock rollback and agent restart;
 - transformation provenance;
 - envelope parser and migration helpers;
 - redaction/log-field allowlists.
@@ -37,9 +38,9 @@ Unit tests run cross-platform only where the module has no Windows contract. Win
 - blob staging/finalization/reconciliation;
 - rollback-journal/WAL selected configuration;
 - encryption round trip/tamper/key rotation;
-- IPC serialization, negotiation, authorization, pagination, cancellation;
+- IPC serialization, negotiation, cross-user/session peer validation, first-instance anti-squatting, authorization classes, pagination, cancellation, and same-user limitation assertions;
 - agent-worker job validation;
-- profile switching and retention boundaries;
+- profile switching, immutable capture-profile preservation, Private protection domain, and retention boundaries;
 - import/export and diagnostic redaction.
 
 ### Native clipboard fixtures
@@ -52,12 +53,14 @@ Build separate fixture producer and consumer executables. Producer can advertise
 - CF_HDROP file lists;
 - DIB, DIBV5, bitmap, encoded PNG;
 - multiple simultaneous formats;
-- custom registered formats;
-- `HGLOBAL`, `IStream`, and justified media;
+- registered formats whose runtime numeric ID changes while the persisted exact name remains stable;
+- unknown custom formats that remain metadata-only/unsupported;
+- `HGLOBAL`, `IStream`, `STGMEDIUM` ownership/`pUnkForRelease`, `lindex`, and justified media;
 - delayed rendering;
 - malformed sizes/media;
 - owner exit;
-- contention and rapid updates;
+- contention and rapid updates, sequence unavailable/zero, unsigned-wrap abstraction, queued duplicate notifications, unobservable intermediate-state pressure, and final-current-state capture;
+- valid, stale, forged, and malformed Pastral origin markers;
 - history/cloud exclusion formats.
 
 Consumer records offered format order, requested `FORMATETC`/`TYMED`, exact bytes, asynchronous reads, and clipboard ownership without leaking data into ordinary logs.
@@ -70,8 +73,8 @@ Critical flows:
 2. original versus plain/derived representation;
 3. source/profile/type/time filters;
 4. passive overlay foreground/focus preservation;
-5. Quick Paste invocation, focus restoration, destination revalidation, and paste;
-6. denylist, hard-deny format, pause, and sensitive skip;
+5. Quick Paste cold/warm manager-process activation, focus restoration, destination/integrity revalidation, ordinary paste, and elevated/UIPI clipboard-only/manual fallback;
+6. denylist, source-owned hard deny with no durable row, pause, hidden sensitive skip with coarse 24-hour audit, and Private-profile encryption/non-indexing;
 7. explicit narrow rule creation → later match → explanation → undo/pause/delete;
 8. crash during staged write and recovery;
 9. corrupt/unsupported format containment;
@@ -105,12 +108,14 @@ Follow `docs/performance/benchmark-methodology.md` for idle, capture, overlay, Q
 
 - fuzz clipboard/custom-format adapters, HTML/RTF/image metadata, query parser, IPC, import, and encryption envelope;
 - oversized/truncated/decompression/path traversal/reparse cases;
-- named-pipe ACL and cross-user/session access;
+- named-pipe explicit DACL, remote rejection, first-instance squatting, cross-user/session access, PID/token/session checks, bounded impersonation/revert, and documented same-user residual boundary;
 - handshake replay and unauthorized operations;
+- capture STA blocking/re-entrancy/cancellation-refusal while the control/overlay thread remains responsive;
 - worker no-network/limits/escape checks;
 - tampered blobs/database/encrypted envelopes;
-- wrong-user DPAPI access;
-- secret canaries across DB, FTS, blobs, logs, overlay, diagnostics, export, crash artifacts;
+- wrong-user DPAPI access and checks that documentation does not present user-scope DPAPI as a same-user malware boundary;
+- secret canaries across DB, FTS, SQLite freelists/journal/WAL where testable, blobs, logs, overlay, UI Automation, diagnostics, export, and crash artifacts;
+- whole-message and chunked AEAD authentication-before-release, chunk reorder/duplicate/truncate/splice cases;
 - hard-deny and denylist precedence;
 - malicious/tampered package rejection.
 

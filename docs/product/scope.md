@@ -48,14 +48,15 @@ No feature code is permitted in Phase 0.
 - copy-only mode without synthetic paste;
 - focus-safe confirmation overlay;
 - overlay modes and suppression policy;
-- Quick Paste keyboard-first UI;
+- Quick Paste keyboard-first UI hosted as an activation/window mode in the single-instance on-demand manager process;
 - type/source/time filters;
 - pin and delete;
 - compatibility and performance evidence.
 
 ## MVP 3: profiles and deterministic actions
 
-- General, Development, Study, Work, Design, and Private profiles;
+- General, Development, Study, Work, and Design profiles;
+- Private profile only after mandatory encrypted payload storage, random blob IDs, non-indexing, hidden-preview, ordinary-export exclusion, lock/key-clear, and recovery gates pass;
 - explicit profile switching;
 - up to four context actions;
 - derived representations with provenance;
@@ -111,22 +112,25 @@ Every later item requires a separate design and privacy/security review.
 ### Retention
 
 - 90 days.
-- 5 GB total default quota.
-- Pinned clips are exempt from automatic retention deletion.
-- Low-disk policy may suspend payload capture while preserving copy behavior and diagnostic state.
+- 5 GB automatic-cleanup target for ordinary unpinned history, not an absolute cap.
+- Pinned/protected clips are exempt from automatic retention deletion and may exceed the target with visible warnings.
+- A separately measured low-disk reserve may suspend new payload capture while preserving copy behavior and diagnostic state; pinned content is not silently deleted.
 
 ### Sensitive content
 
 - Highly confident secret payloads are not stored by default.
-- Optional `SensitiveItemSkipped` metadata contains no preview, content hash, OCR, snippet, or reconstructable value.
+- A hidden `SensitiveItemSkipped` audit record is created by default for 24 hours with broad detector/policy class, active profile, and coarse timestamp only; users may disable or shorten it.
+- It contains no preview, content hash, OCR, snippet, precise source, title, path, domain, payload size, value structure, or reconstructable value.
 - Encrypted sensitive retention is opt-in and narrowly scoped by profile, application, content class, and duration.
-- Sensitive items never enter FTS, OCR, semantic indexing, duplicate stacks, preview caches, or passive overlays.
+- Sensitive items never enter FTS, OCR, semantic indexing, duplicate stacks, preview caches, passive overlays, or ordinary exports.
+- Windows Hello remains a later user-presence layer and is not a substitute for Private-profile encryption.
 
 ### Source exclusions
 
 - Known password managers are denied by default.
 - Reliably identified private browser contexts are denied by default.
-- Clipboard-owner history-exclusion signals are hard deny and cannot be overridden by ordinary settings.
+- Clipboard-owner history-exclusion signals are hard deny, cannot be overridden by ordinary settings, and create no durable clip/audit row.
+- Private-browser detection without an explicit integration is best effort and must remain confidence-labeled rather than claimed as universal.
 
 ## Scope-change rule
 

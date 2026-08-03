@@ -8,10 +8,10 @@ Encryption applies to:
 
 - opt-in sensitive clip payloads;
 - Private-profile payloads according to profile policy;
-- installation secrets used for IPC authentication;
+- installation secrets used for IPC instance/transcript binding and anti-confusion/replay defense;
 - portable backups only after a separate portable-key design.
 
-Ordinary profile content is local but is not represented as encrypted by default in Phase 0. Device-level encryption such as BitLocker remains recommended.
+Ordinary profile content is local but is not represented as encrypted by default in Phase 0. Device-level encryption such as BitLocker remains recommended. User-scope DPAPI protects selected key material under the Windows account model, but it is not a strong confidentiality boundary against a fully compromised process already running as the same unlocked user.
 
 ## 2. Key hierarchy
 
@@ -19,19 +19,22 @@ Ordinary profile content is local but is not represented as encrypted by default
 Windows user credentials
 └─ DPAPI-protected Installation Root Key (IRK)
    ├─ Profile Key Encryption Key (PKEK) per encrypted profile
-   │  └─ Data Encryption Key (DEK) per payload or bounded payload group
+   │  └─ Data Encryption Key (DEK) per payload; bounded groups require a separate nonce/key-scope proof
    └─ IPC Authentication Secret
 ```
 
 Requirements:
 
-- keys originate from a cryptographically secure Windows RNG;
+- keys and opaque/random blob identifiers originate from a cryptographically secure Windows RNG;
 - DPAPI uses user scope, not machine scope;
 - background DPAPI calls forbid UI prompts;
 - profile/DEK derivation or wrapping uses a reviewed standard construction;
 - compromise of one DEK must not expose unrelated payloads;
 - key identifiers are random/non-sensitive and versioned;
-- plaintext keys are never written to logs, crash diagnostics, database text fields, or command output.
+- plaintext keys are never written to logs, crash diagnostics, database text fields, or command output;
+- Private/sensitive plaintext is not persistently hashed or deduplicated by plaintext by default;
+- the IPC installation secret is not represented as a same-user malware credential boundary.
+- the DPAPI-protected IPC authentication secret provides installation/session binding and replay/confusion resistance, not a strong barrier against fully compromised code running as the same unlocked user.
 
 ## 3. Envelope format
 
@@ -61,7 +64,7 @@ Parsing validates all arithmetic before allocation and rejects unknown versions/
 
 The implementation plan must select a vetted, maintained authenticated-encryption implementation that supports:
 
-- streaming or bounded-memory processing for large payloads;
+- bounded whole-message authentication or independently authenticated chunking for large payloads;
 - misuse-resistant nonce handling or an enforceable unique-nonce design;
 - constant-time authentication behavior in the library;
 - Windows x64 and later ARM64;
@@ -90,10 +93,11 @@ Do not implement cryptographic primitives locally.
 2. Load and validate envelope header/lengths.
 3. Resolve and unwrap the required key.
 4. Decrypt into a bounded protected buffer or stream directly to the consumer.
-5. Verify authentication before presenting usable output where the API permits.
-6. Avoid caching plaintext beyond the operation.
-7. Zero/release plaintext and key material after use.
-8. On authentication failure, quarantine metadata/blob association and report a content-free integrity error.
+5. Never expose unauthenticated plaintext to any consumer. For whole-message AEAD, decrypt into a bounded internal buffer and release only after the final tag verifies. For chunked envelopes, verify each independent chunk before release.
+6. Chunked mode binds envelope version, profile/representation identity, chunk index, total chunk count, plaintext/ciphertext lengths, and final-object identity in associated data; truncation, reordering, duplication, and splicing must fail authentication.
+7. Avoid caching plaintext beyond the operation.
+8. Zero/release plaintext and key material after use.
+9. On authentication failure, discard unverified plaintext, quarantine metadata/blob association, and report a content-free integrity error.
 
 ## 7. Key rotation
 
@@ -111,9 +115,11 @@ Rules:
 - benchmark and power-failure test large migrations;
 - provide explicit recovery/export guidance before irreversible rotation.
 
-## 8. Locking and Windows Hello
+## 8. Private-profile baseline, locking, and Windows Hello
 
 DPAPI user-scope protection does not mean the application is locked while the Windows session is unlocked.
+
+The built-in Private profile must not become available until authenticated encrypted storage, random blob identity, non-indexing, protected-view-model clearing, lock handling, and recovery tests exist. Encryption is mandatory from the profile's introduction; it does not wait for Windows Hello.
 
 Private-profile UX may later require Windows Hello/user verification before revealing or pasting. That capability needs a separate design covering:
 
@@ -124,9 +130,18 @@ Private-profile UX may later require Windows Hello/user verification before reve
 - accessibility;
 - credential provider and platform API limitations.
 
-Until then, encrypted sensitive retention can be configured to clear decrypted keys on session lock and require explicit profile unlock through the manager/Quick Paste flow.
+Until then, encrypted sensitive retention and the Private profile clear decrypted keys/protected view models on session lock according to policy and require explicit profile/item unlock through the manager/Quick Paste flow. Windows Hello improves user-presence freshness but cannot defeat a compromised OS or same-user process observing the unlocked session.
 
-## 9. Metadata exposure
+## 9. IPC-secret security boundary
+
+User-scope DPAPI protects the IPC secret against ordinary cross-user/offline access within its Windows account model, but code already running as the same unlocked user may be able to invoke DPAPI or read equivalent user resources. Therefore:
+
+- IPC challenge-response is not described as same-user malware isolation;
+- sensitive/private reveal, export, and destructive operations require explicit trusted-UI user intent and authorization freshness;
+- secret rotation invalidates stale clients but does not repair a compromised user session;
+- Windows Hello/user-presence, when added, is an additional intent/freshness layer rather than a cryptographic enclave guarantee.
+
+## 10. Metadata exposure
 
 Unless a separate encrypted-metadata design is accepted, an attacker reading ordinary database files may learn:
 
@@ -139,7 +154,7 @@ Unless a separate encrypted-metadata design is accepted, an attacker reading ord
 
 The UI must describe this honestly. Sensitive profiles should minimize or encrypt metadata when later requirements justify the complexity.
 
-## 10. Backup and recovery
+## 11. Backup and recovery
 
 - Raw DPAPI-bound encrypted blobs may be unusable after moving to another Windows user/device.
 - Copying the database and blobs is not a complete portable backup guarantee.
@@ -147,7 +162,7 @@ The UI must describe this honestly. Sensitive profiles should minimize or encryp
 - Administrative password reset or damaged Windows profile can make DPAPI material unrecoverable.
 - Pastral must never imply vendor recovery exists when no server-held recovery key exists.
 
-## 11. Verification
+## 12. Verification
 
 Required tests:
 
@@ -155,11 +170,13 @@ Required tests:
 - envelope round trip and version rejection;
 - nonce uniqueness/handling;
 - associated-data mismatch;
+- whole-message plaintext is never released before final authentication;
+- chunk reordering, duplication, truncation, cross-object splicing, and wrong chunk count;
 - bit-flipped header/ciphertext/tag;
 - truncated and oversized fields;
 - wrong user/DPAPI context;
 - key rotation interrupted at every persisted phase;
 - crash/power interruption during encrypted write;
 - log and diagnostic canary scan;
-- plaintext absence in ordinary database/blob filenames and FTS;
+- plaintext digest/equality metadata absence for Private/sensitive blobs, database rows, filenames, and FTS;
 - memory inspection during development to minimize avoidable copies.

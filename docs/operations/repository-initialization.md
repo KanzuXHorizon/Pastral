@@ -1,14 +1,16 @@
 # Repository initialization plan
 
-**Status:** Phase 0 plan; no feature scaffold is created by this document.
+**Status:** Phase 0.1-hardened bootstrap plan; no feature scaffold is created by this document.
 **Repository root:** `F:\Pastral`
 
 ## 1. Current state
 
 - Git repository initialized on `main`.
 - Existing local `Start-DevSpace-MCP-Cloudflared.ps1` remains at repository root but is ignored; it is not product source and must not be committed because it is machine/workflow-specific.
-- Phase 0 documentation and governance exist.
-- No Cargo workspace, CMake project, WinUI application, installer, CI workflow, executable, database, or runtime data exists.
+- Phase 0 foundation and Phase 0.1 adversarial hardening documentation/governance exist.
+- ADR 0015–0017 define capture threading, durable identity/time/digests, and Quick Paste hosting.
+- Normative architecture now includes dedicated clipboard-platform STA ownership, transient observation versus durable clip/audit records, stable clipboard-format names, source confidence, format adapters, IPC limits, UIPI fallback, and Private/sensitive protection domains.
+- No Cargo workspace, Visual Studio/MSBuild WinUI project, packaging project, installer, CI workflow, executable, database, or runtime data exists.
 - No public license has been selected; `LICENSE` remains intentionally absent.
 
 ## 2. Bootstrap principles
@@ -18,6 +20,7 @@
 - Windows-native build and tests run from a supported Windows developer environment, not WSL alone.
 - Keep the agent dependency graph minimal from the first commit.
 - Build only a pure domain skeleton and toolchain validation first; clipboard feature work receives its own design/plan.
+- The first domain slice must encode UUIDv4 IDs, UTC microsecond civil time, persistent installation-local `capture_order`, `ClipEvent` nonempty representation cardinality, `CaptureAuditEvent` separation, protection domains, and `sha256-raw-v1` semantics before database or Win32 work.
 - No package identity, signing certificate, Store reservation, public crate/package publication, or network integration during bootstrap.
 - Generated user data, logs, signing material, tunnel state, package output, and fuzz output remain ignored.
 
@@ -26,15 +29,15 @@
 Revalidate all versions against official sources on the bootstrap date. Initial decisions:
 
 - Rust stable `1.97.1`, Edition 2024.
-- Windows SDK `10.0.28000.2270`, while runtime support floor remains Windows 11 build 26100 and newer API calls require capability checks.
+- Windows SDK `10.0.28000.2526`, while runtime support floor remains Windows 11 build 26100 and newer API calls require capability checks.
 - Windows App SDK `2.3.1` stable for the manager prototype.
 - C++20.
 - x64 build presets first.
 - SQLite compiled with FTS5 and pinned through a reviewed source/package path.
 - `windows`/`windows-sys` versions selected and locked after API-surface/dependency review.
-- CMake, Ninja/MSBuild generator, vcpkg baseline, formatter/static-analysis tools, and CI runner images are pinned in the bootstrap change after verifying mutual support.
+- Visual Studio/MSVC/MSBuild component versions, Windows App SDK templates/NuGet packages, formatter/static-analysis tools, and CI runner images are pinned/recorded when their slice is introduced. vcpkg is added only for an actual reviewed C++ dependency. Experimental Windows App SDK CMake support is not a release prerequisite.
 
-A version being current does not make it automatically acceptable; build support, security, license, footprint, and compatibility are checked.
+A version being current does not make it automatically acceptable; build support, security, license, footprint, and compatibility are checked. Revalidate the Windows SDK/App SDK/Rust pins on the actual bootstrap date rather than carrying this research snapshot forward mechanically.
 
 ## 4. Target repository structure
 
@@ -50,9 +53,12 @@ pastral/
 ├─ Cargo.toml
 ├─ Cargo.lock
 ├─ rust-toolchain.toml
-├─ CMakeLists.txt
-├─ CMakePresets.json
-├─ vcpkg.json
+├─ eng/
+│  ├─ build.ps1
+│  └─ verify-toolchain.ps1
+├─ Directory.Build.props          # added with the native manager slice
+├─ Directory.Packages.props       # added with the native manager slice
+├─ Pastral.slnx                   # added with the native manager slice; .sln fallback requires recorded tooling evidence
 ├─ .editorconfig
 ├─ .gitattributes
 ├─ .gitignore
@@ -72,6 +78,8 @@ pastral/
 │  ├─ worker/
 │  ├─ cli/
 │  └─ manager/
+│     ├─ Pastral.Manager.vcxproj  # added with the manager slice
+│     └─ ...
 ├─ crates/
 │  ├─ domain/
 │  ├─ clipboard-win/
@@ -113,6 +121,7 @@ pastral/
 │  └─ release/
 ├─ installer/
 │  ├─ msix/
+│  │  └─ Pastral.Package.wapproj # added with packaging slice
 │  ├─ portable/
 │  ├─ signing/
 │  └─ winget/
@@ -133,8 +142,9 @@ Directories are created only when a slice has reviewed content. Empty placeholde
 - `rust-toolchain.toml` pinning stable channel/version and required components.
 - root Cargo workspace with resolver appropriate to Edition 2024.
 - `Cargo.lock` committed.
-- root CMake project and x64 presets that configure even before the manager is added.
-- pinned vcpkg manifest/baseline only for dependencies actually used.
+- no placeholder CMake/native build graph in the pure Rust/domain bootstrap;
+- a top-level PowerShell toolchain/build orchestrator that validates and invokes Cargo only for this slice, then later invokes MSBuild after the manager `Pastral.slnx` exists;
+- vcpkg manifest/baseline only if a later reviewed C++ dependency actually requires it.
 - Windows application manifests/policy templates only when an executable exists.
 - reproducible developer environment/version report command.
 
@@ -174,9 +184,10 @@ The verified setup guide will include:
 - rustup with pinned Rust toolchain, rustfmt, Clippy, and Windows MSVC target;
 - supported Visual Studio C++ workload and exact individual components;
 - selected Windows SDK;
-- CMake and selected generator;
-- Windows App SDK tooling/templates or NuGet/CMake integration used by manager;
-- vcpkg at pinned baseline if used;
+- MSBuild/Visual Studio developer command environment, exact MSVC components, and verified `.slnx` support; use legacy `.sln` only if manager/packaging tooling evidence requires it and record the deviation;
+- Windows App SDK stable tooling/templates and NuGet/MSBuild/XAML integration used by manager;
+- Windows Application Packaging Project tooling for the multi-executable MSIX;
+- vcpkg at a pinned baseline only if used by an actual C++ dependency;
 - Windows package/signing test tools without production private keys;
 - Accessibility Insights, Windows SDK inspection tools, WPR/WPA, and debugger for later validation.
 
@@ -216,7 +227,7 @@ Its bootstrap includes:
 
 - C++20 warnings as errors for project code;
 - C++/WinRT and WinUI 3 stable package pin;
-- x64 Debug/Release presets;
+- x64 Debug/Release MSBuild configurations and deterministic solution/project settings;
 - native unit test target;
 - UI Automation/accessibility smoke surface using synthetic data;
 - no direct SQLite/blob linkage;
@@ -229,7 +240,7 @@ Its bootstrap includes:
 
 - repository formatting/line-ending checks;
 - Rust format/build/test/Clippy/doc;
-- CMake configure/build smoke when native project exists;
+- MSBuild restore/build/XAML compile smoke when the native manager project exists;
 - dependency advisory/license/secret scan;
 - documentation link/consistency checks.
 
@@ -289,9 +300,10 @@ Recommended bootstrap commits:
 1. `build: pin Rust workspace toolchain`
 2. `test: define domain invariants`
 3. `feat: add immutable clip domain model`
-4. `build: add Windows native configure skeleton`
-5. `ci: verify foundation toolchains and domain`
-6. `docs: add verified developer setup`
+4. `ci: verify Rust toolchain and domain`
+5. `docs: add verified developer setup`
+
+The Visual Studio manager solution/project and `.wapproj` packaging graph are separate later-slice commits, not empty bootstrap placeholders.
 
 Tests and implementation may be combined into coherent test-first commits when separating them would leave an intentionally failing main branch.
 
@@ -301,7 +313,7 @@ Tests and implementation may be combined into coherent test-first commits when s
 - Fresh clone/configure works from documented commands.
 - Domain tests demonstrate failure before implementation in development evidence and pass in final commit.
 - Rust format/build/test/Clippy/doc checks pass.
-- CMake configure smoke passes when its skeleton is added.
+- No CMake/WinUI/MSBuild packaging skeleton is added to the pure domain bootstrap; the later manager slice must pass MSBuild restore/build/XAML compile smoke from documented Windows commands.
 - No clipboard, database, network, UI, package, or worker feature is accidentally implemented.
 - Dependency graph is documented and small.
 - No local launcher, secret, build output, user data, or signing material is tracked.

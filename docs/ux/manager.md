@@ -129,14 +129,18 @@ Profile detail covers:
 
 Auto-switching is disabled by default except explicit user rules. Simulation explains what profile would activate for a selected context.
 
-Private profile emphasizes behavior in text:
+The built-in Private profile is not offered as active/usable until encrypted storage, random blob identity, non-indexing, lock, and recovery gates pass. Its configuration surface may explain the unavailable prerequisite rather than creating an unencrypted placeholder profile.
 
-- encrypted payloads;
-- hidden previews;
-- no OCR/semantic indexing by default;
+When available, Private profile emphasizes behavior in text:
+
+- authenticated encrypted payloads from first capture;
+- random non-equality-revealing blob identifiers and no plaintext deduplication by default;
+- hidden previews and protected view models;
+- no ordinary FTS, typo index, OCR, semantic indexing, duplicate stacks, or ordinary export;
 - no network integrations;
-- unlock/auto-lock/session-lock options;
-- shorter retention options.
+- explicit unlock/auto-lock/session-lock/key-clearing options;
+- shorter retention and immediate-clear options;
+- Windows Hello, when later implemented, as user-presence verification rather than the storage-encryption primitive.
 
 ## 10. Rules
 

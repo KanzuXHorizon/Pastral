@@ -10,7 +10,7 @@ The passive overlay is not a miniature manager and is not a notification stream.
 
 ### Smart — default
 
-- brief confirmation for successful capture or a meaningful policy result;
+- brief confirmation only after successful durable capture or a privacy-safe policy result explicitly permitted for display;
 - trusted remembered rules show result, not chooser;
 - actions are offered only for unknown/low-confidence patterns;
 - suppress in configured fullscreen, games, presentations, screen sharing, remote sessions, denied apps/profiles, or sensitive fields/contexts;
@@ -40,14 +40,16 @@ Example content:
 - `Copied · Image · Snipping Tool`
 - `Saved to Development`
 - `Tracking removed · Original preserved`
-- `Sensitive content not saved`
+- `Sensitive content not saved` (high-confidence detector skip only, never source-owned hard deny by default)
 - `Capture paused`
 - `3 items added to Paste Queue`
 
 Rules:
 
 - one primary line; optional secondary explanation only when it changes user understanding;
+- source-owned hard deny suppresses the passive overlay by default and creates no durable record; an explicitly enabled generic transient notice may say only `Not saved by source policy`;
 - no raw preview for potentially sensitive content;
+- sensitive/hidden content is absent from the overlay view model, UI Automation, thumbnails, and caches rather than merely painted over;
 - source omitted according to privacy setting;
 - no more than one decision-relevant badge/icon;
 - no buttons that imply ordinary keyboard focus in passive state;
@@ -162,13 +164,14 @@ A user can configure duration or disable animation/sound. No sound by default.
 
 ## 9. Coalescing
 
-Rapid events are grouped when they share compatible outcome and profile:
+Rapid presentations are grouped when they correspond to durable captured events with compatible outcome/profile:
 
-- repeated same payload/source may update count;
+- repeated same payload/source may update a presentation count only for separately captured events;
 - mixed types use a generic count summary rather than flashing every card;
 - policy errors/sensitive skips are not combined with ordinary success in a misleading way;
+- only durably captured events contribute to success counts; possible unobservable intermediate clipboard states are never invented as captures;
 - final captured event remains available in history even when overlay groups confirmations;
-- coalescing never changes capture event semantics.
+- overlay coalescing never changes observation/capture event semantics.
 
 ## 10. Suppression
 
@@ -187,6 +190,8 @@ Suppress or use a minimal safe state for:
 - user Do Not Disturb preference if integrated through a later design.
 
 Capture may continue unless separate policy denies it.
+
+For top-level overlay/interactive windows that may contain protected content, Pastral may request Windows display affinity such as `WDA_EXCLUDEFROMCAPTURE` when supported. This is defense in depth for public OS capture paths, not DRM or a guarantee against every recorder, remote path, camera, same-user malware, or unsupported compositor state. Failure never causes hidden content to be placed in the view model.
 
 ## 11. Accessibility
 
@@ -210,7 +215,7 @@ Capture may continue unless separate policy denies it.
 - excluded apps/profiles;
 - fullscreen/screen-share/RDP suppression;
 - notification coalescing;
-- sensitive preview policy;
+- sensitive preview policy and best-effort display-affinity behavior;
 - announcement behavior;
 - reset to calm defaults.
 
@@ -224,6 +229,6 @@ Capture may continue unless separate policy denies it.
 - taskbar/work-area and topology changes;
 - fullscreen/screen-share/RDP/transparency/reduced-motion/battery fallback;
 - copy burst coalescing;
-- content-free sensitive state;
+- content-free sensitive-skip state, source-owned hard-deny default suppression, and no durable hard-deny record;
 - device loss and agent shutdown cleanup;
 - first warm frame budget and zero post-dismiss CPU animation loop.
