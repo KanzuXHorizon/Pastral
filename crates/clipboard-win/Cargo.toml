@@ -1,0 +1,12 @@
+[package]
+name = "pastral-clipboard-win"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+pastral-domain = { path = "../domain" }
+windows-sys.workspace = true

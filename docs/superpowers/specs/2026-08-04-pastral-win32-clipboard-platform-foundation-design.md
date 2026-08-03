@@ -85,9 +85,11 @@ Workspace dependency:
 ```toml
 windows-sys = { version = "=0.61.2", default-features = false, features = [
     "Win32_Foundation",
+    "Win32_Graphics_Gdi",
     "Win32_System_DataExchange",
     "Win32_System_LibraryLoader",
     "Win32_System_Memory",
+    "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
 ] }
 ```
@@ -96,7 +98,7 @@ Rationale:
 
 - `windows-sys` supplies declarations/constants without allocating wrapper abstractions and is appropriate for a small reviewed native boundary.
 - Exact pinning and `--locked` preserve reproducibility.
-- Only the required Win32 feature namespaces are enabled.
+- Only the required Win32 feature namespaces are enabled. `Win32_Graphics_Gdi` is included because the generated `WNDCLASSW`/`RegisterClassW` declarations are feature-gated on the class background-brush type even though Pastral does not create or own a GDI brush in this slice. `Win32_System_Threading` is included only for `GetCurrentThreadId`, which enables a `PostThreadMessageW` shutdown fallback if the listener HWND can no longer accept the private stop message.
 - No `windows`, `windows-core`, COM feature, async runtime, logging backend, serialization framework, or retry dependency is added.
 
 The existing dependency policy changes from globally forbidding Windows bindings to enforcing:

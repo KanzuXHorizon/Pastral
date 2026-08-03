@@ -9,7 +9,7 @@ Push-Location $repositoryRoot
 try {
     Write-Host 'Pastral source-policy verification'
 
-    $trackedFiles = @(& git ls-files)
+    $trackedFiles = @(& git ls-files --cached --others --exclude-standard)
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -42,8 +42,8 @@ try {
         'gh[pousr]_[A-Za-z0-9_]{20,}',
         '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'
     )
+    $unsafePattern = '(?m)\bunsafe\s+(fn|extern|impl|trait|\{)'
     $sourcePatterns = @(
-        '(?m)\bunsafe\s+(fn|extern|impl|trait|\{)',
         '(?m)\bstd::net\b',
         '(?m)\bstd::process::Command\b',
         '(?m)\bCommand::new\s*\(',
@@ -69,6 +69,18 @@ try {
             }
         }
         if ($relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $isClipboardSys = $relativePath.Equals(
+                'crates/clipboard-win/src/sys.rs',
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
+            $unsafeMatch = [System.Text.RegularExpressions.Regex]::IsMatch(
+                $content,
+                $unsafePattern,
+                [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+            )
+            if ((-not $isClipboardSys) -and $unsafeMatch) {
+                $violations.Add("unsafe product-source pattern outside clipboard sys boundary in $relativePath")
+            }
             foreach ($pattern in $sourcePatterns) {
                 if ([System.Text.RegularExpressions.Regex]::IsMatch(
                     $content,
