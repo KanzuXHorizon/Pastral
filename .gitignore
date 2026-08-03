@@ -1,0 +1,129 @@
+# Existing local DevSpace launcher and state
+/Start-DevSpace-MCP-Cloudflared.ps1
+.devspace/
+.devspace-*/
+*.tunnel-state.json
+
+# Rust
+/target/
+**/target/
+.cargo/.package-cache
+
+# Visual Studio / CMake / Windows native build
+.vs/
+CMakeUserPresets.json
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+out/
+build/
+build-*/
+.vscode/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+*.obj
+*.pch
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
+*.pdb
+
+# vcpkg and package output
+/vcpkg_installed/
+/packages/
+/AppPackages/
+/BundleArtifacts/
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.msixupload
+*.cer
+
+# Signing, credentials, and secrets
+*.pfx
+*.p12
+*.pem
+*.key
+*.snk
+*.token
+*.credentials
+*.secrets
+.env
+.env.*
+!.env.example
+/signing-private/
+/installer/signing/private/
+
+# Pastral runtime/user data
+/pastral-data/
+/test-data-runtime/
+/clipboard-history/
+/diagnostic-bundles/
+/exports/
+/backups-local/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+*.blob
+*.encblob
+
+# Logs, traces, dumps, and benchmarks
+*.log
+*.etl
+*.evtx
+*.dmp
+*.hdmp
+*.trace
+*.wprp.user
+/benchmark-results-local/
+/perf-artifacts/
+
+# Fuzzing and generated corpora
+/fuzz/artifacts/
+/fuzz/corpus-generated/
+/tests/fuzz/artifacts/
+/tests/fuzz/corpus-generated/
+crash-*
+leak-*
+timeout-*
+
+# Test output, screenshots, coverage
+/TestResults/
+/test-results/
+/screenshots-actual/
+screenshots-diff/
+coverage/
+*.coverage
+*.coveragexml
+*.profraw
+*.profdata
+
+# Temporary/editor/OS files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Local AI/agent artifacts
+.agents/log/
+.impeccable/live/
+.codex/
+.claude/
+.gemini/
+
+# Preserve reviewed source assets and fixtures explicitly committed under assets/tests.
