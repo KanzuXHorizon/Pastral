@@ -36,19 +36,22 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Check
         shell: powershell
-        run: cargo check --workspace --all-targets
+        run: cargo check --locked --workspace --all-targets
       - name: Test workspace
         shell: powershell
-        run: cargo test --workspace --all-targets
+        run: cargo test --locked --workspace --all-targets
       - name: Test storage foundation
         shell: powershell
-        run: cargo test -p pastral-storage --all-targets
+        run: cargo test --locked -p pastral-storage --all-targets
       - name: Clippy
         shell: powershell
-        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
       - name: Documentation
         shell: powershell
-        run: cargo doc --workspace --no-deps
+        run: cargo doc --locked --workspace --no-deps
       - name: Dependency policy
         shell: powershell
         run: ./eng/verify-dependencies.ps1
+      - name: Source policy
+        shell: powershell
+        run: ./eng/verify-source-policy.ps1

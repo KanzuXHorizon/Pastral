@@ -12,7 +12,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Pure `pastral-domain` crate with typed UUIDv4 identities, UTC Unix microseconds, capture order, stable clipboard format identity, protection-domain digest policy, immutable clip/audit/derived records, and fidelity aggregation.
 - Windows Rust CI and exact developer setup instructions for the domain and storage foundation.
 - `pastral-storage` crate with schema-versioned SQLite metadata, FTS5 literal lexical search, internal SQLite BLOB and controlled external-file placement, ordinary protection-domain deduplication, exact-byte integrity verification, content-free capture audit persistence, deletion, and bounded reconciliation.
-- PowerShell dependency-policy verification that rejects async, serialization, alternate database, IPC, logging, network, Windows-binding, and UI dependencies from the current foundation.
+- Lockfile-enforced PowerShell dependency and source-policy verification that rejects async, serialization, alternate database, IPC, logging, network, Windows-binding, and UI dependencies, plus common secret/private-key signatures, unsafe/product-network APIs, machine-local launchers, build output, SQLite extension loading, database attachment, and WAL activation in the current foundation.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.

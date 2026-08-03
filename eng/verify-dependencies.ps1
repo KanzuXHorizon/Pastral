@@ -6,7 +6,7 @@ Set-StrictMode -Version 2.0
 
 Write-Host 'Pastral dependency verification'
 
-$tree = & cargo tree --workspace --prefix none --format '{p}'
+$tree = & cargo tree --locked --workspace --prefix none --format '{p}'
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

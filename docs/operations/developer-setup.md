@@ -63,6 +63,7 @@ Individual tasks:
 .\eng\build.ps1 -Task Clippy
 .\eng\build.ps1 -Task Doc
 .\eng\build.ps1 -Task Dependencies
+.\eng\build.ps1 -Task SourcePolicy
 ```
 
 The script stops at the first failure and preserves the failing command's exit code. `Storage` is a focused storage-crate test task; `Test` already covers every workspace crate.
@@ -71,13 +72,14 @@ The script stops at the first failure and preserves the failing command's exit c
 
 ```powershell
 cargo fmt --all -- --check
-cargo check --workspace --all-targets
-cargo test --workspace --all-targets
-cargo test -p pastral-storage --all-targets
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo doc --workspace --no-deps
+cargo check --locked --workspace --all-targets
+cargo test --locked --workspace --all-targets
+cargo test --locked -p pastral-storage --all-targets
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo doc --locked --workspace --no-deps
 .\eng\verify-dependencies.ps1
-cargo tree --workspace
+.\eng\verify-source-policy.ps1
+cargo tree --locked --workspace
 ```
 
 ## SQLite runtime policy for Phase 2A
@@ -103,7 +105,7 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - `sha2 = 0.10.9`: SHA-256 implementation for the explicitly versioned `sha256-raw-v1` logical-byte digest.
 - `rusqlite = 0.40.1`: reviewed synchronous SQLite wrapper. Only `bundled` and `blob` are enabled; default features and unrelated integration features are disabled.
 
-`Cargo.lock` is committed. `eng/verify-dependencies.ps1` rejects async runtimes, serialization frameworks, alternate database stacks, Protobuf/IPC runtimes, logging backends, network clients, Windows bindings, and UI dependencies from the current foundation graph.
+`Cargo.lock` is committed and every compiling/testing/documentation/dependency gate uses `--locked`. `eng/verify-dependencies.ps1` rejects async runtimes, serialization frameworks, alternate database stacks, Protobuf/IPC runtimes, logging backends, network clients, Windows bindings, and UI dependencies from the current foundation graph. `eng/verify-source-policy.ps1` rejects common secret/private-key signatures, credential/key files, build output, the machine-local launcher, unsafe blocks, network/process APIs, SQLite extension loading, database attachment, and WAL activation in current product source.
 
 ## Current storage limitations
 

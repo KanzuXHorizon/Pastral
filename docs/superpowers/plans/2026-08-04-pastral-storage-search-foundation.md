@@ -393,8 +393,8 @@ Reconcile at most `reconciliation_entry_limit` entries across staging, pending d
 
 ```powershell
 eng/build.ps1 -Task All
-cargo test --workspace --all-targets
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --locked --workspace --all-targets
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 ```
 
 ```powershell
@@ -421,18 +421,19 @@ git commit -m "feat: add deletion and storage reconciliation"
 Add `-Task Storage` to `eng/build.ps1` that runs:
 
 ```powershell
-cargo test -p pastral-storage --all-targets
+cargo test --locked -p pastral-storage --all-targets
 ```
 
 Keep `All` fail-fast and include Storage through the workspace test path without running a command after failure.
 
 - [ ] **Step 2: Extend Windows CI**
 
-Retain existing gates and add an explicit storage test plus a dependency-tree scan that fails on forbidden direct/runtime categories:
+Retain existing gates and add an explicit storage test plus dependency/source-policy scans that fail on forbidden runtime categories, secret signatures, unsafe/product-network APIs, and untracked-input drift:
 
 ```powershell
-cargo test -p pastral-storage --all-targets
-cargo tree --workspace
+cargo test --locked -p pastral-storage --all-targets
+cargo tree --locked --workspace
+eng/verify-source-policy.ps1
 ```
 
 The scan must not reject `cc` or the bundled SQLite build chain, but must reject tokio, serde, chrono/time, sqlx, prost/protobuf, tracing/log, reqwest/hyper, windows/windows-sys, and UI crates in product dependencies.
@@ -447,6 +448,7 @@ Record exact PowerShell commands, rusqlite/SQLite versions, rollback-journal rat
 eng/verify-toolchain.ps1
 eng/build.ps1 -Task All
 eng/build.ps1 -Task Storage
+eng/build.ps1 -Task SourcePolicy
 git diff --check
 ```
 
@@ -473,12 +475,14 @@ eng/verify-toolchain.ps1
 eng/build.ps1 -Task All
 eng/build.ps1 -Task Storage
 cargo fmt --all -- --check
-cargo check --workspace --all-targets
-cargo test --workspace --all-targets
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo doc --workspace --no-deps
-cargo tree --workspace
-cargo test -p pastral-storage sqlite_and_fts_integrity_checks_pass_after_representative_operations -- --exact --nocapture
+cargo check --locked --workspace --all-targets
+cargo test --locked --workspace --all-targets
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
+cargo doc --locked --workspace --no-deps
+cargo tree --locked --workspace
+eng/verify-dependencies.ps1
+eng/verify-source-policy.ps1
+cargo test --locked -p pastral-storage maintenance::tests::sqlite_and_fts_integrity_checks_pass_after_operations -- --exact --nocapture
 git diff --check
 git fsck --no-progress --no-dangling
 git show --check HEAD
