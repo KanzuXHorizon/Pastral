@@ -31,6 +31,12 @@ impl ClipEvent {
         {
             return Err(DomainError::UnusableCapturedRepresentation);
         }
+        if representations
+            .iter()
+            .any(|value| value.protection_domain() != captured_protection_domain)
+        {
+            return Err(DomainError::RepresentationProtectionDomainMismatch);
+        }
         Ok(Self {
             id,
             observed_at,
@@ -80,8 +86,7 @@ mod tests {
         StandardFormatId,
     };
 
-    fn representation(fidelity: Fidelity) -> ClipRepresentation {
-        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+    fn representation(domain: ProtectionDomain, fidelity: Fidelity) -> ClipRepresentation {
         ClipRepresentation::new(
             ClipRepresentationId::new_v4(),
             ClipboardFormatIdentity::Standard(StandardFormatId::new(13)),
@@ -94,12 +99,16 @@ mod tests {
     }
 
     fn event(representations: Vec<ClipRepresentation>) -> Result<ClipEvent, DomainError> {
+        let domain = representations.first().map_or_else(
+            || ProtectionDomain::Ordinary(ProtectionDomainId::new_v4()),
+            ClipRepresentation::protection_domain,
+        );
         ClipEvent::new(
             ClipEventId::new_v4(),
             UtcUnixMicros::new(0).unwrap(),
             CaptureOrder::new(1).unwrap(),
             ProfileId::new_v4(),
-            ProtectionDomain::Ordinary(ProtectionDomainId::new_v4()),
+            domain,
             representations,
         )
     }
@@ -114,11 +123,12 @@ mod tests {
 
     #[test]
     fn one_and_many_representations_are_accepted() {
-        assert!(event(vec![representation(Fidelity::FullFidelity)]).is_ok());
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        assert!(event(vec![representation(domain, Fidelity::FullFidelity)]).is_ok());
         assert!(
             event(vec![
-                representation(Fidelity::FullFidelity),
-                representation(Fidelity::FallbackOnly),
+                representation(domain, Fidelity::FullFidelity),
+                representation(domain, Fidelity::FallbackOnly),
             ])
             .is_ok()
         );
@@ -127,15 +137,40 @@ mod tests {
     #[test]
     fn unavailable_descriptor_cannot_satisfy_cardinality() {
         assert_eq!(
-            event(vec![representation(Fidelity::Unavailable)]),
+            event(vec![representation(
+                ProtectionDomain::Ordinary(ProtectionDomainId::new_v4()),
+                Fidelity::Unavailable,
+            )]),
             Err(DomainError::UnusableCapturedRepresentation)
         );
     }
 
     #[test]
+    fn representation_domain_must_match_event_domain() {
+        let representation_domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let event_domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        assert_eq!(
+            ClipEvent::new(
+                ClipEventId::new_v4(),
+                UtcUnixMicros::new(0).unwrap(),
+                CaptureOrder::new(1).unwrap(),
+                ProfileId::new_v4(),
+                event_domain,
+                vec![representation(
+                    representation_domain,
+                    Fidelity::FullFidelity,
+                )],
+            ),
+            Err(DomainError::RepresentationProtectionDomainMismatch)
+        );
+    }
+
+    #[test]
     fn identical_payload_context_never_merges_copy_occurrences() {
-        let first = event(vec![representation(Fidelity::FullFidelity)]).unwrap();
-        let second = event(vec![representation(Fidelity::FullFidelity)]).unwrap();
+        let first_domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let second_domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let first = event(vec![representation(first_domain, Fidelity::FullFidelity)]).unwrap();
+        let second = event(vec![representation(second_domain, Fidelity::FullFidelity)]).unwrap();
         assert_ne!(first.id(), second.id());
     }
 }

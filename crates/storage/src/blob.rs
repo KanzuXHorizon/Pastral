@@ -10,7 +10,8 @@ use rusqlite::{Connection, MAIN_DB, OptionalExtension, Transaction, blob::ZeroBl
 use crate::{
     BlobPlacement, StorageError, StoragePolicyVersion,
     encoding::{
-        BACKEND_EXTERNAL, BACKEND_INTERNAL, BLOB_READY, DIGEST_SHA256_RAW_V1, encode_protection,
+        BACKEND_EXTERNAL, BACKEND_INTERNAL, BLOB_READY, DIGEST_SHA256_RAW_V1, decode_digest_suite,
+        decode_protection, encode_protection,
     },
     ids::{hex_lower, uuid_from_blob},
 };
@@ -250,6 +251,44 @@ pub(crate) fn insert_new_blob(
     }
 }
 
+pub(crate) fn verify_blob_reference(
+    connection: &Connection,
+    blob_id: BlobObjectId,
+    domain: ProtectionDomain,
+    digest: &RawDigest,
+    expected_length: u64,
+) -> Result<(), StorageError> {
+    let (protection_kind, protection_domain_id) = encode_protection(domain);
+    let expected_length = i64::try_from(expected_length)
+        .map_err(|_| StorageError::IntegerOutOfRange("blob raw length"))?;
+    let matches: bool = connection.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM blob_objects
+            WHERE blob_object_id = ?1
+              AND protection_kind = ?2
+              AND protection_domain_id = ?3
+              AND digest_suite = ?4
+              AND digest = ?5
+              AND raw_length = ?6
+              AND lifecycle_state = ?7
+        )",
+        params![
+            blob_id.as_uuid().as_bytes().as_slice(),
+            protection_kind,
+            protection_domain_id.as_slice(),
+            DIGEST_SHA256_RAW_V1,
+            digest.bytes().as_slice(),
+            expected_length,
+            BLOB_READY,
+        ],
+        |row| row.get(0),
+    )?;
+    if !matches {
+        return Err(StorageError::BlobIntegrityMismatch);
+    }
+    Ok(())
+}
+
 pub(crate) fn read_blob(
     connection: &Connection,
     root: &Path,
@@ -257,32 +296,67 @@ pub(crate) fn read_blob(
     domain: ProtectionDomain,
     digest: &RawDigest,
     expected_length: u64,
+    max_payload_bytes: u64,
 ) -> Result<Vec<u8>, StorageError> {
     let row = connection
         .query_row(
-            "SELECT backend_kind, internal_payload, external_key, raw_length
+            "SELECT protection_kind, protection_domain_id, digest_suite, digest,
+                    backend_kind, external_key, raw_length, length(internal_payload)
              FROM blob_objects WHERE blob_object_id = ?1 AND lifecycle_state = ?2",
             params![blob_id.as_uuid().as_bytes().as_slice(), BLOB_READY],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
-                    row.get::<_, Option<Vec<u8>>>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, i64>(3)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                    row.get::<_, Option<Vec<u8>>>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, i64>(6)?,
+                    row.get::<_, Option<i64>>(7)?,
                 ))
             },
         )
         .optional()?
         .ok_or(StorageError::BlobMissing)?;
+
+    let stored_domain = decode_protection(row.0, &row.1)?;
+    if stored_domain != domain {
+        return Err(StorageError::BlobIntegrityMismatch);
+    }
+    let (stored_suite, stored_digest) = match (row.2, row.3) {
+        (Some(suite), Some(bytes)) => (decode_digest_suite(suite)?, bytes),
+        _ => return Err(StorageError::BlobIntegrityMismatch),
+    };
+    if stored_suite != digest.suite() || stored_digest.as_slice() != digest.bytes() {
+        return Err(StorageError::BlobIntegrityMismatch);
+    }
+
     let stored_length =
-        u64::try_from(row.3).map_err(|_| StorageError::IntegerOutOfRange("blob raw length"))?;
-    if stored_length != expected_length {
+        u64::try_from(row.6).map_err(|_| StorageError::IntegerOutOfRange("blob raw length"))?;
+    if stored_length != expected_length || stored_length > max_payload_bytes {
         return Err(StorageError::BlobLengthMismatch);
     }
-    let bytes = match row.0 {
-        BACKEND_INTERNAL => row.1.ok_or(StorageError::BlobMissing)?,
+
+    let bytes = match row.4 {
+        BACKEND_INTERNAL => {
+            let internal_length = row.7.ok_or(StorageError::BlobMissing)?;
+            if u64::try_from(internal_length)
+                .map_err(|_| StorageError::IntegerOutOfRange("internal blob length"))?
+                != stored_length
+            {
+                return Err(StorageError::BlobLengthMismatch);
+            }
+            connection
+                .query_row(
+                    "SELECT internal_payload FROM blob_objects WHERE blob_object_id = ?1",
+                    [blob_id.as_uuid().as_bytes().as_slice()],
+                    |row| row.get::<_, Vec<u8>>(0),
+                )
+                .map_err(StorageError::from)?
+        }
         BACKEND_EXTERNAL => {
-            let key = row.2.ok_or(StorageError::BlobMissing)?;
+            let key = row.5.ok_or(StorageError::BlobMissing)?;
             let path = resolve_external_key(root, &key)?;
             read_file_bounded(&path, expected_length)?
         }

@@ -46,9 +46,11 @@ impl DeleteReceipt {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ReconciliationReport {
     pub staging_removed: usize,
+    pub staging_retained: usize,
     pub pending_deletes_completed: usize,
     pub pending_deletes_retained: usize,
     pub unreferenced_objects_removed: usize,
+    pub unreferenced_objects_retained: usize,
     pub missing_external_objects: usize,
     pub unsafe_external_locators: usize,
     pub reference_count_mismatches: usize,
@@ -59,6 +61,16 @@ pub struct ReconciliationReport {
 pub struct IntegrityReport {
     pub sqlite_ok: bool,
     pub fts_ok: bool,
+    pub metadata_ok: bool,
+    pub search_mapping_ok: bool,
+}
+
+type PendingExternalRow = (BlobObjectId, Option<String>);
+
+struct BoundedFiles {
+    files: Vec<PathBuf>,
+    entries_scanned: usize,
+    truncated: bool,
 }
 
 struct BlobReference {
@@ -205,36 +217,42 @@ impl<P: BlobPlacementPolicy> Storage<P> {
         let mut report = ReconciliationReport::default();
         let mut processed = 0usize;
 
-        for path in immediate_files(&self.root.join(".staging"))? {
-            if processed >= limit {
-                report.truncated = true;
-                return Ok(report);
-            }
-            processed += 1;
-            if fs::remove_file(&path).is_ok() {
-                report.staging_removed += 1;
+        let staging =
+            immediate_files(&self.root.join(".staging"), limit.saturating_sub(processed))?;
+        processed += staging.entries_scanned;
+        for path in staging.files {
+            match fs::remove_file(&path) {
+                Ok(()) => report.staging_removed += 1,
+                Err(_) => report.staging_retained += 1,
             }
         }
+        if staging.truncated {
+            report.truncated = true;
+            return Ok(report);
+        }
 
-        let pending = self.pending_external_rows(limit.saturating_sub(processed))?;
+        let (pending, pending_truncated) =
+            self.pending_external_rows(limit.saturating_sub(processed))?;
+        processed += pending.len();
         for (id, key) in pending {
-            if processed >= limit {
-                report.truncated = true;
-                return Ok(report);
-            }
-            processed += 1;
             match self.complete_external_delete(id, key.as_deref()) {
                 Ok(true) => report.pending_deletes_completed += 1,
-                Ok(false) | Err(_) => report.pending_deletes_retained += 1,
+                Ok(false) => report.pending_deletes_retained += 1,
+                Err(StorageError::UnsafeExternalLocator) => {
+                    report.pending_deletes_retained += 1;
+                    report.unsafe_external_locators += 1;
+                }
+                Err(error) => return Err(error),
             }
         }
+        if pending_truncated {
+            report.truncated = true;
+            return Ok(report);
+        }
 
-        for path in recursive_files(&self.root.join("objects"), limit.saturating_sub(processed))? {
-            if processed >= limit {
-                report.truncated = true;
-                return Ok(report);
-            }
-            processed += 1;
+        let objects = recursive_files(&self.root.join("objects"), limit.saturating_sub(processed))?;
+        processed += objects.entries_scanned;
+        for path in objects.files {
             let key = match relative_key(&self.root, &path) {
                 Some(key) => key,
                 None => {
@@ -247,36 +265,30 @@ impl<P: BlobPlacementPolicy> Storage<P> {
                 [key.as_str()],
                 |row| row.get(0),
             )?;
-            if !referenced && fs::remove_file(&path).is_ok() {
-                report.unreferenced_objects_removed += 1;
+            if !referenced {
+                match fs::remove_file(&path) {
+                    Ok(()) => report.unreferenced_objects_removed += 1,
+                    Err(_) => report.unreferenced_objects_retained += 1,
+                }
             }
         }
+        if objects.truncated {
+            report.truncated = true;
+            return Ok(report);
+        }
 
-        let ready_external_keys = {
-            let mut statement = self.connection.prepare(
-                "SELECT external_key FROM blob_objects
-                 WHERE backend_kind = ?1 AND lifecycle_state = ?2
-                 LIMIT ?3",
-            )?;
-            let remaining = i64::try_from(limit.saturating_sub(processed))
-                .map_err(|_| StorageError::IntegerOutOfRange("reconciliation limit"))?;
-            statement
-                .query_map(params![BACKEND_EXTERNAL, BLOB_READY, remaining], |row| {
-                    row.get::<_, String>(0)
-                })?
-                .collect::<Result<Vec<_>, _>>()?
-        };
+        let (ready_external_keys, ready_truncated) =
+            self.ready_external_keys(limit.saturating_sub(processed))?;
         for key in ready_external_keys {
-            if processed >= limit {
-                report.truncated = true;
-                return Ok(report);
-            }
-            processed += 1;
             match resolve_external_key(&self.root, &key) {
                 Ok(path) if !path.is_file() => report.missing_external_objects += 1,
                 Ok(_) => {}
                 Err(_) => report.unsafe_external_locators += 1,
             }
+        }
+        if ready_truncated {
+            report.truncated = true;
+            return Ok(report);
         }
 
         report.reference_count_mismatches = usize::try_from(self.connection.query_row(
@@ -301,25 +313,62 @@ impl<P: BlobPlacementPolicy> Storage<P> {
             "INSERT INTO clip_search_fts(clip_search_fts) VALUES('integrity-check')",
             [],
         )?;
+
+        let metadata_mismatches: i64 = self.connection.query_row(
+            "SELECT count(*)
+             FROM clip_representations r
+             JOIN clip_events e ON e.clip_event_id = r.clip_event_id
+             JOIN blob_objects b ON b.blob_object_id = r.blob_object_id
+             WHERE r.protection_kind != e.protection_kind
+                OR r.protection_domain_id != e.protection_domain_id
+                OR r.protection_kind != b.protection_kind
+                OR r.protection_domain_id != b.protection_domain_id
+                OR r.raw_length != b.raw_length
+                OR r.digest_suite IS NOT b.digest_suite
+                OR r.digest IS NOT b.digest
+                OR b.lifecycle_state != ?1
+                OR b.reference_count != (
+                    SELECT count(*) FROM clip_representations counted
+                    WHERE counted.blob_object_id = b.blob_object_id
+                )",
+            [BLOB_READY],
+            |row| row.get(0),
+        )?;
+
+        let search_mapping_mismatches: i64 = self.connection.query_row(
+            "SELECT
+                (SELECT count(*) FROM search_documents d
+                 LEFT JOIN clip_search_fts f ON f.rowid = d.search_row_id
+                 WHERE f.rowid IS NULL)
+              + (SELECT count(*) FROM clip_search_fts f
+                 LEFT JOIN search_documents d ON d.search_row_id = f.rowid
+                 WHERE d.search_row_id IS NULL)",
+            [],
+            |row| row.get(0),
+        )?;
+
         Ok(IntegrityReport {
             sqlite_ok,
             fts_ok: true,
+            metadata_ok: metadata_mismatches == 0,
+            search_mapping_ok: search_mapping_mismatches == 0,
         })
     }
 
     fn pending_external_rows(
         &self,
         limit: usize,
-    ) -> Result<Vec<(BlobObjectId, Option<String>)>, StorageError> {
-        let limit = i64::try_from(limit)
+    ) -> Result<(Vec<PendingExternalRow>, bool), StorageError> {
+        let query_limit = i64::try_from(limit.saturating_add(1))
             .map_err(|_| StorageError::IntegerOutOfRange("reconciliation limit"))?;
         let mut statement = self.connection.prepare(
             "SELECT blob_object_id, external_key FROM blob_objects
              WHERE backend_kind = ?1 AND lifecycle_state = ?2
+             ORDER BY rowid
              LIMIT ?3",
         )?;
         let rows = statement.query_map(
-            params![BACKEND_EXTERNAL, BLOB_PENDING_DELETE, limit],
+            params![BACKEND_EXTERNAL, BLOB_PENDING_DELETE, query_limit],
             |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, Option<String>>(1)?)),
         )?;
         let mut values = Vec::new();
@@ -327,7 +376,28 @@ impl<P: BlobPlacementPolicy> Storage<P> {
             let row = row?;
             values.push((typed_id_from_blob(&row.0, BlobObjectId::from_uuid)?, row.1));
         }
-        Ok(values)
+        let truncated = values.len() > limit;
+        values.truncate(limit);
+        Ok((values, truncated))
+    }
+
+    fn ready_external_keys(&self, limit: usize) -> Result<(Vec<String>, bool), StorageError> {
+        let query_limit = i64::try_from(limit.saturating_add(1))
+            .map_err(|_| StorageError::IntegerOutOfRange("reconciliation limit"))?;
+        let mut statement = self.connection.prepare(
+            "SELECT external_key FROM blob_objects
+             WHERE backend_kind = ?1 AND lifecycle_state = ?2
+             ORDER BY rowid
+             LIMIT ?3",
+        )?;
+        let rows = statement
+            .query_map(params![BACKEND_EXTERNAL, BLOB_READY, query_limit], |row| {
+                row.get::<_, String>(0)
+            })?;
+        let mut values = rows.collect::<Result<Vec<_>, _>>()?;
+        let truncated = values.len() > limit;
+        values.truncate(limit);
+        Ok((values, truncated))
     }
 
     fn complete_external_delete(
@@ -351,14 +421,25 @@ impl<P: BlobPlacementPolicy> Storage<P> {
     }
 }
 
-fn immediate_files(root: &Path) -> Result<Vec<PathBuf>, StorageError> {
+fn immediate_files(root: &Path, limit: usize) -> Result<BoundedFiles, StorageError> {
     if !root.exists() {
-        return Ok(Vec::new());
+        return Ok(BoundedFiles {
+            files: Vec::new(),
+            entries_scanned: 0,
+            truncated: false,
+        });
     }
     let mut files = Vec::new();
+    let mut entries_scanned = 0usize;
+    let mut truncated = false;
     for entry in
         fs::read_dir(root).map_err(|error| StorageError::io("enumerate staging root", &error))?
     {
+        if entries_scanned >= limit {
+            truncated = true;
+            break;
+        }
+        entries_scanned += 1;
         let entry = entry.map_err(|error| StorageError::io("read staging entry", &error))?;
         if entry
             .file_type()
@@ -369,19 +450,30 @@ fn immediate_files(root: &Path) -> Result<Vec<PathBuf>, StorageError> {
         }
     }
     files.sort();
-    Ok(files)
+    Ok(BoundedFiles {
+        files,
+        entries_scanned,
+        truncated,
+    })
 }
 
-fn recursive_files(root: &Path, limit: usize) -> Result<Vec<PathBuf>, StorageError> {
+fn recursive_files(root: &Path, limit: usize) -> Result<BoundedFiles, StorageError> {
     let mut files = Vec::new();
     let mut directories = vec![root.to_path_buf()];
-    while let Some(directory) = directories.pop() {
+    let mut entries_scanned = 0usize;
+    let mut truncated = false;
+    'directories: while let Some(directory) = directories.pop() {
         if !directory.exists() {
             continue;
         }
         for entry in fs::read_dir(&directory)
             .map_err(|error| StorageError::io("enumerate object directory", &error))?
         {
+            if entries_scanned >= limit {
+                truncated = true;
+                break 'directories;
+            }
+            entries_scanned += 1;
             let entry = entry.map_err(|error| StorageError::io("read object entry", &error))?;
             let file_type = entry
                 .file_type()
@@ -390,15 +482,15 @@ fn recursive_files(root: &Path, limit: usize) -> Result<Vec<PathBuf>, StorageErr
                 directories.push(entry.path());
             } else if file_type.is_file() {
                 files.push(entry.path());
-                if files.len() >= limit {
-                    files.sort();
-                    return Ok(files);
-                }
             }
         }
     }
     files.sort();
-    Ok(files)
+    Ok(BoundedFiles {
+        files,
+        entries_scanned,
+        truncated,
+    })
 }
 
 fn relative_key(root: &Path, path: &Path) -> Option<String> {
@@ -421,7 +513,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        BlobPlacement, StoragePolicyVersion,
+        BlobPlacement, StorageLimits, StoragePolicyVersion,
         repository::tests::{FixedPolicy, clip, limits},
         test_support::TestRoot,
     };
@@ -493,6 +585,44 @@ mod tests {
     }
 
     #[test]
+    fn external_delete_failure_is_retained_and_retried() {
+        let root = TestRoot::new();
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let mut storage = Storage::open(
+            root.path(),
+            limits(),
+            FixedPolicy(BlobPlacement::ExternalFile),
+        )
+        .unwrap();
+        let commit = clip(1, domain, b"external");
+        let event_id = commit.event().id();
+        storage.commit_clip(commit).unwrap();
+        let key: String = storage
+            .connection
+            .query_row("SELECT external_key FROM blob_objects", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        let path = resolve_external_key(root.path(), &key).unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::create_dir(&path).unwrap();
+
+        let receipt = storage.delete_clip(event_id).unwrap();
+        assert_eq!(receipt.external_blobs_removed(), 0);
+        assert_eq!(receipt.external_blobs_pending(), 1);
+        fs::remove_dir(&path).unwrap();
+
+        let report = storage.reconcile().unwrap();
+        assert_eq!(report.pending_deletes_completed, 1);
+        assert_eq!(report.pending_deletes_retained, 0);
+        let blob_count: i64 = storage
+            .connection
+            .query_row("SELECT count(*) FROM blob_objects", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(blob_count, 0);
+    }
+
+    #[test]
     fn missing_external_file_is_reported_without_deleting_metadata() {
         let root = TestRoot::new();
         let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
@@ -534,6 +664,74 @@ mod tests {
         let report = storage.integrity_check().unwrap();
         assert!(report.sqlite_ok);
         assert!(report.fts_ok);
+        assert!(report.metadata_ok);
+        assert!(report.search_mapping_ok);
+    }
+
+    #[test]
+    fn integrity_check_reports_metadata_and_search_mapping_corruption() {
+        let root = TestRoot::new();
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let mut storage = Storage::open(
+            root.path(),
+            limits(),
+            FixedPolicy(BlobPlacement::InternalSqlite),
+        )
+        .unwrap();
+        storage.commit_clip(clip(1, domain, b"data")).unwrap();
+
+        let wrong_domain = ProtectionDomainId::new_v4();
+        storage
+            .connection
+            .execute(
+                "UPDATE clip_representations SET protection_domain_id = ?1",
+                [wrong_domain.as_uuid().as_bytes().as_slice()],
+            )
+            .unwrap();
+        storage
+            .connection
+            .execute(
+                "INSERT INTO clip_search_fts(rowid, body) VALUES (999999, 'orphan')",
+                [],
+            )
+            .unwrap();
+
+        let report = storage.integrity_check().unwrap();
+        assert!(report.sqlite_ok);
+        assert!(report.fts_ok);
+        assert!(!report.metadata_ok);
+        assert!(!report.search_mapping_ok);
+    }
+
+    #[test]
+    fn reconciliation_entry_limit_bounds_staging_and_directory_traversal() {
+        let root = TestRoot::new();
+        let bounded_limits = StorageLimits::new(1024, 1024, 256, 16, 2).unwrap();
+        let mut storage = Storage::open(
+            root.path(),
+            bounded_limits,
+            FixedPolicy(BlobPlacement::InternalSqlite),
+        )
+        .unwrap();
+
+        for name in ["one.tmp", "two.tmp", "three.tmp"] {
+            File::create(root.path().join(".staging").join(name)).unwrap();
+        }
+        let staging_report = storage.reconcile().unwrap();
+        assert!(staging_report.truncated);
+        assert_eq!(staging_report.staging_removed, 2);
+        assert_eq!(
+            fs::read_dir(root.path().join(".staging")).unwrap().count(),
+            1
+        );
+
+        for entry in fs::read_dir(root.path().join(".staging")).unwrap() {
+            fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        fs::create_dir_all(root.path().join("objects/a/b/c")).unwrap();
+        let directory_report = storage.reconcile().unwrap();
+        assert!(directory_report.truncated);
+        assert_eq!(directory_report.unreferenced_objects_removed, 0);
     }
 
     #[test]

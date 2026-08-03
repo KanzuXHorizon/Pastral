@@ -11,6 +11,7 @@ pub enum DomainError {
     PersistentPlaintextDigestForbidden,
     DigestProtectionDomainMismatch,
     ClipEventRequiresRepresentation,
+    RepresentationProtectionDomainMismatch,
     UnusableCapturedRepresentation,
     FidelityInputEmpty,
     FidelityHasNoUsableRepresentation,
@@ -36,6 +37,9 @@ impl fmt::Display for DomainError {
             }
             Self::ClipEventRequiresRepresentation => {
                 "clip event requires at least one captured representation"
+            }
+            Self::RepresentationProtectionDomainMismatch => {
+                "captured representation protection domain does not match the clip event"
             }
             Self::UnusableCapturedRepresentation => {
                 "unavailable or unsupported descriptors are not captured representations"
