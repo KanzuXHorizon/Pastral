@@ -214,9 +214,12 @@ function Resolve-MSBuild {
         Fail 'vswhere.exe was not found'
     }
 
-    $installationPath = (& $vswhere -latest -products Microsoft.VisualStudio.Product.BuildTools -property installationPath).Trim()
+    $installationPath = (& $vswhere -latest -products * -requires `
+        Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC.BuildTools `
+        -property installationPath).Trim()
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($installationPath)) {
-        Fail 'Visual Studio Build Tools installation was not found'
+        Fail 'Visual Studio 2022 with MSVC x64 and C++ WinUI build tools was not found'
     }
 
     $msbuild = Join-Path $installationPath 'MSBuild\Current\Bin\MSBuild.exe'

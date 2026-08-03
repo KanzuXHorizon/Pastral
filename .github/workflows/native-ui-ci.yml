@@ -1,0 +1,87 @@
+name: Native manager UI CI
+
+on:
+  push:
+    paths:
+      - "Pastral.slnx"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "apps/manager/**"
+      - "eng/**"
+      - ".github/workflows/native-ui-ci.yml"
+  pull_request:
+    paths:
+      - "Pastral.slnx"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "apps/manager/**"
+      - "eng/**"
+      - ".github/workflows/native-ui-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  manager:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure C++ WinUI build tools
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $required = & $vswhere -latest -products * -requires `
+            Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC.BuildTools `
+            -property installationPath
+
+          if ([string]::IsNullOrWhiteSpace($required)) {
+            $installPath = (& $vswhere -latest -products * -property installationPath).Trim()
+            if ([string]::IsNullOrWhiteSpace($installPath)) {
+              throw 'No Visual Studio installation is available to modify.'
+            }
+
+            $setup = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
+            & $setup modify `
+              --installPath $installPath `
+              --add Microsoft.VisualStudio.Workload.UniversalBuildTools `
+              --add Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC.BuildTools `
+              --quiet --norestart --wait
+            if ($LASTEXITCODE -ne 0) {
+              throw "Visual Studio Installer failed with exit code $LASTEXITCODE."
+            }
+
+            $deadline = [DateTime]::UtcNow.AddMinutes(15)
+            do {
+              Start-Sleep -Seconds 10
+              $required = & $vswhere -latest -products * -requires `
+                Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+                Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC.BuildTools `
+                -property installationPath
+            } while ([string]::IsNullOrWhiteSpace($required) -and [DateTime]::UtcNow -lt $deadline)
+
+            if ([string]::IsNullOrWhiteSpace($required)) {
+              throw 'C++ WinUI build tools were not detected after installation.'
+            }
+          }
+
+          Write-Host "Native manager Visual Studio: $required"
+
+      - name: Verify native toolchain
+        shell: powershell
+        run: ./eng/verify-toolchain.ps1 -RequireNativeManager
+
+      - name: Verify native source and XAML policy
+        shell: powershell
+        run: ./eng/verify-native-manager.ps1 -Mode Static
+
+      - name: Build Debug and Release
+        shell: powershell
+        run: ./eng/verify-native-manager.ps1 -Mode Build
+
+      - name: Verify repository source policy
+        shell: powershell
+        run: ./eng/verify-source-policy.ps1
