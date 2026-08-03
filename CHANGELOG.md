@@ -12,7 +12,9 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Pure `pastral-domain` crate with typed UUIDv4 identities, UTC Unix microseconds, capture order, stable clipboard format identity, protection-domain digest policy, immutable clip/audit/derived records, and fidelity aggregation.
 - Windows Rust CI and exact developer setup instructions for the domain and storage foundation.
 - `pastral-storage` crate with schema-versioned SQLite metadata, FTS5 literal lexical search, internal SQLite BLOB and controlled external-file placement, ordinary protection-domain deduplication, exact-byte integrity verification, content-free capture audit persistence, deletion, and bounded reconciliation.
-- Lockfile-enforced PowerShell dependency and source-policy verification that rejects async, serialization, alternate database, IPC, logging, network, Windows-binding, and UI dependencies, plus common secret/private-key signatures, unsafe/product-network APIs, machine-local launchers, build output, SQLite extension loading, database attachment, and WAL activation in the current foundation.
+- Lockfile-enforced PowerShell dependency and source-policy verification that rejects async, serialization, alternate database, IPC, logging, network, unauthorized Windows-binding, and UI dependencies, plus common secret/private-key signatures, unsafe code outside the reviewed native boundary, product-network/process APIs, machine-local launchers, build output, SQLite extension loading, database attachment, and WAL activation in the current foundation.
+- Windows-only `pastral-clipboard-win` foundation with a message-only clipboard listener, bounded/coalescing notifications, transient sequence evidence, thread-bound read sessions, ordered runtime-format enumeration, stable registered-name identity, bounded HGLOBAL copying, and exact validated `CF_UNICODETEXT` extraction.
+- Listener shutdown fallback through the listener thread message queue, isolated and documented Win32 unsafe code in one module, and automated native tests that never write to the user's clipboard.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -41,7 +43,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- No executable application, clipboard integration, IPC, encryption, native UI, or packaging implementation exists yet.
+- No executable application, resident clipboard capture coordinator, COM/OLE pipeline, IPC, encryption, native UI, or packaging implementation exists yet.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - No installer, package identity, signing pipeline, or public update channel exists.

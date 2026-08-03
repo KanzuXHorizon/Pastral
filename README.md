@@ -8,16 +8,16 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 2A — Rust domain plus storage/search foundation.**
+**Phase 2B — Rust domain, storage/search, and Win32 clipboard-platform foundation.**
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, the pure `pastral-domain` crate, and a synchronous `pastral-storage` crate for SQLite/FTS5 metadata, ordinary internal/external blob persistence, literal lexical search, content-free audit records, deletion, integrity checks, and bounded reconciliation. Clipboard feature implementation has intentionally not started.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, Windows PowerShell verification/build scripts, the pure `pastral-domain` crate, synchronous `pastral-storage`, and a Windows-only `pastral-clipboard-win` boundary for message-only listener notifications, transient sequence evidence, read-only format inspection, bounded HGLOBAL copying, and exact `CF_UNICODETEXT` extraction. A resident capture agent and end-to-end clipboard history flow have intentionally not started.
 
 ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
 ## Confirmed direction
 
 - Windows 11 only; x64 first.
-- Rust 1.97.1/Edition 2024 is pinned for the workspace; `pastral-domain` remains platform-independent and `pastral-storage` owns the current persistence boundary.
+- Rust 1.97.1/Edition 2024 is pinned for the workspace; `pastral-domain` remains platform-independent, `pastral-storage` owns persistence, and `pastral-clipboard-win` isolates the first reviewed unsafe/native boundary.
 - C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable planned for the on-demand manager.
 - One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
 - `pastral-worker.exe` runs only for bounded expensive or hostile work.
@@ -61,11 +61,11 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-The implemented Rust foundation includes `crates/domain`, `crates/storage`, pinned workspace manifests, Windows CI, and PowerShell toolchain/build/dependency verification. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup and storage limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
+The implemented Rust foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, pinned workspace manifests, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification. Run `.\eng\build.ps1 -Task All` from Windows PowerShell; exact setup and storage limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
 
 Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
 
-No Visual Studio/MSBuild WinUI project, packaging project, installer, executable, Win32 clipboard capture, IPC, encryption, or native UI implementation exists yet. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
+No Visual Studio/MSBuild WinUI project, packaging project, installer, executable capture agent, COM/OLE pipeline, IPC, encryption, or native UI implementation exists yet. Automated clipboard tests do not write to the user's clipboard. The later manager uses the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration.
 
 ## Contributing
 
