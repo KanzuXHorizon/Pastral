@@ -184,8 +184,20 @@ pub fn load_or_create_transport_material(root: &Path) -> Result<TransportMateria
         let envelope = protect_installation_secret(&secret)?;
         publish_new_file(root, &secret_path, "ipc-secret", &envelope)?;
     }
+    load_material(identity, &secret_path)
+}
+
+pub fn load_transport_material(root: &Path) -> Result<TransportMaterial, TransportError> {
+    let identity = TransportIdentity::load(&root.join(IDENTITY_FILE_NAME))?;
+    load_material(identity, &root.join(SECRET_FILE_NAME))
+}
+
+fn load_material(
+    identity: TransportIdentity,
+    secret_path: &Path,
+) -> Result<TransportMaterial, TransportError> {
     let envelope = read_bounded_file(
-        &secret_path,
+        secret_path,
         MAX_SECRET_ENVELOPE_BYTES as u64,
         "read IPC secret metadata",
         "read IPC secret",

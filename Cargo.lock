@@ -314,6 +314,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-manager-ipc-bridge"
+version = "0.1.0"
+dependencies = [
+ "pastral-agent",
+ "pastral-domain",
+ "pastral-ipc-auth",
+ "pastral-ipc-core",
+ "pastral-ipc-schema",
+ "pastral-ipc-win",
+]
+
+[[package]]
 name = "pastral-storage"
 version = "0.1.0"
 dependencies = [

@@ -2,7 +2,7 @@ use std::{fs, path::PathBuf, sync::Arc, thread};
 
 use pastral_ipc_win::{
     IDENTITY_FILE_NAME, SECRET_FILE_NAME, TransportError, TransportIdentity, derive_pipe_name,
-    load_or_create_transport_material,
+    load_or_create_transport_material, load_transport_material,
 };
 use uuid::Uuid;
 
@@ -31,6 +31,28 @@ fn material_is_created_once_and_reused_exactly() {
     assert!(identity_text.starts_with("version=1\ninstance_id="));
     assert!(identity_text.ends_with("\nsecret_version=1\n"));
     assert!(root.join(SECRET_FILE_NAME).is_file());
+
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn existing_only_material_load_never_creates_missing_root() {
+    let root = temp_root("existing-only");
+    assert!(!root.exists());
+
+    assert!(matches!(
+        load_transport_material(&root),
+        Err(TransportError::Io {
+            kind: std::io::ErrorKind::NotFound,
+            ..
+        })
+    ));
+    assert!(!root.exists());
+
+    let created = load_or_create_transport_material(&root).unwrap();
+    let loaded = load_transport_material(&root).unwrap();
+    assert_eq!(created.identity(), loaded.identity());
+    assert_eq!(secret_bytes(&created), secret_bytes(&loaded));
 
     fs::remove_dir_all(root).unwrap();
 }

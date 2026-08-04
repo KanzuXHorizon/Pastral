@@ -149,7 +149,7 @@ $ipcPrototypeForbidden = @(
     'tracing',
     'log'
 )
-foreach ($package in @('pastral-agent-ipc-probe', 'pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-ipc-transport-probe', 'pastral-ipc-win')) {
+foreach ($package in @('pastral-agent-ipc-probe', 'pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-ipc-transport-probe', 'pastral-ipc-win', 'pastral-manager-ipc-bridge')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package, '--edges', 'all')
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $ipcPrototypeForbidden
 }
@@ -174,7 +174,7 @@ foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-ipc-auth
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $nonWindowsForbidden
 }
 
-foreach ($package in @('pastral-clipboard-win', 'pastral-agent', 'pastral-agent-ipc-probe', 'pastral-ipc-win')) {
+foreach ($package in @('pastral-clipboard-win', 'pastral-agent', 'pastral-agent-ipc-probe', 'pastral-ipc-win', 'pastral-manager-ipc-bridge')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package)
     $windowsLines = @(
         $tree | Where-Object {
@@ -202,6 +202,6 @@ Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'h
 Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'zeroize' -ExpectedLine 'zeroize v1.8.2'
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Official protobuf 4.35.0-release is isolated to agent-ipc-probe/ipc-schema/ipc-probe/ipc-transport-probe/ipc-win; agent/domain/storage/clipboard/ipc-auth/ipc-core remain protobuf-free.'
-Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/agent-ipc-probe/clipboard-win/ipc-transport-probe/ipc-win use only pinned windows-sys/windows-link bindings.'
+Write-Host 'Official protobuf 4.35.0-release is isolated to agent-ipc-probe/ipc-schema/ipc-probe/ipc-transport-probe/ipc-win/manager-ipc-bridge; the default agent/domain/storage/clipboard/ipc-auth/ipc-core graphs remain protobuf-free.'
+Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/agent-ipc-probe/clipboard-win/ipc-transport-probe/ipc-win/manager-ipc-bridge use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'

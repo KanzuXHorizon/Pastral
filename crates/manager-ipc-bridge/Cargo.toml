@@ -1,0 +1,22 @@
+[package]
+name = "pastral-manager-ipc-bridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pastral-ipc-core = { path = "../ipc-core" }
+pastral-ipc-schema = { path = "../ipc-schema" }
+pastral-ipc-win = { path = "../ipc-win" }
+
+[dev-dependencies]
+pastral-agent = { path = "../../apps/agent", features = ["ipc-health"] }
+pastral-domain = { path = "../domain" }
+pastral-ipc-auth = { path = "../ipc-auth" }

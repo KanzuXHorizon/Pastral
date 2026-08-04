@@ -11,6 +11,7 @@ members = [
     "crates/ipc-core",
     "crates/ipc-schema",
     "crates/ipc-win",
+    "crates/manager-ipc-bridge",
     "crates/storage",
 ]
 resolver = "3"
