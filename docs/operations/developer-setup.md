@@ -11,7 +11,7 @@ These commands build and test the implemented foundation:
 - `pastral-agent.exe` — diagnostic resident-agent executable with explicit health-check, one-shot current capture, and event-driven listen commands for ordinary `CF_UNICODETEXT`;
 - `pastral-manager.exe` — unpackaged C++20/C++/WinRT WinUI 3 manager with Home and History UI, adaptive layout, localization, accessibility landmarks, Debug-only synthetic preview data, and an empty disconnected Release provider.
 
-The repository still does not contain COM/OLE capture/replay, versioned IPC, manager live data, source/private-context exclusion, secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
+The repository still does not contain COM/OLE capture/replay, versioned IPC, manager live data, reliable private-browser detection, publisher verification, comprehensive secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
 
 ## Required environment
 
@@ -178,9 +178,25 @@ Running the executable without a command fails closed and prints usage. `capture
 The chosen data root contains:
 
 - `agent-identity.txt` with exactly `version`, a UUIDv4 profile ID, and an ordinary protection-domain UUIDv4;
+- `privacy-policy.txt` with a strict version, `deny_unresolved_source`, and exact `deny_process` basenames;
 - `storage/metadata.sqlite3` plus controlled object/staging directories owned by `pastral-storage`.
 
-Malformed existing identity content fails closed and is not silently replaced. The current policy stores only ordinary `CF_UNICODETEXT`, uses internal SQLite BLOB placement, and does not provide password-manager/private-browser exclusion, secret classification, encryption, auto-start registration, or IPC.
+Default privacy policy:
+
+```text
+version=1
+deny_unresolved_source=true
+deny_process=1password.exe
+deny_process=bitwarden.exe
+deny_process=keepass.exe
+deny_process=keepassxc.exe
+```
+
+Before reading Unicode payload bytes, the agent honors `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0`, then reduces the clipboard-owner process image to an executable basename and applies exact case-insensitive policy. Unresolved owners are denied by default. `CanUploadToCloudClipboard=0` does not deny local Pastral history because it is a cloud-only control.
+
+Before creating a digest, blob, representation, or FTS row, the sink scans at most 1 MiB of decoded text for high-confidence private-key envelopes. Matching or detector-over-limit content creates only a content-free `SensitiveItemSkipped` audit. Generic tokens, JWTs, connection strings, OTPs, card-like numbers, and password assignments are not hard-skipped yet because reliable context validation is not implemented.
+
+Malformed existing identity or privacy-policy content fails closed and is not silently replaced. The current policy stores only admitted ordinary `CF_UNICODETEXT`, uses internal SQLite BLOB placement, and still does not provide reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, auto-start registration, or IPC.
 
 ## SQLite runtime policy for Phase 2A
 
@@ -219,7 +235,7 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - Only ordinary protection-domain payloads are accepted. Sensitive and Private plaintext is rejected before any payload or search projection is persisted.
 - Blob placement is selected by a caller-supplied versioned policy. No benchmark-selected production threshold exists yet.
 - Inputs are bounded owned byte buffers; the agent currently captures only `CF_UNICODETEXT`, while Win32/OLE streaming acquisition and other clipboard formats are not implemented.
-- The agent has no source attribution, hard-deny source policy enforcement, secret classifier, auto-start registration, process supervision, IPC server, replay suppression marker, or graceful Ctrl+C control channel yet.
+- The agent enforces Windows history-control hard deny, unresolved-source fail-closed policy, an exact executable denylist, and a narrow private-key detector. It still has no durable source attribution, reliable private-browser detection, publisher verification, comprehensive secret classifier, auto-start registration, process supervision, IPC server, replay suppression marker, or graceful Ctrl+C control channel.
 - No encryption, backup/restore, import/export, backend migration, retention/quota engine, multi-process ownership, or background maintenance exists.
 - FTS search is bounded literal lexical matching with deterministic ordering; no snippets, typo correction, semantic ranking, or sensitive indexing is provided.
 - The manager's Debug filtering is bounded presentation-only matching over synthetic safe metadata; it is not the production typed query/FTS pipeline.

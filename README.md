@@ -8,11 +8,11 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 3B — native manager UI plus a bounded diagnostic resident-agent capture foundation.**
+**Phase 3C — native manager, diagnostic capture agent, and fail-closed privacy-admission foundation.**
 
 The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, the pure `pastral-domain` and `pastral-agent-core` crates, synchronous `pastral-storage`, the Windows-only `pastral-clipboard-win` boundary, a diagnostic `pastral-agent.exe`, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`.
 
-The agent can perform an explicit storage health check, one explicit current-clipboard capture, or event-driven listening for bounded ordinary `CF_UNICODETEXT` capture. Storage assigns durable capture order inside an immediate transaction, and the coordinator provides deterministic duplicate suppression and bounded retry without an async runtime. Automated tests and aggregate smoke gates run `health-check` only; they never invoke clipboard-reading commands.
+The agent can perform an explicit storage health check, one explicit current-clipboard capture, or event-driven listening for bounded ordinary `CF_UNICODETEXT` capture. Before payload acquisition it honors Windows source-owned history exclusion controls, observes the clipboard-owner executable basename, and applies a strict exact-match deny policy that fails closed when the source cannot be resolved. Before digest/blob/index creation it skips high-confidence private-key material and detector-over-limit text, creating only a content-free sensitive-skip audit. Storage assigns durable capture order inside an immediate transaction, and the coordinator provides deterministic duplicate suppression and bounded retry without an async runtime. Automated tests and aggregate smoke gates run `health-check` only; they never invoke clipboard-reading commands.
 
 The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit disconnected/empty states, and a provider boundary that prevents direct SQLite or blob access. Debug builds expose six bounded, clearly labeled synthetic preview records. Release builds contain no synthetic history and remain honestly disconnected until versioned local IPC is implemented.
 
@@ -36,8 +36,9 @@ Versions are pinned when the repository bootstrap implementation begins and are 
 
 - Ordinary history retention: 90 days with a 5 GB automatic-cleanup target for unpinned history.
 - Pinned/protected clips are exempt from automatic retention deletion and may exceed that target with visible warnings.
-- Known password managers and reliably identified private-browser contexts are excluded by default.
-- Highly confident secrets are not stored by default.
+- The current diagnostic agent denies unresolved clipboard owners by default and ships an exact case-insensitive baseline denylist for `1password.exe`, `bitwarden.exe`, `keepass.exe`, and `keepassxc.exe`; this is not claimed as exhaustive password-manager or private-browser detection.
+- Windows `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` controls are hard deny before owner/payload processing.
+- High-confidence private-key envelope material and content exceeding the current 1 MiB detector bound are not stored by default.
 - Hidden `SensitiveItemSkipped` audit records are enabled by default for 24 hours and contain only broad policy/detector class, active profile, and coarse time—no preview, content hash, OCR, snippet, precise source, size, structure, or reconstructable value.
 - Source-owned clipboard history-exclusion signals are hard deny and create no durable clip/audit row.
 - Encrypted sensitive retention, when implemented, is explicit and narrowly scoped.
@@ -78,7 +79,7 @@ Exact setup and current limitations are in [`docs/operations/developer-setup.md`
 
 Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
 
-The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent and ordinary Unicode-text persistence path now exist, but they are not registered for auto-start and are not connected to the manager. Packaging, signing, installer, COM/OLE formats, source/private-context exclusion, secret classification, IPC, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
+The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent, ordinary Unicode-text persistence path, Windows history-control hard deny, exact owner-process policy, and narrow private-key detector now exist, but the agent is not registered for auto-start and is not connected to the manager. Packaging, signing, installer, COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, IPC, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
 
 ## Contributing
 

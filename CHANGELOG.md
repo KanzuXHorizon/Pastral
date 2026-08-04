@@ -24,6 +24,10 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Windows-binding-free `pastral-agent-core` coordinator with deterministic duplicate suppression, bounded `[0, 5, 15, 35]` millisecond retry, terminal outcome modeling, exact UTF-16 preservation, and retryable storage failures.
 - Diagnostic `pastral-agent.exe` with explicit `health-check`, `capture-current`, and `listen` commands, content-free identity persistence, ordinary `CF_UNICODETEXT` storage/FTS mapping, and Debug/Release plus health-check smoke verification.
 - Agent static/dependency/source policies and Windows CI coverage that never invoke clipboard-reading commands automatically.
+- Clipboard privacy-control inspection for `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, and `CanUploadToCloudClipboard`, with malformed available controls failing closed.
+- Bounded clipboard-owner process observation using limited query access, immediate basename reduction, exact case-insensitive source deny policy, and default unresolved-source denial.
+- Strict atomic `privacy-policy.txt` configuration with a conservative baseline denylist for 1Password, Bitwarden, KeePass, and KeePassXC executable basenames.
+- A 1 MiB bounded high-confidence private-key detector and audit-only `SensitiveItemSkipped` handling that creates no clip, digest, blob, preview, or FTS row.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -52,7 +56,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager and diagnostic resident-agent ordinary Unicode-text capture path exist, but the agent is not auto-started and the manager remains disconnected until versioned IPC exists. COM/OLE formats, source/private-context exclusion, secret classification, encryption, Quick Paste, passive overlay, and packaging do not yet exist.
+- The native manager and privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path exist, but the agent is not auto-started and the manager remains disconnected until versioned IPC exists. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging do not yet exist.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.
