@@ -220,6 +220,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-agent-ipc-probe"
+version = "0.1.0"
+dependencies = [
+ "pastral-agent",
+ "pastral-domain",
+ "pastral-ipc-win",
+]
+
+[[package]]
 name = "pastral-clipboard-win"
 version = "0.1.0"
 dependencies = [

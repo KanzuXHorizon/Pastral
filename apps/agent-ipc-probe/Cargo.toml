@@ -1,0 +1,18 @@
+[package]
+name = "pastral-agent-ipc-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+pastral-agent = { path = "../agent" }
+pastral-ipc-win = { path = "../../crates/ipc-win" }
+
+[dev-dependencies]
+pastral-domain = { path = "../../crates/domain" }

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "apps/agent",
+    "apps/agent-ipc-probe",
     "apps/ipc-probe",
     "apps/ipc-transport-probe",
     "crates/agent-core",
