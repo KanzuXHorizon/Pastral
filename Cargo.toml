@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "apps/agent",
+    "apps/ipc-probe",
     "crates/agent-core",
     "crates/clipboard-win",
     "crates/domain",

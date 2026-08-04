@@ -1,0 +1,13 @@
+[package]
+name = "pastral-ipc-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+pastral-domain = { path = "../../crates/domain" }
+pastral-ipc-core = { path = "../../crates/ipc-core" }
+pastral-ipc-schema = { path = "../../crates/ipc-schema" }

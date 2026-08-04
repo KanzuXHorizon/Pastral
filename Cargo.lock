@@ -234,6 +234,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-ipc-probe"
+version = "0.1.0"
+dependencies = [
+ "pastral-domain",
+ "pastral-ipc-core",
+ "pastral-ipc-schema",
+]
+
+[[package]]
 name = "pastral-ipc-schema"
 version = "0.1.0"
 dependencies = [
