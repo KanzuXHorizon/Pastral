@@ -9,9 +9,10 @@ use pastral_ipc_auth::{AuthError, Nonce, NonceReplayCache};
 use pastral_ipc_core::{Capability, CorrelationId, Frame, FrameHeader, FrameKind, FrameLimits};
 use pastral_ipc_win::{
     IDENTITY_FILE_NAME, PipeFrameStream, TransportError, build_logon_sid_pipe_security,
-    client_handshake, client_handshake_with_nonce_for_test, create_first_pipe_server,
-    current_token_identity, derive_pipe_name, load_or_create_transport_material, open_pipe_client,
-    server_handshake, server_handshake_with_nonce_for_test,
+    client_handshake, client_handshake_with_capabilities, client_handshake_with_nonce_for_test,
+    create_first_pipe_server, current_token_identity, derive_pipe_name,
+    load_or_create_transport_material, open_pipe_client, server_handshake,
+    server_handshake_with_capabilities, server_handshake_with_nonce_for_test,
 };
 use uuid::Uuid;
 
@@ -56,6 +57,52 @@ fn mutual_handshake_authenticates_kernel_peers_and_health_capability() {
         client_thread.join().unwrap(),
         (std::process::id(), 0, vec![Capability::Health])
     );
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn capability_aware_handshake_authenticates_exact_read_only_set() {
+    let root = std::env::temp_dir().join(format!("pastral-read-handshake-{}", Uuid::new_v4()));
+    let material = load_or_create_transport_material(&root).unwrap();
+    let identity = current_token_identity().unwrap();
+    let name = derive_pipe_name(material.identity(), identity.session_id()).unwrap();
+    let security = build_logon_sid_pipe_security(&identity).unwrap();
+    let mut server = create_first_pipe_server(&name, &security).unwrap();
+    let client_name = name.clone();
+    let client_root = root.clone();
+    let capabilities = [
+        Capability::Health,
+        Capability::HistoryPage,
+        Capability::Search,
+    ];
+
+    let client_thread = thread::spawn(move || {
+        let client = open_pipe_client(&client_name, deadline()).unwrap();
+        let peer = client.peer_identity().unwrap();
+        let stream = PipeFrameStream::from_client(client, FrameLimits::default());
+        let material = load_or_create_transport_material(&client_root).unwrap();
+        let authenticated =
+            client_handshake_with_capabilities(stream, &material, peer, &capabilities, deadline())
+                .unwrap();
+        authenticated.capabilities().to_vec()
+    });
+
+    server.connect(deadline()).unwrap();
+    let peer = server.peer_identity().unwrap();
+    let stream = PipeFrameStream::from_server(server, FrameLimits::default());
+    let mut replay = NonceReplayCache::new(64).unwrap();
+    let authenticated = server_handshake_with_capabilities(
+        stream,
+        &material,
+        peer,
+        &mut replay,
+        &capabilities,
+        deadline(),
+    )
+    .unwrap();
+
+    assert_eq!(authenticated.capabilities(), capabilities);
+    assert_eq!(client_thread.join().unwrap(), capabilities);
     fs::remove_dir_all(root).unwrap();
 }
 

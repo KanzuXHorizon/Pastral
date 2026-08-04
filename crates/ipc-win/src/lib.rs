@@ -24,7 +24,8 @@ pub use dpapi::{
 pub use error::TransportError;
 pub use handshake::{
     AuthenticatedClientConnection, AuthenticatedServerConnection, client_handshake,
-    client_handshake_with_nonce_for_test, server_handshake, server_handshake_with_nonce_for_test,
+    client_handshake_with_capabilities, client_handshake_with_nonce_for_test, server_handshake,
+    server_handshake_with_capabilities, server_handshake_with_nonce_for_test,
 };
 pub use pipe::{PipeClient, PipeServer, create_first_pipe_server, open_pipe_client};
 pub use process_memory::{ProcessMemorySnapshot, process_memory_snapshot};

@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::BTreeSet, time::Instant};
 
 use pastral_ipc_auth::{
     AuthenticationProof, HandshakeTranscript, Nonce, NonceReplayCache, PeerTranscriptIdentity,
@@ -89,12 +89,32 @@ pub fn server_handshake(
     replay_cache: &mut NonceReplayCache,
     deadline: Instant,
 ) -> Result<AuthenticatedServerConnection, TransportError> {
+    server_handshake_with_capabilities(
+        stream,
+        material,
+        peer,
+        replay_cache,
+        &HEALTH_CAPABILITIES,
+        deadline,
+    )
+}
+
+pub fn server_handshake_with_capabilities(
+    stream: PipeFrameStream,
+    material: &TransportMaterial,
+    peer: ValidatedPeer,
+    replay_cache: &mut NonceReplayCache,
+    capabilities: &[Capability],
+    deadline: Instant,
+) -> Result<AuthenticatedServerConnection, TransportError> {
+    let capabilities = normalize_capabilities(capabilities)?;
     server_handshake_with_nonce(
         stream,
         material,
         peer,
         replay_cache,
         random_nonce()?,
+        &capabilities,
         deadline,
     )
 }
@@ -108,7 +128,15 @@ pub fn server_handshake_with_nonce_for_test(
     server_nonce: Nonce,
     deadline: Instant,
 ) -> Result<AuthenticatedServerConnection, TransportError> {
-    server_handshake_with_nonce(stream, material, peer, replay_cache, server_nonce, deadline)
+    server_handshake_with_nonce(
+        stream,
+        material,
+        peer,
+        replay_cache,
+        server_nonce,
+        &HEALTH_CAPABILITIES,
+        deadline,
+    )
 }
 
 pub fn client_handshake(
@@ -117,7 +145,25 @@ pub fn client_handshake(
     peer: ValidatedPeer,
     deadline: Instant,
 ) -> Result<AuthenticatedClientConnection, TransportError> {
-    client_handshake_with_nonce(stream, material, peer, random_nonce()?, deadline)
+    client_handshake_with_capabilities(stream, material, peer, &HEALTH_CAPABILITIES, deadline)
+}
+
+pub fn client_handshake_with_capabilities(
+    stream: PipeFrameStream,
+    material: &TransportMaterial,
+    peer: ValidatedPeer,
+    capabilities: &[Capability],
+    deadline: Instant,
+) -> Result<AuthenticatedClientConnection, TransportError> {
+    let capabilities = normalize_capabilities(capabilities)?;
+    client_handshake_with_nonce(
+        stream,
+        material,
+        peer,
+        random_nonce()?,
+        &capabilities,
+        deadline,
+    )
 }
 
 #[doc(hidden)]
@@ -128,7 +174,14 @@ pub fn client_handshake_with_nonce_for_test(
     client_nonce: Nonce,
     deadline: Instant,
 ) -> Result<AuthenticatedClientConnection, TransportError> {
-    client_handshake_with_nonce(stream, material, peer, client_nonce, deadline)
+    client_handshake_with_nonce(
+        stream,
+        material,
+        peer,
+        client_nonce,
+        &HEALTH_CAPABILITIES,
+        deadline,
+    )
 }
 
 fn server_handshake_with_nonce(
@@ -137,6 +190,7 @@ fn server_handshake_with_nonce(
     peer: ValidatedPeer,
     replay_cache: &mut NonceReplayCache,
     server_nonce: Nonce,
+    capabilities: &[Capability],
     deadline: Instant,
 ) -> Result<AuthenticatedServerConnection, TransportError> {
     let hello = ServerHelloDto::new(
@@ -145,7 +199,7 @@ fn server_handshake_with_nonce(
         MAX_MINOR,
         *server_nonce.as_bytes(),
         material.identity().instance_id(),
-        HEALTH_CAPABILITIES,
+        capabilities.iter().copied(),
     )
     .map_err(|_| TransportError::Protocol("server hello DTO is invalid"))?;
     let body = encode_server_hello(&hello)
@@ -169,7 +223,7 @@ fn server_handshake_with_nonce(
             "client hello negotiation mismatch",
         ));
     }
-    if client.capabilities() != HEALTH_CAPABILITIES {
+    if client.capabilities() != capabilities {
         return Err(TransportError::Protocol(
             "client requested unsupported capabilities",
         ));
@@ -183,6 +237,7 @@ fn server_handshake_with_nonce(
         &peer,
         LocalRole::Server,
         client.capabilities(),
+        capabilities,
     )?;
     let proof = AuthenticationProof::from_bytes(*client.authentication_proof());
     verify_proof(material.secret(), &transcript, ProofRole::Client, &proof)
@@ -199,7 +254,7 @@ fn server_handshake_with_nonce(
     let server_proof = compute_proof(material.secret(), &transcript, ProofRole::Server);
     let accepted = ServerAcceptedDto::new(
         SELECTED_MINOR,
-        HEALTH_CAPABILITIES,
+        capabilities.iter().copied(),
         *server_proof.as_bytes(),
     )
     .map_err(|_| TransportError::Protocol("server accepted DTO is invalid"))?;
@@ -214,7 +269,7 @@ fn server_handshake_with_nonce(
         stream,
         peer,
         selected_minor: SELECTED_MINOR,
-        capabilities: HEALTH_CAPABILITIES.to_vec(),
+        capabilities: capabilities.to_vec(),
     })
 }
 
@@ -223,6 +278,7 @@ fn client_handshake_with_nonce(
     material: &TransportMaterial,
     peer: ValidatedPeer,
     client_nonce: Nonce,
+    capabilities: &[Capability],
     deadline: Instant,
 ) -> Result<AuthenticatedClientConnection, TransportError> {
     let server_frame = stream.read_frame(deadline)?;
@@ -237,7 +293,7 @@ fn client_handshake_with_nonce(
         .map_err(|_| TransportError::Protocol("server hello decoding failed"))?;
     if server.protocol_major() != PROTOCOL_MAJOR
         || server.minor_range() != (MIN_MINOR, MAX_MINOR)
-        || server.capabilities() != HEALTH_CAPABILITIES
+        || server.capabilities() != capabilities
         || server.instance_id() != material.identity().instance_id()
     {
         return Err(TransportError::Protocol(
@@ -252,7 +308,8 @@ fn client_handshake_with_nonce(
         &client_nonce,
         &peer,
         LocalRole::Client,
-        &HEALTH_CAPABILITIES,
+        capabilities,
+        capabilities,
     )?;
     let client_proof = compute_proof(material.secret(), &transcript, ProofRole::Client);
     let client = ClientHelloDto::new(
@@ -261,7 +318,7 @@ fn client_handshake_with_nonce(
         MAX_MINOR,
         *client_nonce.as_bytes(),
         *server_nonce.as_bytes(),
-        HEALTH_CAPABILITIES,
+        capabilities.iter().copied(),
         *client_proof.as_bytes(),
     )
     .map_err(|_| TransportError::Protocol("client hello DTO is invalid"))?;
@@ -279,7 +336,7 @@ fn client_handshake_with_nonce(
     let accepted = decode_server_accepted(accepted_frame.body())
         .map_err(|_| TransportError::Protocol("server accepted decoding failed"))?;
     if accepted.selected_minor() != SELECTED_MINOR
-        || accepted.accepted_capabilities() != HEALTH_CAPABILITIES
+        || accepted.accepted_capabilities() != capabilities
     {
         return Err(TransportError::Protocol(
             "server accepted negotiation mismatch",
@@ -298,7 +355,7 @@ fn client_handshake_with_nonce(
         stream,
         peer,
         selected_minor: SELECTED_MINOR,
-        capabilities: HEALTH_CAPABILITIES.to_vec(),
+        capabilities: capabilities.to_vec(),
     })
 }
 
@@ -315,6 +372,7 @@ fn transcript(
     peer: &ValidatedPeer,
     local_role: LocalRole,
     requested_capabilities: &[Capability],
+    accepted_capabilities: &[Capability],
 ) -> Result<HandshakeTranscript, TransportError> {
     let current = current_token_identity()?;
     let current_identity = PeerTranscriptIdentity::new(
@@ -344,9 +402,17 @@ fn transcript(
         server_identity,
         client_identity,
         requested_capabilities.iter().copied(),
-        HEALTH_CAPABILITIES,
+        accepted_capabilities.iter().copied(),
     )
     .map_err(TransportError::Authentication)
+}
+
+fn normalize_capabilities(capabilities: &[Capability]) -> Result<Vec<Capability>, TransportError> {
+    let unique = capabilities.iter().copied().collect::<BTreeSet<_>>();
+    if unique.is_empty() || unique.len() != capabilities.len() {
+        return Err(TransportError::Protocol("capability set is invalid"));
+    }
+    Ok(unique.into_iter().collect())
 }
 
 fn random_nonce() -> Result<Nonce, TransportError> {
