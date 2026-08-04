@@ -16,6 +16,7 @@ pub enum TransportError {
     },
     InvalidIdentity(&'static str),
     InvalidSecretEnvelope(&'static str),
+    InvalidTokenIdentity(&'static str),
     InvalidPipeName(&'static str),
     SizeLimit(&'static str),
 }
@@ -44,6 +45,9 @@ impl core::fmt::Display for TransportError {
             }
             Self::InvalidSecretEnvelope(reason) => {
                 write!(formatter, "invalid secret envelope: {reason}")
+            }
+            Self::InvalidTokenIdentity(reason) => {
+                write!(formatter, "invalid token identity: {reason}")
             }
             Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
             Self::SizeLimit(reason) => write!(formatter, "transport size limit: {reason}"),

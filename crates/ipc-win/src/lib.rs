@@ -6,6 +6,7 @@ mod error;
 mod random;
 #[allow(unsafe_code)]
 mod sys;
+mod token;
 
 pub use config::{
     IDENTITY_FILE_NAME, PipeName, SECRET_FILE_NAME, TransportIdentity, TransportMaterial,
@@ -16,3 +17,7 @@ pub use dpapi::{
 };
 pub use error::TransportError;
 pub use random::random_bytes;
+pub use token::{
+    PeerMismatch, SidBytes, TokenIdentity, ValidatedPeer, current_token_identity,
+    process_token_identity, validate_peer,
+};
