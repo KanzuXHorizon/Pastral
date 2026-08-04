@@ -2,88 +2,202 @@
 
 > Copy once. Find anything. Paste perfectly.
 
-Pastral is a provisional Windows 11-native clipboard intelligence and history platform. It is designed as a private, searchable, source-aware memory of copy events, with multiple preserved representations, high-fidelity replay, focus-safe confirmation, profiles, deterministic rules, and explicit privacy controls.
+[![Rust foundation CI](https://github.com/KanzuXHorizon/Pastral/actions/workflows/rust-ci.yml/badge.svg)](https://github.com/KanzuXHorizon/Pastral/actions/workflows/rust-ci.yml)
+[![Native manager UI CI](https://github.com/KanzuXHorizon/Pastral/actions/workflows/native-ui-ci.yml/badge.svg)](https://github.com/KanzuXHorizon/Pastral/actions/workflows/native-ui-ci.yml)
+![Platform](https://img.shields.io/badge/platform-Windows%2011-0078D4)
+![Architecture](https://img.shields.io/badge/architecture-x64-5C2D91)
+![Rust](https://img.shields.io/badge/Rust-1.97.1-000000)
+![Windows App SDK](https://img.shields.io/badge/Windows%20App%20SDK-2.3.1-0078D4)
 
-“Paste perfectly” is a product ambition, not a claim that every application-private clipboard format can be captured or replayed losslessly.
+Pastral is a Windows 11-native clipboard intelligence and history platform designed around local ownership, source awareness, high-fidelity capture, deterministic behavior, and explicit privacy boundaries.
 
-## Project status
+The project is currently an engineering preview. The core storage, clipboard, privacy, authenticated IPC, diagnostic agent, and native manager foundations are implemented and verified. Production packaging, live History/Search/Paste, encryption, Quick Paste, and the complete resident lifecycle remain in development.
 
-**Phase 3G — native manager with a live authenticated Health bridge, privacy-admitted diagnostic agent, and measured IPC boundaries.**
+> “Paste perfectly” is a product ambition, not a claim that every application-private clipboard format can be captured or replayed losslessly.
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, pure `pastral-domain`, `pastral-agent-core`, `pastral-ipc-core`, and `pastral-ipc-auth` crates, synchronous `pastral-storage`, reviewed Windows-only `pastral-clipboard-win` and `pastral-ipc-win` boundaries, the official Protobuf Edition 2024 control schema, cross-process transport and agent-admission probes, a diagnostic `pastral-agent.exe`, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`.
+## Current milestone
 
-The agent can perform an explicit storage health check, one explicit current-clipboard capture, or event-driven listening for bounded ordinary `CF_UNICODETEXT` capture. Before payload acquisition it honors Windows source-owned history exclusion controls, observes the clipboard-owner executable basename, and applies a strict exact-match deny policy that fails closed when the source cannot be resolved. Before digest/blob/index creation it skips high-confidence private-key material and detector-over-limit text, creating only a content-free sensitive-skip audit. Storage assigns durable capture order inside an immediate transaction, and the coordinator provides deterministic duplicate suppression and bounded retry without an async runtime. Automated tests and aggregate smoke gates run `health-check` only; they never invoke clipboard-reading commands.
+**Phase 3G — native manager with a live authenticated Health bridge.**
 
-The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit loading/disconnected/empty/error states, and a provider boundary that prevents direct SQLite or blob access. A small versioned Rust `cdylib` bridge securely loads beside the manager and reuses the verified authenticated IPC stack to expose content-free live agent Health without blocking the XAML thread. Debug builds expose six bounded, clearly labeled synthetic preview records; Release builds contain no synthetic history. History, search, payload return, paste, and mutation remain unimplemented.
+The current repository includes:
 
-ADR 0018 remains Proposed. The Rust 36-byte framing/state/schema layer and authenticated Windows named-pipe transport pass exact-toolchain, malformed-input, DACL, token/session, timeout/cancellation, replay, wrong-secret, cross-process Health, size, and latency gates. Phase 3F proved that a real agent Health snapshot can be served within the current resident budget: representative Release evidence measured a 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta. Phase 3G now connects that content-free Health truth to the WinUI manager through a fixed-size, versioned C ABI with secure DLL loading, bounded retry, stale-result rejection, and clear-on-disconnect behavior. Fuzzing, adjacent-version fixtures, history/search IPC, production lifecycle integration, packaging, and signing remain required before release.
+- a pinned Rust `1.97.1` / Edition 2024 workspace;
+- domain, storage, clipboard, privacy, IPC framing, authentication, schema, and Windows transport crates;
+- a diagnostic clipboard agent with bounded ordinary `CF_UNICODETEXT` capture;
+- SQLite + FTS5 storage with internal and external blob placement support;
+- authenticated same-user/session named-pipe transport using DPAPI-protected installation material;
+- a versioned Rust C ABI bridge for content-free manager Health state;
+- an unpackaged C++20/C++/WinRT WinUI 3 manager using Windows App SDK `2.3.1`;
+- English and Vietnamese manager resources;
+- Windows CI, policy checks, focused probes, runtime smoke tests, and explicit performance ceilings.
 
-## Confirmed direction
+## Capability matrix
 
-- Windows 11 only; x64 first.
-- Rust 1.97.1/Edition 2024 is pinned for the workspace; `pastral-domain` remains platform-independent, `pastral-storage` owns persistence, and `pastral-clipboard-win` isolates the first reviewed unsafe/native boundary.
-- C++20, C++/WinRT, WinUI 3, and Windows App SDK 2.3.1 stable are pinned for the on-demand manager; Debug and Release x64 builds are verified through MSBuild/XAML.
-- One small event-driven `pastral-agent.exe` owns clipboard orchestration and storage, with a responsive control/overlay thread and a dedicated clipboard-platform STA for foreign capture objects/media and Pastral replay-object publication/lifetime.
-- `pastral-worker.exe` runs only for bounded expensive or hostile work.
-- SQLite + FTS5 metadata with one logical `BlobStore`; Phase 2A implements both internal SQLite BLOB and controlled external-file placement behind a caller-supplied versioned policy, without inventing a production threshold before Windows benchmarks.
-- Native focus-safe overlay using Win32 and a compositor/Direct2D/DirectWrite path subject to prototype evidence.
-- Local-first and network-silent core.
-- No clipboard polling, mandatory AI, Electron, Tauri, or embedded browser primary UI.
+| Area | Status | Notes |
+| --- | --- | --- |
+| Domain and event model | Implemented | Typed IDs, fidelity, protection domains, source metadata, deterministic ordering |
+| SQLite + FTS5 storage | Implemented foundation | Ordinary payloads only; WAL and final placement threshold remain evidence-gated |
+| Windows clipboard listener | Implemented foundation | Event-driven, no polling; currently ordinary `CF_UNICODETEXT` capture |
+| Source privacy admission | Implemented foundation | Honors Windows history-exclusion controls and exact executable deny policy |
+| Sensitive-content admission | Partial | High-confidence private-key material and detector overflow are skipped |
+| Authenticated local IPC | Implemented foundation | Bounded framing, peer/session evidence, HMAC authentication, replay defense |
+| Manager Health connection | Implemented | Live content-free Health through a versioned Rust bridge |
+| Native Manager UI | Implemented foundation | Home and History shell, adaptive states, accessibility, English/Vietnamese resources |
+| Live History/Search | Planned next | Manager intentionally does not open SQLite or blob storage directly |
+| Paste/replay engine | Not implemented | Format fidelity and focus-safe confirmation remain separate milestones |
+| Encryption and Private profile | Not implemented | Private profile remains unavailable until encryption/recovery gates pass |
+| Installer, signing, updates | Not implemented | Current manager is unpackaged |
 
-Versions are pinned when the repository bootstrap implementation begins and are revalidated against official support before release.
+## Architecture
 
-## Privacy defaults
+```text
+Windows clipboard
+       │
+       ▼
+pastral-clipboard-win
+       │ reviewed native boundary
+       ▼
+pastral-agent-core ── privacy admission ── pastral-storage
+       │                                      │
+       │                                      └─ SQLite + FTS5 + BlobStore
+       ▼
+pastral-agent / pastral-agent-ipc
+       │ authenticated named pipe
+       ▼
+pastral-manager-ipc-bridge.dll
+       │ fixed-size versioned C ABI
+       ▼
+Pastral.Manager.exe (C++/WinRT + WinUI 3)
+```
 
-- Ordinary history retention: 90 days with a 5 GB automatic-cleanup target for unpinned history.
-- Pinned/protected clips are exempt from automatic retention deletion and may exceed that target with visible warnings.
-- The current diagnostic agent denies unresolved clipboard owners by default and ships an exact case-insensitive baseline denylist for `1password.exe`, `bitwarden.exe`, `keepass.exe`, and `keepassxc.exe`; this is not claimed as exhaustive password-manager or private-browser detection.
-- Windows `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0` controls are hard deny before owner/payload processing.
-- High-confidence private-key envelope material and content exceeding the current 1 MiB detector bound are not stored by default.
-- Hidden `SensitiveItemSkipped` audit records are enabled by default for 24 hours and contain only broad policy/detector class, active profile, and coarse time—no preview, content hash, OCR, snippet, precise source, size, structure, or reconstructable value.
-- Source-owned clipboard history-exclusion signals are hard deny and create no durable clip/audit row.
-- Encrypted sensitive retention, when implemented, is explicit and narrowly scoped.
-- The built-in Private profile is unavailable until mandatory encryption, random blob identity, non-indexing, lock, and recovery gates pass.
-- Named-pipe ACLs and user-scope DPAPI strongly separate users/sessions but are not claimed as a secure enclave against fully compromised code already running as the same unlocked user.
-- ADR 0018 prototypes Protobuf Edition 2024 control schemas with a bounded 36-byte frame and sequenced bulk transfer. Exact official `4.35.0-release` Rust runtime/codegen plus `protoc 35.0` pass the Rust prototype and measured agent-admission gate. The default diagnostic agent intentionally remains Protobuf/transport-free until the production resident integration and lifecycle gates pass.
+The manager never opens SQLite, FTS, clipboard APIs, or blob storage directly. All live state crosses an explicit provider boundary. The current bridge exposes content-free Health only; future History/Search/Paste operations require separate authorization, paging, lifecycle, and privacy review.
 
-See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`docs/security/threat-model.md`](docs/security/threat-model.md).
+## Privacy and security posture
 
-## Documentation map
+Pastral is local-first and the core is network-silent.
+
+Current protections include:
+
+- no clipboard polling;
+- hard deny for `ExcludeClipboardContentFromMonitorProcessing` and `CanIncludeInClipboardHistory=0`;
+- fail-closed behavior when the clipboard owner cannot be resolved;
+- a baseline exact case-insensitive denylist for `1password.exe`, `bitwarden.exe`, `keepass.exe`, and `keepassxc.exe`;
+- pre-persistence rejection of high-confidence private-key envelopes and text beyond the current 1 MiB detector bound;
+- content-free `SensitiveItemSkipped` audit records;
+- same-logon-SID named-pipe ACLs;
+- kernel peer PID/session evidence;
+- DPAPI-protected per-installation authentication material;
+- mutual HMAC authentication and replay rejection;
+- bounded reads, writes, frame sizes, connection counts, retries, and timeouts;
+- no synthetic history in Release builds.
+
+These controls do not create a secure enclave against fully compromised code already running as the same unlocked Windows user. See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`docs/security/threat-model.md`](docs/security/threat-model.md).
+
+## Development prerequisites
+
+- Windows 11 x64
+- Visual Studio 2022 Build Tools with MSVC x64 and C++ WinUI/UWP build tools
+- Windows SDK `10.0.26100.0`
+- Windows App Runtime `2.3.1` x64 for local manager launch
+- Rust `1.97.1-x86_64-pc-windows-msvc` with `rustfmt` and `clippy`
+- PowerShell 5.1+
+- `protoc 35.0` for the focused IPC schema gate
+
+The exact setup procedure is documented in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
+
+## Build and verify
+
+Run commands from Windows PowerShell at the repository root.
+
+```powershell
+# Rust foundation checks
+.\eng\build.ps1 -Task All
+
+# Authenticated IPC and schema probes
+.\eng\build.ps1 -Task IpcPrototype
+.\eng\build.ps1 -Task IpcTransport
+
+# Diagnostic agent and measured IPC admission
+.\eng\build.ps1 -Task Agent
+.\eng\build.ps1 -Task AgentIpcAdmission
+
+# Native manager Health bridge
+.\eng\build.ps1 -Task ManagerIpcBridge
+
+# Native manager static policy and Debug/Release build
+.\eng\build.ps1 -Task ManagerBuild
+
+# Native manager UI Automation smoke
+.\eng\build.ps1 -Task Manager
+
+# Aggregate Rust + IPC + agent + bridge + native build gates
+.\eng\build.ps1 -Task Full
+```
+
+Automated aggregate and CI smoke gates do not invoke `capture-current` or `listen`; they do not read from or write to the user's clipboard.
+
+## Repository layout
+
+```text
+apps/
+  agent/                    Diagnostic clipboard agent
+  agent-ipc-probe/          Measured cross-process Health admission probe
+  ipc-probe/                Deterministic framing/schema probe
+  ipc-transport-probe/      Authenticated Windows transport probe
+  manager/Pastral.Manager/  Native C++/WinRT WinUI 3 manager
+crates/
+  agent-core/               Clipboard orchestration and admission coordination
+  clipboard-win/            Reviewed Windows clipboard boundary
+  domain/                   Platform-independent domain model
+  ipc-auth/                 HMAC transcript and replay protection
+  ipc-core/                 Framing, connection state, and bounded DTO rules
+  ipc-schema/               Protobuf Edition 2024 control schema bindings
+  ipc-win/                  Named-pipe, DPAPI, token, DACL, and timeout boundary
+  manager-ipc-bridge/       Versioned Rust C ABI used by the manager
+  storage/                  SQLite, FTS5, BlobStore, retention, and maintenance
+eng/                        Build, policy, smoke, dependency, and CI-equivalent scripts
+docs/                       Product, architecture, ADR, security, UX, testing, and release evidence
+protocols/                  Versioned IPC schema sources
+```
+
+## Engineering principles
+
+- Windows-native interaction and accessibility first.
+- Local ownership and explicit privacy boundaries.
+- No Electron, Tauri, embedded browser, or mandatory AI in the primary product.
+- No clipboard polling.
+- No direct storage access from the manager.
+- Fail closed at privacy and authentication boundaries.
+- Preserve exact clipboard bytes where the format contract permits it.
+- Make performance and memory claims only from measured gates.
+- Keep unsupported capabilities visibly unavailable rather than fabricating data or state.
+
+## Roadmap
+
+The next major engineering slices are:
+
+1. production lifecycle integration for the clipboard-owning resident agent and authenticated IPC server;
+2. paged read-only History and literal Search over the verified manager bridge;
+3. reconnect, cancellation, adjacent-version fixtures, and parser/schema fuzzing;
+4. richer Win32/OLE clipboard format acquisition and representation policy;
+5. focus-safe paste/replay and Quick Paste interaction;
+6. authenticated encryption, key lifecycle, lock/recovery, and Private profile;
+7. packaging, signing, installer, update delivery, and release evidence.
+
+Detailed scope and acceptance gates live in [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md), [`docs/adr/`](docs/adr/), and [`docs/release/checklist.md`](docs/release/checklist.md).
+
+## Documentation
 
 - [`PRODUCT.md`](PRODUCT.md) — durable product truth
-- [`DESIGN.md`](DESIGN.md) — durable visual system
-- [`docs/product/`](docs/product/) — vision, scope, personas, glossary
-- [`docs/research/`](docs/research/) — official sources and competitor analysis
-- [`docs/architecture/`](docs/architecture/) — process/threading, observation/event identity, source confidence, format policy, data model, IPC, and paste/capture lifecycles
+- [`DESIGN.md`](DESIGN.md) — visual and interaction system
+- [`docs/architecture/`](docs/architecture/) — process, storage, IPC, capture, and paste design
 - [`docs/adr/`](docs/adr/) — architecture decisions
-- [`docs/security/`](docs/security/) — threat, privacy, encryption, incident response
-- [`docs/performance/`](docs/performance/) — budgets and benchmark method
+- [`docs/security/`](docs/security/) — privacy, threat model, encryption, and incident response
+- [`docs/performance/`](docs/performance/) — budgets and benchmark methodology
 - [`docs/testing/`](docs/testing/) — test strategy and compatibility matrix
-- [`docs/ux/`](docs/ux/) — interaction, overlay, Quick Paste, manager, accessibility
-- [`docs/brand/`](docs/brand/) — provisional brand and name research
-- [`docs/operations/repository-initialization.md`](docs/operations/repository-initialization.md) — bootstrap sequence
-- [`docs/release/checklist.md`](docs/release/checklist.md) — release evidence gates
-
-## Development state
-
-The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, `crates/agent-core`, `crates/ipc-core`, `crates/ipc-auth`, `crates/ipc-schema`, `crates/ipc-win`, the deterministic `apps/ipc-probe`, the cross-process `apps/ipc-transport-probe`, the measured `apps/agent-ipc-probe`, the diagnostic resident agent under `apps/agent`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
-
-From Windows PowerShell:
-
-- `.\eng\build.ps1 -Task All` runs the Rust foundation gates only.
-- `.\eng\build.ps1 -Task IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and executes 10,000 content-free deterministic round trips.
-- `.\eng\build.ps1 -Task IpcTransport` verifies DPAPI material, logon-SID DACLs, peer token/session evidence, bounded overlapped I/O, mutual HMAC authentication, replay rejection, and a real cross-process Health exchange.
-- `.\eng\build.ps1 -Task AgentIpcAdmission` verifies shared Health truth, process-memory diagnostics, authenticated real-agent Health serving, Release footprint ceilings, dependency isolation, and content-free output.
-- `.\eng\build.ps1 -Task Agent` builds Debug/Release agent binaries and runs a disposable, content-free `health-check` smoke.
-- `.\eng\build.ps1 -Task ManagerIpcBridge` verifies the feature-gated agent Health server, Rust C ABI bridge, exported symbols, native probe, isolated Release manager build, and Connected-to-Disconnected UI Automation flow.
-- `.\eng\build.ps1 -Task Full` runs Rust gates, the IPC prototype, authenticated transport, agent IPC admission, agent build/smoke gate, manager live Health bridge gate, native static policy, and Debug/Release manager builds.
-- `.\eng\build.ps1 -Task Manager` additionally launches the Debug manager, navigates to History through UI Automation, exercises filtering/selection/no-results states, and verifies clean shutdown.
-
-Exact setup and current limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
-
-Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
-
-The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent, ordinary Unicode-text persistence path, Windows history-control hard deny, exact owner-process policy, narrow private-key detector, bounded IPC frame/state/schema layer, authenticated cross-process Windows transport, shared agent Health snapshot, measured Health admission path, and live manager Health bridge now exist. The default `pastral-agent.exe` is not registered for auto-start and remains Protobuf/transport-free; the feature-gated `pastral-agent-ipc.exe` is the bounded Health server candidate used by verification and the manager bridge. Packaging, signing, installer, C++ schema/client parity, COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
+- [`docs/ux/`](docs/ux/) — manager, Quick Paste, overlay, and accessibility
+- [`docs/operations/`](docs/operations/) — setup and repository operation
+- [`CHANGELOG.md`](CHANGELOG.md) — implemented milestones and known limitations
 
 ## Contributing
 
@@ -91,8 +205,8 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), and [`C
 
 ## License
 
-No public source-code license has been selected. Copyright remains with the project owner unless and until a `LICENSE` file is deliberately added. Do not assume permission to redistribute or publish packages from this repository.
+No public source-code license has been selected. Copyright remains with the project owner unless and until a `LICENSE` file is deliberately added. Public visibility does not grant permission to redistribute source code or publish derived packages.
 
 ## Brand status
 
-`Pastral` is an internal provisional codename. Preliminary research—including a confusingly similar clipboard product named `Pastry`—is recorded in [`docs/brand/name-clearance.md`](docs/brand/name-clearance.md); it is not legal clearance.
+`Pastral` remains a provisional project name. Preliminary name research, including the similarly named clipboard product `Pastry`, is documented in [`docs/brand/name-clearance.md`](docs/brand/name-clearance.md). This is not legal clearance.

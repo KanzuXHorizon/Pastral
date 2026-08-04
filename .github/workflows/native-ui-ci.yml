@@ -30,6 +30,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install exact protoc 35.0
+        shell: powershell
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'protoc-35.0-win64.zip'
+          $root = Join-Path $env:RUNNER_TEMP 'protoc-35.0'
+          Invoke-WebRequest `
+            -Uri 'https://github.com/protocolbuffers/protobuf/releases/download/v35.0/protoc-35.0-win64.zip' `
+            -OutFile $archive
+          $expected = 'd1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363'
+          $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) {
+            throw "protoc archive hash mismatch: $actual"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $root -Force
+          $protoc = Join-Path $root 'bin\protoc.exe'
+          "PROTOC=$protoc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Split-Path -Parent $protoc) | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $version = (& $protoc --version).Trim()
+          if ($version -ne 'libprotoc 35.0') {
+            throw "unexpected protoc version: $version"
+          }
+
       - name: Ensure C++ WinUI build tools
         shell: powershell
         run: |
@@ -79,6 +101,10 @@ jobs:
       - name: Verify native source and XAML policy
         shell: powershell
         run: ./eng/verify-native-manager.ps1 -Mode Static
+
+      - name: Verify native manager IPC bridge
+        shell: powershell
+        run: ./eng/verify-manager-ipc-bridge.ps1 -Mode Probe
 
       - name: Build Debug and Release
         shell: powershell

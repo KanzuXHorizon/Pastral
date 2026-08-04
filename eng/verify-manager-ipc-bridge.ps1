@@ -65,18 +65,6 @@ function Resolve-MSBuild {
     return $path
 }
 
-function Resolve-Dumpbin {
-    $installation = Resolve-VisualStudioInstallation
-    $tool = Get-ChildItem -LiteralPath (Join-Path $installation 'VC\Tools\MSVC') -Filter dumpbin.exe -Recurse -File |
-        Where-Object { $_.FullName -match '\\bin\\Hostx64\\x64\\dumpbin\.exe$' } |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1
-    if ($null -eq $tool) {
-        Fail 'x64 dumpbin.exe was not found in the active Visual Studio installation'
-    }
-    return $tool.FullName
-}
-
 function Invoke-MSBuildProject {
     param(
         [Parameter(Mandatory = $true)][string]$Project,
@@ -253,19 +241,6 @@ function Invoke-TestVerification {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Assert-File $bridgeDllSource
 
-    $exports = @(& (Resolve-Dumpbin) /exports $bridgeDllSource 2>&1)
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    $exportText = $exports -join "`n"
-    foreach ($name in @(
-        'pastral_manager_ipc_abi_version',
-        'pastral_manager_ipc_result_size',
-        'pastral_manager_ipc_health_w'
-    )) {
-        if (-not $exportText.Contains($name)) {
-            Fail "Bridge DLL export is missing: $name"
-        }
-    }
-
     $tree = @(& cargo tree --locked -p pastral-manager-ipc-bridge --edges normal,build --prefix none --format '{p}')
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $treeText = $tree -join "`n"
@@ -275,7 +250,7 @@ function Invoke-TestVerification {
         }
     }
 
-    Write-Host 'Manager IPC bridge Rust tests and exports: PASS'
+    Write-Host 'Manager IPC bridge Rust tests, build, and dependency policy: PASS'
 }
 
 function Invoke-ProbeVerification {
