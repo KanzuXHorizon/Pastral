@@ -7,6 +7,7 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "apps/agent/**"
+      - "apps/agent-ipc-probe/**"
       - "apps/ipc-probe/**"
       - "apps/ipc-transport-probe/**"
       - "crates/agent-core/**"
@@ -26,6 +27,7 @@ on:
       - "Cargo.lock"
       - "rust-toolchain.toml"
       - "apps/agent/**"
+      - "apps/agent-ipc-probe/**"
       - "apps/ipc-probe/**"
       - "apps/ipc-transport-probe/**"
       - "crates/agent-core/**"
@@ -87,6 +89,9 @@ jobs:
       - name: Verify authenticated IPC transport
         shell: powershell
         run: ./eng/verify-ipc-transport.ps1 -Mode All
+      - name: Verify agent IPC admission
+        shell: powershell
+        run: ./eng/verify-agent-ipc-admission.ps1 -Mode All
       - name: Test storage foundation
         shell: powershell
         run: cargo test --locked -p pastral-storage --all-targets

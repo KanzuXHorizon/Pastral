@@ -149,7 +149,7 @@ $ipcPrototypeForbidden = @(
     'tracing',
     'log'
 )
-foreach ($package in @('pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-ipc-transport-probe', 'pastral-ipc-win')) {
+foreach ($package in @('pastral-agent-ipc-probe', 'pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-ipc-transport-probe', 'pastral-ipc-win')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package, '--edges', 'all')
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $ipcPrototypeForbidden
 }
@@ -174,7 +174,7 @@ foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-ipc-auth
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $nonWindowsForbidden
 }
 
-foreach ($package in @('pastral-clipboard-win', 'pastral-agent', 'pastral-ipc-win')) {
+foreach ($package in @('pastral-clipboard-win', 'pastral-agent', 'pastral-agent-ipc-probe', 'pastral-ipc-win')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package)
     $windowsLines = @(
         $tree | Where-Object {
@@ -183,15 +183,15 @@ foreach ($package in @('pastral-clipboard-win', 'pastral-agent', 'pastral-ipc-wi
     )
     $unexpectedWindowsBinding = @(
         $windowsLines | Where-Object {
-            ($_ -notmatch '^windows-sys\s+v0\.61\.2$') -and
-            ($_ -notmatch '^windows-link\s+v0\.2\.1$')
+            ($_ -notmatch '^windows-sys\s+v0\.61\.2(?:\s+\(\*\))?$') -and
+            ($_ -notmatch '^windows-link\s+v0\.2\.1(?:\s+\(\*\))?$')
         }
     )
     if ($unexpectedWindowsBinding.Count -gt 0) {
         Write-Error ("Unexpected Windows binding packages in ${package}: " + ($unexpectedWindowsBinding -join ', '))
         exit 1
     }
-    if (-not ($windowsLines -contains 'windows-sys v0.61.2')) {
+    if (-not ($windowsLines | Where-Object { $_ -match '^windows-sys\s+v0\.61\.2(?:\s+\(\*\))?$' })) {
         Write-Error "${package} is missing pinned windows-sys v0.61.2"
         exit 1
     }
@@ -202,6 +202,6 @@ Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'h
 Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'zeroize' -ExpectedLine 'zeroize v1.8.2'
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Official protobuf 4.35.0-release is isolated to ipc-schema/ipc-probe/ipc-transport-probe/ipc-win; agent/domain/storage/clipboard/ipc-auth/ipc-core remain protobuf-free.'
-Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/clipboard-win/ipc-transport-probe/ipc-win use only pinned windows-sys/windows-link bindings.'
+Write-Host 'Official protobuf 4.35.0-release is isolated to agent-ipc-probe/ipc-schema/ipc-probe/ipc-transport-probe/ipc-win; agent/domain/storage/clipboard/ipc-auth/ipc-core remain protobuf-free.'
+Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/agent-ipc-probe/clipboard-win/ipc-transport-probe/ipc-win use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'

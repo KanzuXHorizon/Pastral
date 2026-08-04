@@ -81,6 +81,7 @@ try {
         $isRustProductSource =
             $relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $relativePath.StartsWith('apps/agent-ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/ipc-transport-probe/', [System.StringComparison]::OrdinalIgnoreCase)
         if ($isRustProductSource) {
@@ -121,6 +122,14 @@ try {
                 ) -or
                 $relativePath.Equals(
                     'crates/ipc-win/tests/process_memory.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'apps/agent-ipc-probe/src/parent.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'apps/agent-ipc-probe/tests/cross_process.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
                 )
             if (-not $isReviewedProcessSpawnBoundary) {
