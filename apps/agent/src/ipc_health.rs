@@ -3,6 +3,10 @@ use std::{
     io::{self, Write},
     num::NonZeroUsize,
     path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -14,9 +18,10 @@ use pastral_ipc_core::{
 };
 use pastral_ipc_schema::{decode_request, encode_response};
 use pastral_ipc_win::{
-    PipeFrameStream, PipeSecurity, PipeServer, TransportMaterial, build_logon_sid_pipe_security,
-    create_first_pipe_server, current_token_identity, derive_pipe_name, inspect_pipe_security,
-    load_or_create_transport_material, server_handshake_with_capabilities,
+    PipeFrameStream, PipeSecurity, PipeServer, TransportError, TransportMaterial,
+    build_logon_sid_pipe_security, create_first_pipe_server, current_token_identity,
+    derive_pipe_name, inspect_pipe_security, load_or_create_transport_material,
+    server_handshake_with_capabilities,
 };
 use pastral_storage::{ClipListItem, ClipPage, StorageError};
 
@@ -118,6 +123,41 @@ impl HealthServerConfig {
     }
 }
 
+pub struct ResidentReadServerConfig {
+    data_root: PathBuf,
+    connect_timeout: Duration,
+    operation_timeout: Duration,
+    max_connections: Option<NonZeroUsize>,
+}
+
+impl ResidentReadServerConfig {
+    pub fn new(
+        data_root: PathBuf,
+        connect_timeout: Duration,
+        operation_timeout: Duration,
+        max_connections: Option<NonZeroUsize>,
+    ) -> Result<Self, AgentIpcError> {
+        if data_root.as_os_str().is_empty()
+            || max_connections.is_some_and(|value| value.get() > MAX_CONNECTIONS)
+            || connect_timeout.is_zero()
+            || operation_timeout.is_zero()
+        {
+            return Err(AgentIpcError::InvalidConfiguration);
+        }
+        Ok(Self {
+            data_root,
+            connect_timeout,
+            operation_timeout,
+            max_connections,
+        })
+    }
+
+    #[must_use]
+    pub fn data_root(&self) -> &std::path::Path {
+        &self.data_root
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HealthServerSummary {
     connections_served: usize,
@@ -163,6 +203,79 @@ pub fn serve_read<W: Write>(
     output: &mut W,
 ) -> Result<HealthServerSummary, AgentIpcError> {
     serve(config, output, ServerMode::ReadOnly)
+}
+
+pub fn serve_read_until_stopped<W: Write>(
+    config: ResidentReadServerConfig,
+    stop: Arc<AtomicBool>,
+    output: &mut W,
+) -> Result<HealthServerSummary, AgentIpcError> {
+    if stop.load(Ordering::Acquire) {
+        return Ok(HealthServerSummary {
+            connections_served: 0,
+            session_id: 0,
+        });
+    }
+
+    let _initial_snapshot =
+        load_health_snapshot(config.data_root()).map_err(|_| AgentIpcError::AgentHealth)?;
+    let material = load_or_create_transport_material(config.data_root())
+        .map_err(|_| AgentIpcError::Material)?;
+    let current = current_token_identity().map_err(|_| AgentIpcError::Transport)?;
+    let name = derive_pipe_name(material.identity(), current.session_id())
+        .map_err(|_| AgentIpcError::Material)?;
+    let security = build_logon_sid_pipe_security(&current).map_err(|_| AgentIpcError::Transport)?;
+    verify_security(&security)?;
+    let mut server =
+        create_first_pipe_server(&name, &security).map_err(|_| AgentIpcError::Transport)?;
+    write_marker(output, "agent-resident-ipc-ready=1")?;
+
+    let mut replay_cache = NonceReplayCache::new(64).map_err(|_| AgentIpcError::Authentication)?;
+    let mut served = 0usize;
+    while !stop.load(Ordering::Acquire) {
+        match server.connect(Instant::now() + config.connect_timeout) {
+            Ok(()) => match serve_connected(
+                server,
+                &material,
+                &mut replay_cache,
+                config.data_root(),
+                config.operation_timeout,
+                ServerMode::ReadOnly,
+            ) {
+                Ok(()) => {
+                    served += 1;
+                    if config
+                        .max_connections
+                        .is_some_and(|limit| served >= limit.get())
+                    {
+                        stop.store(true, Ordering::Release);
+                    }
+                }
+                Err(
+                    AgentIpcError::Transport
+                    | AgentIpcError::Authentication
+                    | AgentIpcError::Protocol,
+                ) => write_marker(output, "agent-ipc-client-rejected=1")?,
+                Err(error) => return Err(error),
+            },
+            Err(TransportError::Timeout(_)) => {}
+            Err(_) => return Err(AgentIpcError::Transport),
+        }
+        if stop.load(Ordering::Acquire) {
+            break;
+        }
+        server =
+            create_first_pipe_server(&name, &security).map_err(|_| AgentIpcError::Transport)?;
+    }
+
+    write_marker(
+        output,
+        &format!("agent-resident-ipc-connections-served={served}"),
+    )?;
+    Ok(HealthServerSummary {
+        connections_served: served,
+        session_id: current.session_id(),
+    })
 }
 
 fn serve<W: Write>(
@@ -240,6 +353,24 @@ fn serve_one(
     server
         .connect(Instant::now() + connect_timeout)
         .map_err(|_| AgentIpcError::Transport)?;
+    serve_connected(
+        server,
+        material,
+        replay_cache,
+        data_root,
+        operation_timeout,
+        mode,
+    )
+}
+
+fn serve_connected(
+    server: PipeServer,
+    material: &TransportMaterial,
+    replay_cache: &mut NonceReplayCache,
+    data_root: &std::path::Path,
+    operation_timeout: Duration,
+    mode: ServerMode,
+) -> Result<(), AgentIpcError> {
     let peer = server
         .peer_identity()
         .map_err(|_| AgentIpcError::Transport)?;
