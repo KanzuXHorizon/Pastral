@@ -8,10 +8,13 @@ These commands build and test the implemented foundation:
 - `pastral-storage` — synchronous single-owner SQLite/FTS5 metadata, ordinary internal/external blob persistence, literal lexical search, content-free capture audit storage, deletion, integrity checks, and bounded reconciliation;
 - `pastral-clipboard-win` — Windows-only listener/session/format/HGLOBAL/Unicode-text platform boundary that never writes to the user's clipboard in automated tests;
 - `pastral-agent-core` — Windows-binding-free capture coordinator with bounded retry, transient-sequence duplicate suppression, exact text/byte preservation, and explicit terminal outcomes;
+- `pastral-ipc-core` — serializer-neutral safe Rust framing, incremental byte-stream decoding, handshake/in-flight/bulk state, and bounded validated control DTOs;
+- `pastral-ipc-schema` — isolated Edition 2024 schema prototype using exact official Protocol Buffers Rust runtime/codegen and conversion into `pastral-ipc-core` DTOs;
+- `pastral-ipc-probe.exe` — deterministic content-free Release measurement executable for fragmented/coalesced schema round trips;
 - `pastral-agent.exe` — diagnostic resident-agent executable with explicit health-check, one-shot current capture, and event-driven listen commands for ordinary `CF_UNICODETEXT`;
 - `pastral-manager.exe` — unpackaged C++20/C++/WinRT WinUI 3 manager with Home and History UI, adaptive layout, localization, accessibility landmarks, Debug-only synthetic preview data, and an empty disconnected Release provider.
 
-The repository still does not contain COM/OLE capture/replay, versioned IPC, manager live data, reliable private-browser detection, publisher verification, comprehensive secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
+The repository contains the Rust framing/schema prototype but still does not contain production authenticated named-pipe transport, C++ schema/client parity, agent schema linkage, COM/OLE capture/replay, manager live data, reliable private-browser detection, publisher verification, comprehensive secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
 
 ## Required environment
 
@@ -19,6 +22,7 @@ The repository still does not contain COM/OLE capture/replay, versioned IPC, man
 - Git.
 - rustup.
 - Rust `1.97.1-x86_64-pc-windows-msvc` with `rustfmt`, `clippy`, and target `x86_64-pc-windows-msvc`.
+- Exact Protocol Buffers compiler `libprotoc 35.0`, available as `protoc.exe` on `PATH`, through `PROTOC`, or from the user-scoped Winget `Google.Protobuf` 35.0 package.
 - Visual Studio 2022 version 17.14 or newer with:
   - MSVC x64 v143 compiler/linker;
   - `Microsoft.VisualStudio.Workload.UniversalBuildTools`;
@@ -30,6 +34,31 @@ The repository still does not contain COM/OLE capture/replay, versioned IPC, man
 Windows SDK `10.0.28000.2526` remains deferred to packaging/release validation. It is not required for the current unpackaged manager slice. The default toolchain verifier reports native availability without failing Rust-only work; pass `-RequireNativeManager` to enforce native build prerequisites.
 
 SQLite does not need a separate machine installation. `rusqlite 0.40.1` is pinned with the `bundled` and `blob` features, and `libsqlite3-sys` builds the reviewed bundled SQLite source through the MSVC toolchain. The dependency graph includes build-helper crates such as `cc`, `pkg-config`, and `vcpkg`; no external vcpkg installation or repository vcpkg manifest is required.
+
+## Install the exact Protocol Buffers compiler
+
+The IPC schema prototype pins official Rust runtime/codegen `4.35.0-release` and requires exact `libprotoc 35.0`. A user-scoped portable install on Windows:
+
+```powershell
+winget install `
+  --id Google.Protobuf `
+  --version 35.0 `
+  --exact `
+  --scope user `
+  --silent `
+  --accept-package-agreements `
+  --accept-source-agreements `
+  --disable-interactivity
+```
+
+Verify:
+
+```powershell
+protoc --version
+# libprotoc 35.0
+```
+
+When the current shell has not refreshed `PATH`, `crates/ipc-schema/build.rs` resolves the user-scoped Winget package directly. CI downloads only the official `protoc-35.0-win64.zip` asset and verifies SHA-256 `d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363` before use. The Cargo build script never downloads tools.
 
 ## Install the native manager build tools
 
@@ -88,6 +117,12 @@ Run the Rust foundation quality gate without requiring WinUI tooling:
 .\eng\build.ps1 -Task All
 ```
 
+Verify the bounded IPC framing/schema prototype and run 10,000 Release round trips:
+
+```powershell
+.\eng\build.ps1 -Task IpcPrototype
+```
+
 Build and smoke the diagnostic agent without reading the clipboard:
 
 ```powershell
@@ -115,6 +150,7 @@ Individual tasks:
 .\eng\build.ps1 -Task Test
 .\eng\build.ps1 -Task Storage
 .\eng\build.ps1 -Task Clipboard
+.\eng\build.ps1 -Task IpcPrototype
 .\eng\build.ps1 -Task AgentPolicy
 .\eng\build.ps1 -Task Agent
 .\eng\build.ps1 -Task NativePolicy
@@ -126,7 +162,7 @@ Individual tasks:
 .\eng\build.ps1 -Task SourcePolicy
 ```
 
-The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
+The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and completes 10,000 content-free round trips. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
 
 ## Direct CI-equivalent commands
 
@@ -141,6 +177,10 @@ cargo doc --locked --workspace --no-deps
 .\eng\verify-source-policy.ps1
 cargo tree --locked --workspace
 
+.\eng\verify-ipc-prototype.ps1 -Mode Static
+.\eng\verify-ipc-prototype.ps1 -Mode Test
+.\eng\verify-ipc-prototype.ps1 -Mode Probe
+
 .\eng\verify-agent.ps1 -Mode Static
 .\eng\verify-agent.ps1 -Mode Build
 .\eng\verify-agent.ps1 -Mode Smoke
@@ -151,6 +191,39 @@ cargo tree --locked --workspace
 ```
 
 Native restore is locked by `apps/manager/Pastral.Manager/packages.lock.json`. The project pins Windows App SDK `2.3.1` and Microsoft.Windows.CppWinRT `3.0.260715.1` through `Directory.Packages.props`. The current toolchain requires single-tool MSBuild execution for reliable C++/WinRT/XAML generation (`UseMultiToolTask=false`, `MultiProcessorCompilation=false`); the verifier uses `/m:1 /nr:false`.
+
+## IPC framing and schema prototype
+
+`pastral-ipc-core` is the durable serializer-neutral layer:
+
+- exact 36-byte little-endian `PSTR` header;
+- 256 KiB control/hello/error ceiling and 1 MiB bulk-chunk ceiling;
+- allocation only after a complete structurally valid header;
+- one in-progress frame per decoder and at most 64 emitted frames per push;
+- UUIDv4/RFC 4122 correlation validation;
+- mandatory client hello before control frames;
+- 16 in-flight requests per connection;
+- one explicitly authorized ordered bulk transfer;
+- bounded health/history/search/error DTOs using typed domain UUID/time/order invariants.
+
+`pastral-ipc-schema` is an isolated prototype adapter. It uses repository-authoritative Edition 2024 `.proto` input, exact official runtime/codegen `4.35.0-release`, and generated files under Cargo `OUT_DIR`. Generated upb bindings contain their expected native unsafe implementation; only that generated module receives a scoped unsafe/Clippy exception. Handwritten conversion remains `deny(unsafe_code)`, while `pastral-ipc-core` remains `forbid(unsafe_code)`.
+
+A representative Release probe run on the current reference machine reported:
+
+```text
+ipc-probe=ok
+protobuf-release=4.35.0-release
+schema-sha256=409c0da02f90e70e9bb1acbf1d7818d31ffcee3b61480cfa4ab250a5a8f493d8
+iterations=10000
+round-trips=10000
+executable-bytes=379904
+average-roundtrip-ns=129576
+one-byte-average-ns=713
+coalesced-average-ns=583
+max-body-capacity=7869
+```
+
+These are prototype measurements, not release SLAs. The 2,137,088-byte Release agent remains protobuf-free. Production named-pipe transport, ACL/peer/session authentication, C++ parity, fuzzing, bulk staging, and resident-agent runtime linkage remain separate gates.
 
 ## Diagnostic agent commands and safety boundary
 
@@ -221,7 +294,7 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - `sha2 = 0.10.9`: SHA-256 implementation for the explicitly versioned `sha256-raw-v1` logical-byte digest.
 - `rusqlite = 0.40.1`: reviewed synchronous SQLite wrapper. Only `bundled` and `blob` are enabled; default features and unrelated integration features are disabled.
 
-`Cargo.lock` is committed and every compiling/testing/documentation/dependency gate uses `--locked`. `eng/verify-dependencies.ps1` rejects async runtimes, serialization frameworks, alternate database stacks, Protobuf/IPC runtimes, logging backends, network clients, Windows bindings, and UI dependencies from the current foundation graph. `eng/verify-source-policy.ps1` rejects common secret/private-key signatures, credential/key files, build output, the machine-local launcher, unsafe blocks, network/process APIs, SQLite extension loading, database attachment, and WAL activation in current product source.
+`Cargo.lock` is committed and every compiling/testing/documentation/dependency gate uses `--locked`. `eng/verify-dependencies.ps1` permits exact official Protobuf `4.35.0-release` only in `pastral-ipc-schema` and `pastral-ipc-probe`; it proves agent/domain/storage/clipboard/agent-core/ipc-core remain protobuf-free and rejects alternate serializers, async runtimes, gRPC/HTTP/network stacks, logging backends, unauthorized Windows bindings, and UI dependencies. `eng/verify-source-policy.ps1` rejects common secret/private-key signatures, credential/key files, build output, the machine-local launcher, unsafe product code outside the reviewed clipboard/native-generated boundaries, network/process/named-pipe APIs, SQLite extension loading, database attachment, and WAL activation in current product source.
 
 ## Native manager data policy
 
@@ -235,7 +308,8 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - Only ordinary protection-domain payloads are accepted. Sensitive and Private plaintext is rejected before any payload or search projection is persisted.
 - Blob placement is selected by a caller-supplied versioned policy. No benchmark-selected production threshold exists yet.
 - Inputs are bounded owned byte buffers; the agent currently captures only `CF_UNICODETEXT`, while Win32/OLE streaming acquisition and other clipboard formats are not implemented.
-- The agent enforces Windows history-control hard deny, unresolved-source fail-closed policy, an exact executable denylist, and a narrow private-key detector. It still has no durable source attribution, reliable private-browser detection, publisher verification, comprehensive secret classifier, auto-start registration, process supervision, IPC server, replay suppression marker, or graceful Ctrl+C control channel.
+- The agent enforces Windows history-control hard deny, unresolved-source fail-closed policy, an exact executable denylist, and a narrow private-key detector. It still has no durable source attribution, reliable private-browser detection, publisher verification, comprehensive secret classifier, auto-start registration, process supervision, authenticated IPC server, replay suppression marker, or graceful Ctrl+C control channel.
+- The Rust IPC frame/state/schema prototype passes isolated correctness and measurement gates, but it is not production IPC. C++ generated/runtime parity, named-pipe DACL/anti-squatting/peer/session/challenge authentication, fuzzing, adjacent-version fixtures, bulk staging cleanup, and resident-agent memory attribution remain incomplete.
 - No encryption, backup/restore, import/export, backend migration, retention/quota engine, multi-process ownership, or background maintenance exists.
 - FTS search is bounded literal lexical matching with deterministic ordering; no snippets, typo correction, semantic ranking, or sensitive indexing is provided.
 - The manager's Debug filtering is bounded presentation-only matching over synthetic safe metadata; it is not the production typed query/FTS pipeline.

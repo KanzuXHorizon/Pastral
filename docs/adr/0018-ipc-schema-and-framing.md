@@ -1,6 +1,6 @@
 # ADR 0018: Protobuf control schema with bounded named-pipe framing
 
-**Status:** Proposed — framing/schema rules accepted for prototype; runtime implementation requires footprint/build/security evidence
+**Status:** Proposed — Rust framing/schema prototype passes; C++ parity, authenticated transport, fuzzing, and resident-agent adoption gates remain open
 **Date:** 2026-08-04
 
 ## Context
@@ -103,6 +103,22 @@ The pipe is local and not treated as an end-to-end encrypted transport. ACL/peer
 - Rolling package update supports only the explicitly tested adjacent overlap window; no indefinite compatibility promise.
 - Stored database/export schemas are separate from IPC Protobuf messages. Generated IPC types never become domain/storage models directly; conversion validates all invariants.
 - Wire-safe schema changes receive compatibility fixtures; wire-unsafe changes require a protocol-major change and migration/update plan.
+
+## Rust prototype evidence — 2026-08-04
+
+Phase 3D provides evidence for the Rust-side framing/schema candidate without accepting the final transport or resident dependency:
+
+- `pastral-ipc-core` implements the exact 36-byte header, field-by-field little-endian parsing, bounded incremental byte-stream decoding, handshake/in-flight/bulk state, and serializer-neutral validated DTOs with no unsafe code, Windows binding, serializer, async runtime, or I/O dependency.
+- `pastral-ipc-schema` generates Edition 2024 Rust bindings from `protocols/ipc-schema/pastral_ipc_v1.proto` using exact `protoc 35.0`, `protobuf 4.35.0-release`, and `protobuf-codegen 4.35.0-release`.
+- The schema SHA-256 is `409c0da02f90e70e9bb1acbf1d7818d31ffcee3b61480cfa4ab250a5a8f493d8`; generated output remains in Cargo `OUT_DIR` and is not tracked.
+- Official generated bindings contain the expected upb/native unsafe implementation and generator-specific Clippy style findings. The repository permits those only inside the generated module; handwritten schema conversion remains `deny(unsafe_code)`, and `pastral-ipc-core` remains `forbid(unsafe_code)`.
+- Thirty framing/decoder/connection/DTO tests and eleven schema round-trip/adversarial tests pass. Coverage includes every header split, representative body splits, one-byte feeds, coalesced frames, poison/truncation, correlation and bulk ordering, missing oneofs, malformed wire data, zero/unknown enums, and all current semantic bounds.
+- The isolated Release probe completes 10,000 of 10,000 deterministic round trips. A representative final run measured a 379,904-byte executable, 129,576 ns average full round trip, 713 ns one-byte decoder component, 583 ns coalesced decoder component, and 7,869-byte maximum body capacity for the synthetic 100-item response.
+- These measurements are machine-specific prototype evidence, not a product SLA. The current 2,137,088-byte Release agent remains protobuf-free, so resident-agent incremental binary/private-working-set impact is deliberately not yet claimed.
+- Dependency policy proves official Protobuf packages are isolated to `pastral-ipc-schema` and `pastral-ipc-probe`; agent, clipboard, domain, storage, agent-core, and ipc-core remain protobuf-free.
+- CI is configured to retrieve the official `protoc-35.0-win64.zip` asset, verify SHA-256 `d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363`, and expose exact `libprotoc 35.0` before locked workspace gates. Hosted execution remains unproven until GitHub Actions runs the workflow.
+
+This evidence advances the official Rust runtime from an untested candidate to the selected Rust prototype runtime only. It does not accept ADR 0018 because C++ wire/runtime parity, authenticated named-pipe transport, fuzzing, staging cleanup, resident memory attribution, and adjacent-version compatibility remain incomplete.
 
 ## Acceptance gates
 

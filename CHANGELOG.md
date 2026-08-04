@@ -28,6 +28,10 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Bounded clipboard-owner process observation using limited query access, immediate basename reduction, exact case-insensitive source deny policy, and default unresolved-source denial.
 - Strict atomic `privacy-policy.txt` configuration with a conservative baseline denylist for 1Password, Bitwarden, KeePass, and KeePassXC executable basenames.
 - A 1 MiB bounded high-confidence private-key detector and audit-only `SensitiveItemSkipped` handling that creates no clip, digest, blob, preview, or FTS row.
+- Pure-Rust `pastral-ipc-core` with an exact 36-byte little-endian frame codec, allocation-after-validation incremental byte-stream decoder, handshake/in-flight/bulk state machine, and serializer-neutral bounded control DTOs.
+- Edition 2024 `pastral.ipc.v1` schema prototype generated with exact official `protoc 35.0`, `protobuf 4.35.0-release`, and `protobuf-codegen 4.35.0-release`, with generated DTOs isolated behind validated conversion.
+- A content-free Release `pastral-ipc-probe` and PowerShell gate covering 44 focused IPC tests plus 10,000 fragmented/coalesced schema round trips, exact schema digest, binary size, latency, and decoder-capacity evidence.
+- Dependency/source/CI policy that keeps Protobuf out of the resident agent and core product crates, verifies exact official package versions, and hashes the official Windows protoc archive before CI use.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -56,7 +60,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager and privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path exist, but the agent is not auto-started and the manager remains disconnected until versioned IPC exists. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging do not yet exist.
+- The native manager and privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path exist, and the Rust framing/schema prototype passes isolated gates. Production authenticated named-pipe transport, C++ parity, agent schema linkage, auto-start, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.

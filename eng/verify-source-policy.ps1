@@ -37,7 +37,7 @@ try {
 
     $textExtensions = @(
         '.rs', '.toml', '.ps1', '.yml', '.yaml', '.md', '.json', '.txt', '.props', '.targets',
-        '.cpp', '.c', '.h', '.hpp', '.idl', '.xaml', '.vcxproj', '.filters', '.resw', '.xml'
+        '.cpp', '.c', '.h', '.hpp', '.idl', '.proto', '.xaml', '.vcxproj', '.filters', '.resw', '.xml'
     )
     $secretPatterns = @(
         'AKIA[0-9A-Z]{16}',
@@ -52,7 +52,10 @@ try {
         '(?m)\bCommand::new\s*\(',
         '(?m)\bload_extension\b',
         '(?m)\bATTACH\s+DATABASE\b',
-        '(?m)journal_mode\s*=\s*WAL\b'
+        '(?m)journal_mode\s*=\s*WAL\b',
+        '(?m)\bCreateNamedPipe[AW]?\b',
+        '(?m)\bConnectNamedPipe\b',
+        '(?m)\bWaitNamedPipe[AW]?\b'
     )
 
     $violations = New-Object System.Collections.Generic.List[string]
@@ -73,7 +76,8 @@ try {
         }
         $isRustProductSource =
             $relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase)
+            $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase)
         if ($isRustProductSource) {
             $isClipboardSys = $relativePath.Equals(
                 'crates/clipboard-win/src/sys.rs',
