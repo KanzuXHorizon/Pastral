@@ -93,6 +93,14 @@ try {
                 $relativePath.Equals(
                     'crates/clipboard-win/src/sys.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'crates/manager-ipc-bridge/src/ffi.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'crates/manager-ipc-bridge/tests/ffi.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
                 ) -or $isIpcWinSys
             $unsafeMatch = [System.Text.RegularExpressions.Regex]::IsMatch(
                 $content,
