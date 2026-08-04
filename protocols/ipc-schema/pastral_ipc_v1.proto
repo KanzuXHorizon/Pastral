@@ -1,0 +1,118 @@
+edition = "2024";
+
+package pastral.ipc.v1;
+
+option optimize_for = LITE_RUNTIME;
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_HEALTH = 1;
+  CAPABILITY_HISTORY_PAGE = 2;
+  CAPABILITY_SEARCH = 3;
+}
+
+enum ClipPreviewKind {
+  CLIP_PREVIEW_KIND_UNSPECIFIED = 0;
+  CLIP_PREVIEW_KIND_TEXT = 1;
+  CLIP_PREVIEW_KIND_CODE = 2;
+  CLIP_PREVIEW_KIND_LINK = 3;
+  CLIP_PREVIEW_KIND_IMAGE = 4;
+  CLIP_PREVIEW_KIND_FILES = 5;
+  CLIP_PREVIEW_KIND_UNAVAILABLE = 6;
+}
+
+enum ProtocolErrorCode {
+  PROTOCOL_ERROR_CODE_UNSPECIFIED = 0;
+  PROTOCOL_ERROR_CODE_INVALID_REQUEST = 1;
+  PROTOCOL_ERROR_CODE_UNSUPPORTED_VERSION = 2;
+  PROTOCOL_ERROR_CODE_UNSUPPORTED_CAPABILITY = 3;
+  PROTOCOL_ERROR_CODE_UNAUTHORIZED = 4;
+  PROTOCOL_ERROR_CODE_RESOURCE_LIMIT = 5;
+  PROTOCOL_ERROR_CODE_INTERNAL = 6;
+}
+
+message ServerHello {
+  uint32 protocol_major = 1;
+  uint32 min_minor = 2;
+  uint32 max_minor = 3;
+  bytes server_nonce = 4;
+  bytes instance_id = 5;
+  repeated Capability capabilities = 6;
+}
+
+message ClientHello {
+  uint32 protocol_major = 1;
+  uint32 min_minor = 2;
+  uint32 max_minor = 3;
+  bytes client_nonce = 4;
+  bytes echoed_server_nonce = 5;
+  repeated Capability capabilities = 6;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  uint32 storage_schema_version = 1;
+  bool capture_enabled = 2;
+  bool privacy_policy_ok = 3;
+  bool storage_integrity_ok = 4;
+}
+
+message HistoryPageRequest {
+  uint32 limit = 1;
+  uint64 before_capture_order = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  uint32 limit = 2;
+}
+
+message ClipPreview {
+  bytes event_id = 1;
+  uint64 capture_order = 2;
+  sint64 observed_at_utc_micros = 3;
+  ClipPreviewKind kind = 4;
+  string preview = 5;
+  string source_label = 6;
+  bool pinned = 7;
+  bool unavailable = 8;
+}
+
+message HistoryPageResponse {
+  repeated ClipPreview items = 1;
+  bool has_more = 2;
+}
+
+message SearchResponse {
+  repeated ClipPreview items = 1;
+  bool has_more = 2;
+}
+
+message ProtocolError {
+  ProtocolErrorCode code = 1;
+  bool retryable = 2;
+  string developer_detail = 3;
+}
+
+message BulkEnd {
+  uint64 total_bytes = 1;
+  uint32 chunk_count = 2;
+}
+
+message RequestEnvelope {
+  oneof operation {
+    HealthRequest health = 1;
+    HistoryPageRequest history_page = 2;
+    SearchRequest search = 3;
+  }
+}
+
+message ResponseEnvelope {
+  oneof operation {
+    HealthResponse health = 1;
+    HistoryPageResponse history_page = 2;
+    SearchResponse search = 3;
+    ProtocolError error = 4;
+  }
+}

@@ -5,6 +5,7 @@ members = [
     "crates/clipboard-win",
     "crates/domain",
     "crates/ipc-core",
+    "crates/ipc-schema",
     "crates/storage",
 ]
 resolver = "3"
@@ -17,6 +18,8 @@ authors = ["Pastral contributors"]
 repository = "https://github.com/pastral/pastral"
 
 [workspace.dependencies]
+protobuf = { version = "=4.35.0-release", default-features = false }
+protobuf-codegen = { version = "=4.35.0-release", default-features = false }
 rusqlite = { version = "=0.40.1", default-features = false, features = ["bundled", "blob"] }
 sha2 = { version = "=0.10.9", default-features = false }
 uuid = { version = "=1.18.1", default-features = false, features = ["std", "v4"] }

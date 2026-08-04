@@ -161,10 +161,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "linkme"
+version = "0.3.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3045e122bd98aef8ec3ad58ce84f0791f64e70163d1a02710af4aa11a4d54cc5"
+dependencies = [
+ "linkme-impl",
+]
+
+[[package]]
+name = "linkme-impl"
+version = "0.3.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77060ebe535362c3da75682cd17b0431017b6e7c5661e714fc69a7ad017d1301"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+
+[[package]]
+name = "paste-complete"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a4cf96a295ab7f0ec2334fa557745c0e9526595f6ebabbb129563a98dfc1b2a"
 
 [[package]]
 name = "pastral-agent"
@@ -208,6 +234,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-ipc-schema"
+version = "0.1.0"
+dependencies = [
+ "pastral-domain",
+ "pastral-ipc-core",
+ "protobuf",
+ "protobuf-codegen",
+ "sha2",
+ "uuid",
+]
+
+[[package]]
 name = "pastral-storage"
 version = "0.1.0"
 dependencies = [
@@ -235,6 +273,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "985e7ec9bb745e6ce6535b544d84d6cd6f7ad8bd711c398938ae983b91a766d9"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "protobuf"
+version = "4.35.0-release"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d05968b8b2df70d7d65ec6bbdb9c9403441d3155c22af783d9eb3c20142313fd"
+dependencies = [
+ "cc",
+ "linkme",
+ "paste-complete",
+ "protobuf-macros",
+]
+
+[[package]]
+name = "protobuf-codegen"
+version = "4.35.0-release"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ccd419b3785dd1692b50c9a9b81b1dbff75ec75a9f5b103224f669d7cc164af"
+
+[[package]]
+name = "protobuf-macros"
+version = "4.35.0-release"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cfbd93f1e3dd18db139a79c002c9e33eff8749e5ebf4e24250957fd98689be1"
+dependencies = [
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -305,6 +371,17 @@ name = "syn"
 version = "2.0.119"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "872831b642d1a07999a962a351ed35b955ea2cfc8f3862091e2a240a84f17297"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -387,7 +464,7 @@ dependencies = [
  "bumpalo",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.119",
  "wasm-bindgen-shared",
 ]
 
