@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 pastral-ipc-auth = { path = "../ipc-auth" }
 pastral-ipc-core = { path = "../ipc-core" }
+pastral-ipc-schema = { path = "../ipc-schema" }
 uuid.workspace = true
 windows-sys.workspace = true
 zeroize.workspace = true

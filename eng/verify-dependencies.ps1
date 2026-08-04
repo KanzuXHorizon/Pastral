@@ -111,7 +111,6 @@ foreach ($package in @(
     'pastral-domain',
     'pastral-ipc-auth',
     'pastral-ipc-core',
-    'pastral-ipc-win',
     'pastral-storage'
 )) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package, '--edges', 'all')
@@ -122,6 +121,11 @@ $schemaTree = Invoke-CargoTree -Arguments @('-p', 'pastral-ipc-schema', '--edges
 Assert-ExactPackageVersion -Scope 'pastral-ipc-schema' -Tree $schemaTree -Package 'protobuf' -ExpectedLine 'protobuf v4.35.0-release'
 Assert-ExactPackageVersion -Scope 'pastral-ipc-schema' -Tree $schemaTree -Package 'protobuf-codegen' -ExpectedLine 'protobuf-codegen v4.35.0-release'
 Assert-ExactPackageVersion -Scope 'pastral-ipc-schema' -Tree $schemaTree -Package 'protobuf-macros' -ExpectedLine 'protobuf-macros v4.35.0-release (proc-macro)'
+
+$ipcWinTree = Invoke-CargoTree -Arguments @('-p', 'pastral-ipc-win', '--edges', 'all')
+Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package 'protobuf' -ExpectedLine 'protobuf v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package 'protobuf-codegen' -ExpectedLine 'protobuf-codegen v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package 'protobuf-macros' -ExpectedLine 'protobuf-macros v4.35.0-release (proc-macro)'
 
 $ipcPrototypeForbidden = @(
     'tokio',
@@ -198,6 +202,6 @@ Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'h
 Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'zeroize' -ExpectedLine 'zeroize v1.8.2'
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Official protobuf 4.35.0-release is isolated to ipc-schema/ipc-probe; agent/domain/storage/clipboard/ipc-auth/ipc-core/ipc-win remain protobuf-free.'
+Write-Host 'Official protobuf 4.35.0-release is isolated to ipc-schema/ipc-probe/ipc-win; agent/domain/storage/clipboard/ipc-auth/ipc-core remain protobuf-free.'
 Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/clipboard-win/ipc-win use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'

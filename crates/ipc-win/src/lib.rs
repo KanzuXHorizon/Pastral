@@ -3,6 +3,7 @@
 mod config;
 mod dpapi;
 mod error;
+mod handshake;
 mod overlapped;
 mod pipe;
 mod random;
@@ -20,6 +21,10 @@ pub use dpapi::{
     MAX_SECRET_ENVELOPE_BYTES, protect_installation_secret, unprotect_installation_secret,
 };
 pub use error::TransportError;
+pub use handshake::{
+    AuthenticatedClientConnection, AuthenticatedServerConnection, client_handshake,
+    client_handshake_with_nonce_for_test, server_handshake, server_handshake_with_nonce_for_test,
+};
 pub use pipe::{PipeClient, PipeServer, create_first_pipe_server, open_pipe_client};
 pub use random::random_bytes;
 pub use security::{

@@ -1,5 +1,7 @@
 use std::io;
 
+use pastral_ipc_auth::AuthError;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransportError {
     Io {
@@ -18,6 +20,7 @@ pub enum TransportError {
     InvalidSecretEnvelope(&'static str),
     InvalidTokenIdentity(&'static str),
     InvalidPipeName(&'static str),
+    Authentication(AuthError),
     Timeout(&'static str),
     Disconnected,
     Protocol(&'static str),
@@ -53,6 +56,7 @@ impl core::fmt::Display for TransportError {
                 write!(formatter, "invalid token identity: {reason}")
             }
             Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
+            Self::Authentication(error) => write!(formatter, "IPC authentication failed: {error}"),
             Self::Timeout(operation) => write!(formatter, "{operation} timed out"),
             Self::Disconnected => formatter.write_str("pipe disconnected"),
             Self::Protocol(reason) => write!(formatter, "pipe protocol error: {reason}"),
