@@ -8,15 +8,15 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 3E — native manager, privacy-admitted diagnostic agent, and authenticated cross-process IPC transport foundation.**
+**Phase 3F — native manager, privacy-admitted diagnostic agent, authenticated IPC transport, and measured agent Health IPC admission.**
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, pure `pastral-domain`, `pastral-agent-core`, `pastral-ipc-core`, and `pastral-ipc-auth` crates, synchronous `pastral-storage`, reviewed Windows-only `pastral-clipboard-win` and `pastral-ipc-win` boundaries, the official Protobuf Edition 2024 control schema, a cross-process authenticated transport probe, a diagnostic `pastral-agent.exe`, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, pure `pastral-domain`, `pastral-agent-core`, `pastral-ipc-core`, and `pastral-ipc-auth` crates, synchronous `pastral-storage`, reviewed Windows-only `pastral-clipboard-win` and `pastral-ipc-win` boundaries, the official Protobuf Edition 2024 control schema, cross-process transport and agent-admission probes, a diagnostic `pastral-agent.exe`, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`.
 
 The agent can perform an explicit storage health check, one explicit current-clipboard capture, or event-driven listening for bounded ordinary `CF_UNICODETEXT` capture. Before payload acquisition it honors Windows source-owned history exclusion controls, observes the clipboard-owner executable basename, and applies a strict exact-match deny policy that fails closed when the source cannot be resolved. Before digest/blob/index creation it skips high-confidence private-key material and detector-over-limit text, creating only a content-free sensitive-skip audit. Storage assigns durable capture order inside an immediate transaction, and the coordinator provides deterministic duplicate suppression and bounded retry without an async runtime. Automated tests and aggregate smoke gates run `health-check` only; they never invoke clipboard-reading commands.
 
 The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit disconnected/empty states, and a provider boundary that prevents direct SQLite or blob access. Debug builds expose six bounded, clearly labeled synthetic preview records. Release builds contain no synthetic history and remain honestly disconnected until versioned local IPC is implemented.
 
-ADR 0018 remains Proposed. The Rust 36-byte framing/state/schema layer and authenticated Windows named-pipe transport now pass exact-toolchain, malformed-input, DACL, token/session, timeout/cancellation, replay, wrong-secret, cross-process Health, size, and latency gates. C++ parity, fuzzing, adjacent-version fixtures, bulk staging cleanup, and resident-agent/manager linkage evidence remain required before acceptance.
+ADR 0018 remains Proposed. The Rust 36-byte framing/state/schema layer and authenticated Windows named-pipe transport pass exact-toolchain, malformed-input, DACL, token/session, timeout/cancellation, replay, wrong-secret, cross-process Health, size, and latency gates. Phase 3F additionally proves that a real agent Health snapshot can be served through the authenticated transport within the current resident budget: representative Release evidence measured a 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta. C++ parity, fuzzing, adjacent-version fixtures, bulk staging cleanup, and actual resident-agent/manager linkage remain required before acceptance.
 
 ## Confirmed direction
 
@@ -44,7 +44,7 @@ Versions are pinned when the repository bootstrap implementation begins and are 
 - Encrypted sensitive retention, when implemented, is explicit and narrowly scoped.
 - The built-in Private profile is unavailable until mandatory encryption, random blob identity, non-indexing, lock, and recovery gates pass.
 - Named-pipe ACLs and user-scope DPAPI strongly separate users/sessions but are not claimed as a secure enclave against fully compromised code already running as the same unlocked user.
-- ADR 0018 prototypes Protobuf Edition 2024 control schemas with a bounded 36-byte frame and sequenced bulk transfer. Exact official `4.35.0-release` Rust runtime/codegen plus `protoc 35.0` pass the isolated Rust prototype, but the agent remains protobuf-free until transport/security/resident-footprint gates pass.
+- ADR 0018 prototypes Protobuf Edition 2024 control schemas with a bounded 36-byte frame and sequenced bulk transfer. Exact official `4.35.0-release` Rust runtime/codegen plus `protoc 35.0` pass the Rust prototype and measured agent-admission gate. The default diagnostic agent intentionally remains Protobuf/transport-free until the production resident integration and lifecycle gates pass.
 
 See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`docs/security/threat-model.md`](docs/security/threat-model.md).
 
@@ -66,22 +66,23 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, `crates/agent-core`, `crates/ipc-core`, `crates/ipc-auth`, `crates/ipc-schema`, `crates/ipc-win`, the deterministic `apps/ipc-probe`, the cross-process `apps/ipc-transport-probe`, the diagnostic resident agent under `apps/agent`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
+The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, `crates/agent-core`, `crates/ipc-core`, `crates/ipc-auth`, `crates/ipc-schema`, `crates/ipc-win`, the deterministic `apps/ipc-probe`, the cross-process `apps/ipc-transport-probe`, the measured `apps/agent-ipc-probe`, the diagnostic resident agent under `apps/agent`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
 
 From Windows PowerShell:
 
 - `.\eng\build.ps1 -Task All` runs the Rust foundation gates only.
 - `.\eng\build.ps1 -Task IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and executes 10,000 content-free deterministic round trips.
 - `.\eng\build.ps1 -Task IpcTransport` verifies DPAPI material, logon-SID DACLs, peer token/session evidence, bounded overlapped I/O, mutual HMAC authentication, replay rejection, and a real cross-process Health exchange.
+- `.\eng\build.ps1 -Task AgentIpcAdmission` verifies shared Health truth, process-memory diagnostics, authenticated real-agent Health serving, Release footprint ceilings, dependency isolation, and content-free output.
 - `.\eng\build.ps1 -Task Agent` builds Debug/Release agent binaries and runs a disposable, content-free `health-check` smoke.
-- `.\eng\build.ps1 -Task Full` runs Rust gates, the IPC prototype and authenticated transport, the agent build/smoke gate, plus native static policy and Debug/Release manager builds.
+- `.\eng\build.ps1 -Task Full` runs Rust gates, the IPC prototype, authenticated transport, agent IPC admission, agent build/smoke gate, plus native static policy and Debug/Release manager builds.
 - `.\eng\build.ps1 -Task Manager` additionally launches the Debug manager, navigates to History through UI Automation, exercises filtering/selection/no-results states, and verifies clean shutdown.
 
 Exact setup and current limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
 
 Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
 
-The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent, ordinary Unicode-text persistence path, Windows history-control hard deny, exact owner-process policy, narrow private-key detector, bounded IPC frame/state/schema layer, and authenticated cross-process Windows transport now exist. The agent is not registered for auto-start, remains Protobuf/transport-free, and is not connected to the manager. Packaging, signing, installer, C++ schema/client parity, COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
+The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent, ordinary Unicode-text persistence path, Windows history-control hard deny, exact owner-process policy, narrow private-key detector, bounded IPC frame/state/schema layer, authenticated cross-process Windows transport, shared agent Health snapshot, and measured Health admission path now exist. The default agent is not registered for auto-start, remains Protobuf/transport-free, and is not connected to the manager; the admission executable is evidence, not an alternate production host. Packaging, signing, installer, C++ schema/client parity, COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
 
 ## Contributing
 

@@ -37,7 +37,12 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Kernel-derived peer identity validation for user SID, enabled logon SID, session ID, integrity RID, and PID using bounded token queries and reviewed handle/SID ownership.
 - Protected logon-SID-only named-pipe DACLs, first-instance anti-squatting, remote-client rejection, identification-only client SQOS, byte-mode overlapped I/O, bounded timeout/cancel-drain behavior, peer PID/session queries, and framed stream exchange.
 - Mutual authenticated ServerHello/ClientHello/ServerAccepted handshake and content-free cross-process `pastral-ipc-transport-probe` that performs one authenticated Health request/response between distinct processes.
-- `IpcTransport` PowerShell/CI gate covering static security policy, 36 focused auth/transport/probe tests, Release cross-process smoke, PID/session evidence, content-free output, and exact dependency/source boundaries.
+- `IpcTransport` PowerShell/CI gate covering static security policy, 38 focused auth/transport/probe tests, Release cross-process smoke, PID/session evidence, content-free output, and exact dependency/source boundaries.
+- Shared content-free `AgentHealthSnapshot` used by both CLI health-check output and IPC admission, preserving one storage/integrity source of truth.
+- Bounded Windows process-memory diagnostics using `K32GetProcessMemoryInfo`, live-process verification, RAII handles, and fail-closed zero/invalid/terminated PID behavior.
+- `pastral-agent-ipc-probe` with strict parent/baseline-child/server-child modes, real agent-owned Health state, authenticated one-request Health serving, first-instance collision and non-Health rejection tests, bounded child cleanup, and content-free diagnostics.
+- Release agent IPC admission evidence and CI gate with explicit 25 MiB server-private, 8 MiB private-delta, 12 MiB working-set-delta, and 6 MiB binary-delta ceilings; representative evidence measured a 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta.
+- Dependency/source policy that permits the exact Protobuf/transport runtime only in the admission evidence executable while keeping the default diagnostic agent Protobuf/transport-free.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -66,7 +71,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager, privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path, Rust framing/schema layer, and authenticated cross-process Windows named-pipe transport exist. The transport remains diagnostic-only: C++ parity, fuzzing, adjacent-version fixtures, agent/manager linkage, auto-start, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
+- The native manager, privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path, Rust framing/schema layer, authenticated Windows named-pipe transport, and measured real-agent Health admission path exist. The default resident agent and manager remain unlinked: C++ parity, fuzzing, adjacent-version fixtures, production agent lifecycle integration, auto-start, reconnect, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.

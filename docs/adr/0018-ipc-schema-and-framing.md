@@ -1,6 +1,6 @@
 # ADR 0018: Protobuf control schema with bounded named-pipe framing
 
-**Status:** Proposed — Rust framing/schema and authenticated Windows transport pass; C++ parity, fuzzing, bulk cleanup, and resident-agent adoption gates remain open
+**Status:** Proposed — Rust framing/schema, authenticated Windows transport, and measured agent Health admission pass; C++ parity, fuzzing, bulk cleanup, and production resident/manager linkage gates remain open
 **Date:** 2026-08-04
 
 ## Context
@@ -114,8 +114,8 @@ Phase 3D provides evidence for the Rust-side framing/schema candidate without ac
 - Official generated bindings contain the expected upb/native unsafe implementation and generator-specific Clippy style findings. The repository permits those only inside the generated module; handwritten schema conversion remains `deny(unsafe_code)`, and `pastral-ipc-core` remains `forbid(unsafe_code)`.
 - Thirty framing/decoder/connection/DTO tests and eleven schema round-trip/adversarial tests pass. Coverage includes every header split, representative body splits, one-byte feeds, coalesced frames, poison/truncation, correlation and bulk ordering, missing oneofs, malformed wire data, zero/unknown enums, and all current semantic bounds.
 - The isolated Release probe completes 10,000 of 10,000 deterministic round trips. A representative authenticated-schema run measured a 380,416-byte executable, 174,042 ns average full round trip, 1,029 ns one-byte decoder component, 858 ns coalesced decoder component, and 7,869-byte maximum body capacity for the synthetic 100-item response.
-- These measurements are machine-specific prototype evidence, not a product SLA. The current 2,137,088-byte Release agent remains protobuf-free, so resident-agent incremental binary/private-working-set impact is deliberately not yet claimed.
-- Dependency policy proves official Protobuf packages are isolated to `pastral-ipc-schema`, `pastral-ipc-probe`, `pastral-ipc-win`, and `pastral-ipc-transport-probe`; agent, clipboard, domain, storage, agent-core, ipc-auth, and ipc-core remain protobuf-free.
+- These measurements are machine-specific prototype evidence, not a product SLA. The default Release agent remains protobuf-free; Phase 3F measures the admission delta separately before any production resident linkage.
+- Dependency policy proves official Protobuf packages are isolated to `pastral-agent-ipc-probe`, `pastral-ipc-schema`, `pastral-ipc-probe`, `pastral-ipc-win`, and `pastral-ipc-transport-probe`; the default agent, clipboard, domain, storage, agent-core, ipc-auth, and ipc-core remain protobuf-free.
 - CI is configured to retrieve the official `protoc-35.0-win64.zip` asset, verify SHA-256 `d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363`, and expose exact `libprotoc 35.0` before locked workspace gates. Hosted execution remains unproven until GitHub Actions runs the workflow.
 
 ## Authenticated Windows transport evidence — 2026-08-04
@@ -129,9 +129,22 @@ Phase 3E wraps the accepted Rust prototype layers in a real Windows local transp
 - ServerHello, proof-bearing ClientHello, and proof-bearing ServerAccepted complete mutual authentication before any control request. Wrong secret, control-before-authentication, repeated nonce transcript, peer mismatch, timeout, disconnect, malformed DPAPI material, and first-instance squatting are rejected.
 - `pastral-ipc-transport-probe` starts a distinct server child process, validates kernel peer PIDs/session, completes mutual authentication, and exchanges one content-free Health request/response. Representative Release evidence: client PID `65440`, server PID `68176`, session `1`, connect `6,941 µs`, handshake `264 µs`, Health `38 µs`, total `48,626 µs`.
 - The dedicated gate runs 8 authentication tests, 25 Windows transport tests, and 3 transport-probe tests, then executes the Release cross-process smoke. Output is checked for pipe/root/SID/secret/nonce/proof/clipboard markers.
-- The resident agent and WinUI manager remain unlinked, so no resident footprint or C++ parity claim is made.
+- The resident agent and WinUI manager remain unlinked in Phase 3E, so that phase makes no resident-footprint or C++ parity claim.
 
-This evidence advances official Rust schema/runtime plus Windows transport from isolated prototype to a verified Rust transport foundation. ADR 0018 remains Proposed because C++ wire/runtime parity, parser/schema fuzzing, adjacent-version fixtures, bulk staging cleanup, and resident-agent/manager memory/linkage evidence remain incomplete.
+## Agent Health IPC admission evidence — 2026-08-04
+
+Phase 3F measures whether the authenticated transport and official Rust schema runtime can serve a real agent-owned Health response without silently violating the resident budget:
+
+- `AgentHealthSnapshot` is the single content-free source used by both CLI `health-check` output and the IPC admission path. It contains only schema version and integrity booleans; it contains no clipboard payload, preview, query, source path, content hash, or reconstructable value.
+- `pastral-agent-ipc-probe` has strict parent, baseline-child, and server-child modes. The baseline child opens the real agent identity/privacy/storage state without transport material. The server child opens the same real agent state, verifies the Phase 3E pipe DACL, performs one mutual authenticated handshake, accepts exactly one Health request, returns the real Health response, and exits.
+- First-instance collision, authenticated non-Health request, invalid invocation, stdin command injection, zero/invalid/terminated process IDs, metric underflow, and one-byte-over-ceiling cases fail closed.
+- Windows process-memory evidence uses `K32GetProcessMemoryInfo` only after verifying the target process is still active; handles are RAII-owned and terminated-process objects are rejected.
+- Release ceilings are explicit: server private usage at most 25 MiB, private delta at most 8 MiB, working-set delta at most 12 MiB, and admission binary delta at most 6 MiB.
+- Representative Release evidence measured a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 6,963,200-byte server working set, 1,150,976-byte server private usage, 606,208-byte working-set delta, and 53,248-byte private-memory delta. All ceilings passed without adjustment.
+- The aggregate Rust workspace now passes 208 tests. The dedicated admission gate runs 3 shared-agent Health tests, 2 process-memory tests, and 11 admission tests, then builds both Release binaries and executes the authenticated cross-process smoke with content-leak checks.
+- The default `pastral-agent` remains Protobuf/transport-free. The admission executable is evidence for a later resident integration; it is not a second production storage owner, auto-start host, or manager service.
+
+This evidence advances official Rust schema/runtime plus Windows transport from isolated transport foundation to a measured agent Health admission candidate. ADR 0018 remains Proposed because C++ wire/runtime parity, parser/schema fuzzing, adjacent-version fixtures, bulk staging cleanup, and actual resident-agent/manager lifecycle and linkage evidence remain incomplete.
 
 ## Acceptance gates
 
@@ -141,7 +154,7 @@ Change this ADR to Accepted only after a Windows x64 release prototype demonstra
 2. reproducible generated artifacts/schema hashes from the pinned toolchain;
 3. no unsupported generator/generated-code/runtime skew;
 4. byte-mode frame parser tests/fuzzing cover every header/body fragmentation point, coalesced multiple frames, short reads/writes, disconnects, and independence from `WriteFile` boundaries; selected Protobuf parser, post-parse validator, and DTO conversion fuzzing enforce recursion/total-byte/peak-allocation limits;
-5. resident-agent binary/private-working-set impact attributed and accepted against the 25 MB target;
+5. measured agent Health admission binary/private-working-set impact accepted against the 25 MB target, followed by production resident-agent lifecycle/linkage evidence showing the same budget under simultaneous clipboard and IPC operation;
 6. control parse/serialize latency and allocation results at limit boundaries;
 7. MSBuild/Cargo/CI integration without unreviewed tool downloads or stale generated code;
 8. dependency license/advisory/supply-chain review;
