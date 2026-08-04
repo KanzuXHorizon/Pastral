@@ -30,6 +30,30 @@ fn accepts_exact_supported_commands() {
         })
     );
     assert_eq!(
+        parse_arguments(args(&["run"])),
+        Ok(AgentCommand::Run {
+            data_root: None,
+            max_events: None,
+            max_connections: None,
+        })
+    );
+    assert_eq!(
+        parse_arguments(args(&[
+            "run",
+            "--data-root",
+            "C:\\Users\\Example\\AppData\\Local\\Pastral",
+            "--max-events",
+            "2",
+            "--max-connections",
+            "3",
+        ])),
+        Ok(AgentCommand::Run {
+            data_root: Some(PathBuf::from("C:\\Users\\Example\\AppData\\Local\\Pastral")),
+            max_events: Some(NonZeroUsize::new(2).unwrap()),
+            max_connections: Some(NonZeroUsize::new(3).unwrap()),
+        })
+    );
+    assert_eq!(
         parse_arguments(args(&[
             "listen",
             "--data-root",
@@ -117,5 +141,33 @@ fn rejects_zero_duplicate_unknown_and_positional_arguments() {
             "2",
         ])),
         Err(CliError::FlagNotAllowed("--max-events"))
+    );
+    assert_eq!(
+        parse_arguments(args(&["run", "--max-connections", "0"])),
+        Err(CliError::InvalidMaxConnections)
+    );
+    assert_eq!(
+        parse_arguments(args(&["run", "--max-connections", "17"])),
+        Err(CliError::InvalidMaxConnections)
+    );
+    assert_eq!(
+        parse_arguments(args(&[
+            "run",
+            "--max-connections",
+            "2",
+            "--max-connections",
+            "3",
+        ])),
+        Err(CliError::DuplicateFlag("--max-connections"))
+    );
+    assert_eq!(
+        parse_arguments(args(&[
+            "listen",
+            "--data-root",
+            "C:\\Data",
+            "--max-connections",
+            "2",
+        ])),
+        Err(CliError::FlagNotAllowed("--max-connections"))
     );
 }

@@ -1,5 +1,11 @@
 use core::num::{NonZeroU32, NonZeroUsize};
-use std::{io::Write, path::Path, time::Duration};
+use std::{
+    env,
+    ffi::OsString,
+    io::Write,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use crate::health::open_storage;
 use crate::{
@@ -22,6 +28,14 @@ pub fn run_command<W: Write>(
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
     match command {
+        AgentCommand::Run {
+            data_root,
+            max_events,
+            max_connections: _,
+        } => {
+            let data_root = resolve_resident_data_root(data_root)?;
+            run_listener(&data_root, max_events, output)
+        }
         AgentCommand::HealthCheck { data_root } => run_health_check(&data_root, output),
         AgentCommand::CaptureCurrent { data_root } => run_capture_current(&data_root, output),
         AgentCommand::Listen {
@@ -29,6 +43,35 @@ pub fn run_command<W: Write>(
             max_events,
         } => run_listener(&data_root, max_events, output),
     }
+}
+
+pub fn resolve_resident_data_root(explicit: Option<PathBuf>) -> Result<PathBuf, AgentRuntimeError> {
+    resolve_resident_data_root_from(explicit, env::var_os("LOCALAPPDATA"))
+}
+
+#[doc(hidden)]
+pub fn resolve_resident_data_root_from(
+    explicit: Option<PathBuf>,
+    local_app_data: Option<OsString>,
+) -> Result<PathBuf, AgentRuntimeError> {
+    let root = match explicit {
+        Some(path) => path,
+        None => {
+            let local_app_data = local_app_data.ok_or(AgentRuntimeError::InvalidDataRoot)?;
+            if local_app_data.is_empty() {
+                return Err(AgentRuntimeError::InvalidDataRoot);
+            }
+            PathBuf::from(local_app_data).join("Pastral")
+        }
+    };
+    if !root.is_absolute() || root.as_os_str().is_empty() {
+        return Err(AgentRuntimeError::InvalidDataRoot);
+    }
+    let native = root.as_os_str().to_string_lossy();
+    if native.starts_with(r"\\") {
+        return Err(AgentRuntimeError::InvalidDataRoot);
+    }
+    Ok(root)
 }
 
 fn run_health_check<W: Write>(data_root: &Path, output: &mut W) -> Result<(), AgentRuntimeError> {

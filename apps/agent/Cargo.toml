@@ -16,7 +16,7 @@ path = "src/ipc_main.rs"
 required-features = ["ipc-health"]
 
 [features]
-default = []
+default = ["ipc-health"]
 ipc-health = [
     "dep:pastral-ipc-auth",
     "dep:pastral-ipc-core",

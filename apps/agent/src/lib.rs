@@ -28,5 +28,5 @@ pub use ipc_health::{
 };
 pub use platform::WindowsClipboardSource;
 pub use privacy_config::PrivacyPolicyConfig;
-pub use runtime::run_command;
+pub use runtime::{resolve_resident_data_root, resolve_resident_data_root_from, run_command};
 pub use storage_sink::{DiagnosticStoragePolicy, StorageCaptureSink, diagnostic_storage_limits};
