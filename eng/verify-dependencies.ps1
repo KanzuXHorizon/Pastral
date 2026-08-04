@@ -83,7 +83,7 @@ $nonWindowsForbidden = @(
     'windows_x86_64_gnullvm',
     'windows_x86_64_msvc'
 )
-foreach ($package in @('pastral-domain', 'pastral-storage')) {
+foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-storage')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package)
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $nonWindowsForbidden
 }
@@ -110,5 +110,5 @@ if (-not ($clipboardWindowsLines -contains 'windows-sys v0.61.2')) {
 }
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Domain/storage remain Windows-binding free; clipboard-win uses only pinned windows-sys/windows-link bindings.'
+Write-Host 'Agent-core/domain/storage remain Windows-binding free; clipboard-win uses only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'
