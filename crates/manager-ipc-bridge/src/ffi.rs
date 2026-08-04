@@ -6,8 +6,10 @@ use std::{
 };
 
 use crate::{
-    ManagerHealthSnapshot, PASTRAL_MANAGER_IPC_ABI_VERSION, PASTRAL_MANAGER_IPC_RESULT_BYTES,
-    PastralManagerHealthResult, PastralManagerHealthStatus, query_health,
+    ManagerHealthSnapshot, PASTRAL_MANAGER_CLIP_ITEM_BYTES, PASTRAL_MANAGER_IPC_ABI_VERSION,
+    PASTRAL_MANAGER_IPC_RESULT_BYTES, PASTRAL_MANAGER_READ_ABI_VERSION,
+    PASTRAL_MANAGER_READ_RESULT_BYTES, PastralManagerHealthResult, PastralManagerHealthStatus,
+    query_health,
 };
 
 const MIN_TIMEOUT_MS: u32 = 50;
@@ -22,6 +24,21 @@ pub extern "C" fn pastral_manager_ipc_abi_version() -> u32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn pastral_manager_ipc_result_size() -> u32 {
     PASTRAL_MANAGER_IPC_RESULT_BYTES
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn pastral_manager_ipc_read_abi_version() -> u32 {
+    PASTRAL_MANAGER_READ_ABI_VERSION
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn pastral_manager_ipc_read_result_size() -> u32 {
+    PASTRAL_MANAGER_READ_RESULT_BYTES
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn pastral_manager_ipc_clip_item_size() -> u32 {
+    PASTRAL_MANAGER_CLIP_ITEM_BYTES
 }
 
 /// Performs one bounded authenticated Health query through the manager IPC bridge.

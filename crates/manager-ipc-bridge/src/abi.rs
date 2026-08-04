@@ -4,9 +4,17 @@ use crate::{ManagerHealthSnapshot, ManagerHealthStatus};
 
 pub const PASTRAL_MANAGER_IPC_ABI_VERSION: u32 = 1;
 pub const PASTRAL_MANAGER_IPC_RESULT_BYTES: u32 = 64;
+pub const PASTRAL_MANAGER_READ_ABI_VERSION: u32 = 1;
+pub const PASTRAL_MANAGER_READ_RESULT_BYTES: u32 = 64;
+pub const PASTRAL_MANAGER_CLIP_ITEM_BYTES: u32 = 64;
 pub const PASTRAL_MANAGER_HEALTH_CAPTURE_ENABLED: u32 = 1 << 0;
 pub const PASTRAL_MANAGER_HEALTH_PRIVACY_POLICY_OK: u32 = 1 << 1;
 pub const PASTRAL_MANAGER_HEALTH_STORAGE_INTEGRITY_OK: u32 = 1 << 2;
+pub const PASTRAL_MANAGER_CLIP_KIND_UNAVAILABLE: u32 = 0;
+pub const PASTRAL_MANAGER_CLIP_KIND_TEXT: u32 = 1;
+pub const PASTRAL_MANAGER_CLIP_PINNED: u32 = 1 << 0;
+pub const PASTRAL_MANAGER_CLIP_UNAVAILABLE: u32 = 1 << 1;
+pub const PASTRAL_MANAGER_CLIP_PREVIEW_TRUNCATED: u32 = 1 << 2;
 
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,6 +28,7 @@ pub enum PastralManagerHealthStatus {
     InvalidArgument = 6,
     InternalError = 7,
     AbiMismatch = 8,
+    InsufficientBuffer = 9,
 }
 
 impl PastralManagerHealthStatus {
@@ -104,6 +113,99 @@ impl PastralManagerHealthResult {
             connect_us: duration_micros(snapshot.connect_elapsed()),
             handshake_us: duration_micros(snapshot.handshake_elapsed()),
             health_us: duration_micros(snapshot.health_elapsed()),
+            reserved1: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PastralManagerReadResult {
+    pub abi_version: u32,
+    pub struct_size: u32,
+    pub status: u32,
+    pub item_count: u32,
+    pub has_more: u32,
+    pub required_item_capacity: u32,
+    pub required_text_capacity: u32,
+    pub server_process_id: u32,
+    pub session_id: u32,
+    pub reserved0: u32,
+    pub connect_us: u64,
+    pub handshake_us: u64,
+    pub request_us: u64,
+}
+
+impl PastralManagerReadResult {
+    #[must_use]
+    pub const fn failed(status: PastralManagerHealthStatus) -> Self {
+        Self {
+            abi_version: PASTRAL_MANAGER_READ_ABI_VERSION,
+            struct_size: PASTRAL_MANAGER_READ_RESULT_BYTES,
+            status: status as u32,
+            item_count: 0,
+            has_more: 0,
+            required_item_capacity: 0,
+            required_text_capacity: 0,
+            server_process_id: 0,
+            session_id: 0,
+            reserved0: 0,
+            connect_us: 0,
+            handshake_us: 0,
+            request_us: 0,
+        }
+    }
+
+    #[must_use]
+    pub const fn insufficient_buffer(item_capacity: u32, text_capacity: u32) -> Self {
+        Self {
+            abi_version: PASTRAL_MANAGER_READ_ABI_VERSION,
+            struct_size: PASTRAL_MANAGER_READ_RESULT_BYTES,
+            status: PastralManagerHealthStatus::InsufficientBuffer as u32,
+            item_count: 0,
+            has_more: 0,
+            required_item_capacity: item_capacity,
+            required_text_capacity: text_capacity,
+            server_process_id: 0,
+            session_id: 0,
+            reserved0: 0,
+            connect_us: 0,
+            handshake_us: 0,
+            request_us: 0,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PastralManagerClipItem {
+    pub event_id: [u8; 16],
+    pub capture_order: u64,
+    pub observed_at_unix_micros: i64,
+    pub kind: u32,
+    pub flags: u32,
+    pub preview_offset: u32,
+    pub preview_length: u32,
+    pub source_offset: u32,
+    pub source_length: u32,
+    pub reserved0: u32,
+    pub reserved1: u32,
+}
+
+impl PastralManagerClipItem {
+    #[must_use]
+    pub const fn zeroed() -> Self {
+        Self {
+            event_id: [0; 16],
+            capture_order: 0,
+            observed_at_unix_micros: 0,
+            kind: PASTRAL_MANAGER_CLIP_KIND_UNAVAILABLE,
+            flags: 0,
+            preview_offset: 0,
+            preview_length: 0,
+            source_offset: 0,
+            source_length: 0,
+            reserved0: 0,
             reserved1: 0,
         }
     }
