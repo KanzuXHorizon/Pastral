@@ -1,15 +1,13 @@
 use core::num::{NonZeroU32, NonZeroUsize};
 use std::{io::Write, path::Path, time::Duration};
 
+use crate::health::open_storage;
+use crate::{
+    AgentCommand, AgentIdentity, AgentRuntimeError, PrivacyPolicyConfig, StorageCaptureSink,
+    SystemClock, ThreadSleeper, WindowsClipboardSource, load_health_snapshot,
+};
 use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
-use pastral_storage::Storage;
-
-use crate::{
-    AgentCommand, AgentIdentity, AgentRuntimeError, DiagnosticStoragePolicy, PrivacyPolicyConfig,
-    StorageCaptureSink, SystemClock, ThreadSleeper, WindowsClipboardSource,
-    diagnostic_storage_limits,
-};
 
 const MAX_UNICODE_TEXT_BYTES: usize = 16 * 1024 * 1024;
 const RETRY_DELAYS: [Duration; 4] = [
@@ -34,61 +32,33 @@ pub fn run_command<W: Write>(
 }
 
 fn run_health_check<W: Write>(data_root: &Path, output: &mut W) -> Result<(), AgentRuntimeError> {
-    let _identity = AgentIdentity::load_or_create(data_root)?;
-    let _privacy_policy = PrivacyPolicyConfig::load_or_create(data_root)?;
-    let storage = open_storage(data_root)?;
-    let runtime = storage
-        .runtime_info()
-        .map_err(|_| AgentRuntimeError::Storage("runtime-info"))?;
-    let integrity = storage
-        .integrity_check()
-        .map_err(|_| AgentRuntimeError::Storage("integrity-check"))?;
-    if !(integrity.sqlite_ok
-        && integrity.fts_ok
-        && integrity.metadata_ok
-        && integrity.search_mapping_ok)
-    {
-        return Err(AgentRuntimeError::IntegrityFailed);
-    }
+    let snapshot = load_health_snapshot(data_root)?;
 
     write_line(output, &format!("data-root={}", data_root.display()))?;
     write_line(output, "agent-health=ok")?;
-    write_line(output, "privacy-policy=ok")?;
     write_line(
         output,
-        &format!("storage-schema={}", runtime.schema_version),
-    )?;
-    write_line(
-        output,
-        if integrity.sqlite_ok {
-            "sqlite-integrity=ok"
+        if snapshot.privacy_policy_ok() {
+            "privacy-policy=ok"
         } else {
-            "sqlite-integrity=failed"
+            "privacy-policy=failed"
         },
     )?;
     write_line(
         output,
-        if integrity.fts_ok {
-            "fts-integrity=ok"
-        } else {
-            "fts-integrity=failed"
-        },
+        &format!("storage-schema={}", snapshot.storage_schema_version()),
     )?;
+    let integrity_marker = if snapshot.storage_integrity_ok() {
+        "ok"
+    } else {
+        "failed"
+    };
+    write_line(output, &format!("sqlite-integrity={integrity_marker}"))?;
+    write_line(output, &format!("fts-integrity={integrity_marker}"))?;
+    write_line(output, &format!("metadata-integrity={integrity_marker}"))?;
     write_line(
         output,
-        if integrity.metadata_ok {
-            "metadata-integrity=ok"
-        } else {
-            "metadata-integrity=failed"
-        },
-    )?;
-    write_line(
-        output,
-        if integrity.search_mapping_ok {
-            "search-mapping-integrity=ok"
-        } else {
-            "search-mapping-integrity=failed"
-        },
+        &format!("search-mapping-integrity={integrity_marker}"),
     )?;
     Ok(())
 }
@@ -176,15 +146,6 @@ fn capture_coordinator(identity: AgentIdentity) -> Result<CaptureCoordinator, Ag
     )
     .map_err(|_| AgentRuntimeError::CoordinatorConfiguration)?;
     CaptureCoordinator::new(config).map_err(|_| AgentRuntimeError::CoordinatorConfiguration)
-}
-
-fn open_storage(data_root: &Path) -> Result<Storage<DiagnosticStoragePolicy>, AgentRuntimeError> {
-    Storage::open(
-        data_root.join("storage"),
-        diagnostic_storage_limits(),
-        DiagnosticStoragePolicy,
-    )
-    .map_err(|_| AgentRuntimeError::Storage("open"))
 }
 
 fn reached_limit(count: usize, limit: Option<NonZeroUsize>) -> bool {

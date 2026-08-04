@@ -40,6 +40,7 @@ function Invoke-StaticVerification {
         'src\main.rs',
         'src\cli.rs',
         'src\runtime.rs',
+        'src\health.rs',
         'src\platform.rs',
         'src\privacy_config.rs',
         'src\storage_sink.rs',
@@ -72,9 +73,15 @@ function Invoke-StaticVerification {
     Assert-Contains $runtime 'Duration::from_millis\(5\)' '5 ms retry delay'
     Assert-Contains $runtime 'Duration::from_millis\(15\)' '15 ms retry delay'
     Assert-Contains $runtime 'Duration::from_millis\(35\)' '35 ms retry delay'
-    Assert-Contains $runtime 'integrity_check\(\)' 'storage integrity health check'
-    Assert-Contains $runtime 'PrivacyPolicyConfig::load_or_create' 'strict privacy policy loading'
+    Assert-Contains $runtime 'load_health_snapshot' 'shared health snapshot use'
+    Assert-Contains $runtime 'PrivacyPolicyConfig::load_or_create' 'strict privacy policy loading for capture commands'
     Assert-Contains $runtime 'privacy-policy=ok' 'privacy policy health marker'
+
+    $health = Join-Path $agentRoot 'src\health.rs'
+    Assert-Contains $health 'integrity_check\(\)' 'storage integrity health check'
+    Assert-Contains $health 'PrivacyPolicyConfig::load_or_create' 'strict privacy policy loading for Health'
+    Assert-Contains $health 'pub struct AgentHealthSnapshot' 'content-free Health snapshot type'
+    Assert-Contains $health 'storage_integrity_ok' 'Health integrity state'
     Assert-Contains $runtime 'capture-outcome=stored' 'content-free stored outcome'
     Assert-Contains $runtime 'capture-outcome=hard-denied' 'hard-deny outcome'
     Assert-Contains $runtime 'capture-outcome=policy-denied' 'source-policy outcome'

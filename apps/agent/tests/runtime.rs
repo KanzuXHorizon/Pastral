@@ -2,7 +2,7 @@
 
 use std::{fs, path::PathBuf};
 
-use pastral_agent::{AgentCommand, run_command};
+use pastral_agent::{AgentCommand, load_health_snapshot, run_command};
 use pastral_domain::ClipEventId;
 
 struct TestRoot(PathBuf);
@@ -31,6 +31,7 @@ impl Drop for TestRoot {
 #[test]
 fn health_check_reports_content_free_integrity_markers() {
     let root = TestRoot::new();
+    let snapshot = load_health_snapshot(root.path()).unwrap();
     let mut output = Vec::new();
 
     run_command(
@@ -44,11 +45,17 @@ fn health_check_reports_content_free_integrity_markers() {
     let output = String::from_utf8(output).unwrap();
     assert!(output.contains("agent-health=ok"));
     assert!(output.contains("privacy-policy=ok"));
-    assert!(output.contains("storage-schema=1"));
+    assert!(output.contains(&format!(
+        "storage-schema={}",
+        snapshot.storage_schema_version()
+    )));
     assert!(output.contains("sqlite-integrity=ok"));
     assert!(output.contains("fts-integrity=ok"));
     assert!(output.contains("metadata-integrity=ok"));
     assert!(output.contains("search-mapping-integrity=ok"));
+    assert!(!snapshot.capture_enabled());
+    assert!(snapshot.privacy_policy_ok());
+    assert!(snapshot.storage_integrity_ok());
     assert!(!output.to_ascii_lowercase().contains("clipboard-text"));
     assert!(!output.to_ascii_lowercase().contains("content-hash"));
     assert!(root.path().join("agent-identity.txt").is_file());
