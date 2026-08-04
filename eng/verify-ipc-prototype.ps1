@@ -9,6 +9,7 @@ Set-StrictMode -Version 2.0
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $protoPath = Join-Path $repositoryRoot 'protocols\ipc-schema\pastral_ipc_v1.proto'
+$expectedSchemaSha256 = '2029ac9b19f7eb1644a2c12b3cd570586af9b62c40e130558b63c376676e3077'
 $ipcCoreRoot = Join-Path $repositoryRoot 'crates\ipc-core'
 $ipcSchemaRoot = Join-Path $repositoryRoot 'crates\ipc-schema'
 $probeRoot = Join-Path $repositoryRoot 'apps\ipc-probe'
@@ -207,6 +208,9 @@ function Invoke-ProbeVerification {
     $schemaDigest = Require-Metric $metrics 'schema-sha256'
     if ($schemaDigest -notmatch '^[0-9a-f]{64}$') {
         Fail 'IPC probe schema digest is not lowercase SHA-256'
+    }
+    if ($schemaDigest -ne $expectedSchemaSha256) {
+        Fail "IPC probe schema digest drifted: expected $expectedSchemaSha256, received $schemaDigest"
     }
     if ([uint32](Require-Metric $metrics 'iterations') -ne 10000) {
         Fail 'IPC probe iteration count is incorrect'
