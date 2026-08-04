@@ -13,5 +13,5 @@ pub use child::run_baseline_child;
 pub use cli::{AdmissionMode, parse_arguments};
 pub use error::AdmissionError;
 pub use metrics::{FootprintMetrics, calculate_footprint, enforce_footprint, evaluate_footprint};
-pub use parent::run_parent;
-pub use server::run_server_child;
+pub use parent::{run_parent, run_read_parent};
+pub use server::{run_read_server_child, run_server_child};

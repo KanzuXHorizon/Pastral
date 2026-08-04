@@ -8,10 +8,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use pastral_ipc_core::{CorrelationId, FrameLimits, HealthRequestDto, RequestDto, ResponseDto};
+use pastral_ipc_core::{
+    Capability, CorrelationId, FrameLimits, HealthRequestDto, HistoryPageRequestDto, RequestDto,
+    ResponseDto, SearchRequestDto,
+};
 use pastral_ipc_schema::{decode_response, encode_request};
 use pastral_ipc_win::{
-    PipeFrameStream, client_handshake, current_token_identity, derive_pipe_name,
+    PipeFrameStream, PipeName, TransportMaterial, client_handshake,
+    client_handshake_with_capabilities, current_token_identity, derive_pipe_name,
     load_or_create_transport_material, open_pipe_client, process_memory_snapshot, random_bytes,
 };
 
@@ -19,6 +23,7 @@ use crate::{AdmissionError, calculate_footprint, enforce_footprint, protocol::co
 
 const BASELINE_CHILD_FLAG: &str = "--baseline-child";
 const SERVER_CHILD_FLAG: &str = "--server-child";
+const READ_SERVER_CHILD_FLAG: &str = "--read-server-child";
 const DATA_ROOT_FLAG: &str = "--data-root";
 const BASELINE_READINESS_LINE: &str = "agent-baseline-ready=ok\n";
 const SERVER_READINESS_LINE: &str = "agent-ipc-ready=1\n";
@@ -26,6 +31,11 @@ const READINESS_TIMEOUT: Duration = Duration::from_secs(5);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(2);
 const MAX_READINESS_BYTES: usize = 64;
+const READ_CAPABILITIES: [Capability; 3] = [
+    Capability::Health,
+    Capability::HistoryPage,
+    Capability::Search,
+];
 
 struct TemporaryRoot(PathBuf);
 
@@ -307,6 +317,138 @@ pub fn run_parent<W: Write>(mut output: W) -> Result<(), AdmissionError> {
     writeln!(output, "total-us={}", total_elapsed.as_micros())
         .map_err(|error| AdmissionError::io("write total metric", &error))?;
     Ok(())
+}
+
+pub fn run_read_parent<W: Write>(mut output: W) -> Result<(), AdmissionError> {
+    let root = TemporaryRoot::create()?;
+    let material =
+        load_or_create_transport_material(root.path()).map_err(|_| AdmissionError::Material)?;
+    let current = current_token_identity().map_err(|_| AdmissionError::Transport)?;
+    let name = derive_pipe_name(material.identity(), current.session_id())
+        .map_err(|_| AdmissionError::Material)?;
+    let executable = env::current_exe().map_err(|_| AdmissionError::Process)?;
+
+    let mut server = ChildGuard::spawn(
+        &executable,
+        READ_SERVER_CHILD_FLAG,
+        root.path(),
+        Stdio::null(),
+    )?;
+    let server_process_id = server.id()?;
+    wait_for_readiness(
+        server.child_mut()?,
+        SERVER_READINESS_LINE,
+        READINESS_TIMEOUT,
+    )?;
+
+    match read_request(
+        &name,
+        &material,
+        server_process_id,
+        RequestDto::Health(HealthRequestDto),
+    )? {
+        ResponseDto::Health(value)
+            if value.storage_schema_version() > 0
+                && !value.capture_enabled()
+                && value.privacy_policy_ok()
+                && value.storage_integrity_ok() => {}
+        _ => return Err(AdmissionError::Protocol),
+    }
+
+    let history = HistoryPageRequestDto::new(10, None).map_err(|_| AdmissionError::Protocol)?;
+    match read_request(
+        &name,
+        &material,
+        server_process_id,
+        RequestDto::HistoryPage(history),
+    )? {
+        ResponseDto::HistoryPage(value) if value.items().is_empty() && !value.has_more() => {}
+        _ => return Err(AdmissionError::Protocol),
+    }
+
+    let search =
+        SearchRequestDto::new("read probe".to_owned(), 10).map_err(|_| AdmissionError::Protocol)?;
+    match read_request(
+        &name,
+        &material,
+        server_process_id,
+        RequestDto::Search(search),
+    )? {
+        ResponseDto::Search(value) if value.items().is_empty() && !value.has_more() => {}
+        _ => return Err(AdmissionError::Protocol),
+    }
+
+    let server_output = server.wait_with_output()?;
+    if !server_output.status.success()
+        || !server_output.stdout.is_empty()
+        || !server_output.stderr.is_empty()
+    {
+        return Err(AdmissionError::ChildFailure);
+    }
+
+    let session_id = current.session_id();
+    root.cleanup()?;
+    writeln!(output, "agent-ipc-read=ok")
+        .map_err(|error| AdmissionError::io("write read result", &error))?;
+    writeln!(output, "cross-process=true")
+        .map_err(|error| AdmissionError::io("write read result", &error))?;
+    writeln!(output, "health=ok")
+        .map_err(|error| AdmissionError::io("write read result", &error))?;
+    writeln!(output, "history=ok")
+        .map_err(|error| AdmissionError::io("write read result", &error))?;
+    writeln!(output, "search=ok")
+        .map_err(|error| AdmissionError::io("write read result", &error))?;
+    writeln!(output, "client-pid={}", std::process::id())
+        .map_err(|error| AdmissionError::io("write read client PID", &error))?;
+    writeln!(output, "server-pid={server_process_id}")
+        .map_err(|error| AdmissionError::io("write read server PID", &error))?;
+    writeln!(output, "session-id={session_id}")
+        .map_err(|error| AdmissionError::io("write read session ID", &error))?;
+    Ok(())
+}
+
+fn read_request(
+    name: &PipeName,
+    material: &TransportMaterial,
+    expected_server_process_id: u32,
+    request: RequestDto,
+) -> Result<ResponseDto, AdmissionError> {
+    let deadline = Instant::now() + CONNECT_TIMEOUT;
+    let client = open_pipe_client(name, deadline).map_err(|_| AdmissionError::Transport)?;
+    let peer = client
+        .peer_identity()
+        .map_err(|_| AdmissionError::Transport)?;
+    if peer.process_id() != expected_server_process_id {
+        return Err(AdmissionError::Protocol);
+    }
+    let stream = PipeFrameStream::from_client(client, FrameLimits::default());
+    let authenticated = client_handshake_with_capabilities(
+        stream,
+        material,
+        peer,
+        &READ_CAPABILITIES,
+        Instant::now() + OPERATION_TIMEOUT,
+    )
+    .map_err(|_| AdmissionError::Authentication)?;
+    if authenticated.capabilities() != READ_CAPABILITIES {
+        return Err(AdmissionError::Protocol);
+    }
+    let mut stream = authenticated.into_stream();
+    let correlation = CorrelationId::new_v4();
+    let body = encode_request(&request).map_err(|_| AdmissionError::Protocol)?;
+    stream
+        .write_frame(
+            &control_frame(body, correlation)?,
+            Instant::now() + OPERATION_TIMEOUT,
+        )
+        .map_err(|_| AdmissionError::Transport)?;
+    let response = stream
+        .read_frame(Instant::now() + OPERATION_TIMEOUT)
+        .map_err(|_| AdmissionError::Transport)?;
+    if response.header().correlation() != correlation {
+        return Err(AdmissionError::Protocol);
+    }
+    decode_response(response.body()).map_err(|_| AdmissionError::Protocol)
 }
 
 fn wait_for_readiness(

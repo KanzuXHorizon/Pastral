@@ -2,7 +2,7 @@ use std::{env, io, process::ExitCode};
 
 use pastral_agent_ipc_probe::{
     AdmissionError, AdmissionMode, parse_arguments, run_baseline_child, run_parent,
-    run_server_child,
+    run_read_parent, run_read_server_child, run_server_child,
 };
 
 fn main() -> ExitCode {
@@ -19,6 +19,10 @@ fn main() -> ExitCode {
             let stdout = io::stdout();
             run_parent(stdout.lock())
         }
+        AdmissionMode::ReadParent => {
+            let stdout = io::stdout();
+            run_read_parent(stdout.lock())
+        }
         AdmissionMode::BaselineChild { data_root } => {
             let stdin = io::stdin();
             let stdout = io::stdout();
@@ -27,6 +31,10 @@ fn main() -> ExitCode {
         AdmissionMode::ServerChild { data_root } => {
             let stdout = io::stdout();
             run_server_child(&data_root, stdout.lock())
+        }
+        AdmissionMode::ReadServerChild { data_root } => {
+            let stdout = io::stdout();
+            run_read_server_child(&data_root, stdout.lock())
         }
     };
 

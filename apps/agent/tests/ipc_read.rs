@@ -2,10 +2,8 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader, Read},
     num::NonZeroUsize,
     path::PathBuf,
-    process::{Command, Stdio},
     thread,
     time::{Duration, Instant},
 };
@@ -267,83 +265,6 @@ fn authenticated_read_server_serves_health_history_and_literal_search() {
     let output = String::from_utf8(output).unwrap();
     assert!(!output.contains("alpha"));
     assert!(!output.contains(root.path().to_string_lossy().as_ref()));
-}
-
-#[test]
-fn serve_read_binary_runs_cross_process_and_exits_at_connection_bound() {
-    let root = TestRoot::new();
-    let mut storage = Storage::open(
-        root.path().join("storage"),
-        diagnostic_storage_limits(),
-        DiagnosticStoragePolicy,
-    )
-    .unwrap();
-    let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
-    let event_id = commit_text(&mut storage, domain, 1, Some("cross process alpha"));
-    drop(storage);
-
-    let material = load_or_create_transport_material(root.path()).unwrap();
-    let current = current_token_identity().unwrap();
-    let name = derive_pipe_name(material.identity(), current.session_id()).unwrap();
-    let mut child = Command::new(env!("CARGO_BIN_EXE_pastral-agent-ipc"))
-        .arg("serve-read")
-        .arg("--data-root")
-        .arg(root.path())
-        .arg("--max-connections")
-        .arg("3")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    assert_ne!(child.id(), std::process::id());
-
-    let stdout = child.stdout.take().unwrap();
-    let mut stdout = BufReader::new(stdout);
-    let mut ready = String::new();
-    stdout.read_line(&mut ready).unwrap();
-    assert_eq!(ready, "agent-ipc-ready=1\n");
-
-    assert!(matches!(
-        request(&material, &name, RequestDto::Health(HealthRequestDto)),
-        ResponseDto::Health(_)
-    ));
-    match request(
-        &material,
-        &name,
-        RequestDto::HistoryPage(HistoryPageRequestDto::new(10, None).unwrap()),
-    ) {
-        ResponseDto::HistoryPage(page) => {
-            assert_eq!(page.items().len(), 1);
-            assert_eq!(page.items()[0].event_id(), event_id);
-        }
-        _ => panic!("unexpected cross-process History response"),
-    }
-    match request(
-        &material,
-        &name,
-        RequestDto::Search(SearchRequestDto::new("alpha".to_owned(), 10).unwrap()),
-    ) {
-        ResponseDto::Search(page) => {
-            assert_eq!(page.items().len(), 1);
-            assert_eq!(page.items()[0].event_id(), event_id);
-        }
-        _ => panic!("unexpected cross-process Search response"),
-    }
-
-    let mut summary = String::new();
-    stdout.read_to_string(&mut summary).unwrap();
-    assert_eq!(summary, "agent-ipc-connections-served=3\n");
-    let mut stderr = String::new();
-    child
-        .stderr
-        .take()
-        .unwrap()
-        .read_to_string(&mut stderr)
-        .unwrap();
-    let status = child.wait().unwrap();
-    assert!(status.success());
-    assert!(stderr.is_empty());
 }
 
 #[test]

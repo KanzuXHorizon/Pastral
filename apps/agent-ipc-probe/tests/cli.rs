@@ -5,10 +5,14 @@ use std::ffi::OsString;
 use pastral_agent_ipc_probe::{AdmissionError, AdmissionMode, parse_arguments};
 
 #[test]
-fn accepts_only_parent_baseline_child_and_server_child_shapes() {
+fn accepts_only_parent_read_parent_and_exact_child_shapes() {
     assert_eq!(
         parse_arguments(Vec::<OsString>::new()).unwrap(),
         AdmissionMode::Parent
+    );
+    assert_eq!(
+        parse_arguments(["--read-probe".into()]).unwrap(),
+        AdmissionMode::ReadParent
     );
     assert_eq!(
         parse_arguments([
@@ -30,6 +34,17 @@ fn accepts_only_parent_baseline_child_and_server_child_shapes() {
         .unwrap(),
         AdmissionMode::ServerChild {
             data_root: "C:\\temp\\server".into(),
+        }
+    );
+    assert_eq!(
+        parse_arguments([
+            "--read-server-child".into(),
+            "--data-root".into(),
+            "C:\\temp\\read-server".into(),
+        ])
+        .unwrap(),
+        AdmissionMode::ReadServerChild {
+            data_root: "C:\\temp\\read-server".into(),
         }
     );
 }
