@@ -1,7 +1,9 @@
 use core::num::{NonZeroU32, NonZeroUsize};
 use std::{io::Write, path::Path, time::Duration};
 
-use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
+use pastral_agent_core::{
+    CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence, SourceAdmissionPolicy,
+};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
 use pastral_storage::Storage;
 
@@ -96,7 +98,7 @@ fn run_capture_current<W: Write>(
 ) -> Result<(), AgentRuntimeError> {
     let identity = AgentIdentity::load_or_create(data_root)?;
     let mut coordinator = capture_coordinator(identity)?;
-    let mut source = WindowsClipboardSource;
+    let mut source = WindowsClipboardSource::new(default_source_policy()?);
     let mut sink = StorageCaptureSink::new(open_storage(data_root)?);
     let mut clock = SystemClock;
     let mut sleeper = ThreadSleeper;
@@ -114,7 +116,7 @@ fn run_listener<W: Write>(
 ) -> Result<(), AgentRuntimeError> {
     let identity = AgentIdentity::load_or_create(data_root)?;
     let mut coordinator = capture_coordinator(identity)?;
-    let mut source = WindowsClipboardSource;
+    let mut source = WindowsClipboardSource::new(default_source_policy()?);
     let mut sink = StorageCaptureSink::new(open_storage(data_root)?);
     let mut clock = SystemClock;
     let mut sleeper = ThreadSleeper;
@@ -158,6 +160,19 @@ fn run_listener<W: Write>(
     listener
         .stop()
         .map_err(|_| AgentRuntimeError::Clipboard("listener-stop"))
+}
+
+fn default_source_policy() -> Result<SourceAdmissionPolicy, AgentRuntimeError> {
+    SourceAdmissionPolicy::new(
+        true,
+        [
+            "1password.exe",
+            "bitwarden.exe",
+            "keepass.exe",
+            "keepassxc.exe",
+        ],
+    )
+    .map_err(|_| AgentRuntimeError::CoordinatorConfiguration)
 }
 
 fn capture_coordinator(identity: AgentIdentity) -> Result<CaptureCoordinator, AgentRuntimeError> {

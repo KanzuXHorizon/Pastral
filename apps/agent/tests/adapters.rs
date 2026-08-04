@@ -6,7 +6,8 @@ use pastral_agent::{
     AgentIdentity, DiagnosticStoragePolicy, StorageCaptureSink, diagnostic_storage_limits,
 };
 use pastral_agent_core::{
-    CaptureSink, CaptureSinkOutcome, CapturedText, StoredCapture, TextCaptureRequest,
+    CaptureSink, CaptureSinkOutcome, CapturedText, MAX_SECRET_SCAN_BYTES, StoredCapture,
+    TextCaptureRequest,
 };
 use pastral_domain::{ClipEventId, ClipboardFormatIdentity, StandardFormatId, UtcUnixMicros};
 use pastral_storage::Storage;
@@ -139,4 +140,44 @@ fn storage_sink_persists_exact_text_and_assigns_order() {
     let hits = sink.storage().search("alpha", 10).unwrap();
     assert_eq!(hits.len(), 1);
     assert_eq!(hits[0].clip_event_id(), first.clip_event_id());
+}
+
+#[test]
+fn sensitive_private_key_and_detector_overflow_create_audit_only() {
+    let root = TestRoot::new();
+    let identity = AgentIdentity::load_or_create(root.path()).unwrap();
+    let storage = Storage::open(
+        root.path().join("storage"),
+        diagnostic_storage_limits(),
+        DiagnosticStoragePolicy,
+    )
+    .unwrap();
+    let mut sink = StorageCaptureSink::new(storage);
+    let marker = concat!("-----BEGIN ", "PRIVATE KEY-----");
+
+    let private_key_outcome = sink
+        .store_text(TextCaptureRequest::new(
+            UtcUnixMicros::new(1_700_000_000_000_010).unwrap(),
+            identity.profile_id(),
+            identity.protection_domain(),
+            CapturedText::new(marker.to_owned(), encoded(marker)).unwrap(),
+        ))
+        .unwrap();
+    assert_eq!(private_key_outcome, CaptureSinkOutcome::SensitiveSkipped);
+    assert_eq!(sink.storage().capture_audit_event_count().unwrap(), 1);
+    assert!(sink.storage().search("BEGIN", 10).unwrap().is_empty());
+
+    let oversized_text = "x".repeat(MAX_SECRET_SCAN_BYTES + 1);
+    let oversized_outcome = sink
+        .store_text(TextCaptureRequest::new(
+            UtcUnixMicros::new(1_700_000_000_000_011).unwrap(),
+            identity.profile_id(),
+            identity.protection_domain(),
+            CapturedText::new(oversized_text.clone(), encoded(&oversized_text)).unwrap(),
+        ))
+        .unwrap();
+    assert_eq!(oversized_outcome, CaptureSinkOutcome::SensitiveSkipped);
+    assert_eq!(sink.storage().capture_audit_event_count().unwrap(), 2);
+    assert!(sink.storage().search("xxxxx", 10).unwrap().is_empty());
+    assert!(sink.storage().integrity_check().unwrap().metadata_ok);
 }

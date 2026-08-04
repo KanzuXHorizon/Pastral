@@ -1,9 +1,11 @@
 use pastral_agent_core::{
     CaptureSink, CaptureSinkError, CaptureSinkOutcome, StoredCapture, TextCaptureRequest,
+    detect_high_confidence_secret,
 };
 use pastral_domain::{
-    ClipEventId, ClipRepresentation, ClipRepresentationId, ClipboardFormatIdentity, Fidelity,
-    RawDigest, StandardFormatId,
+    AuditResultCode, CaptureAuditEvent, CaptureAuditEventId, CaptureAuditKind, ClipEventId,
+    ClipRepresentation, ClipRepresentationId, ClipboardFormatIdentity, Fidelity, RawDigest,
+    StandardFormatId,
 };
 use pastral_storage::{
     BlobPlacement, BlobPlacementContext, BlobPlacementPolicy, NewClipCommit, RepresentationPayload,
@@ -73,6 +75,21 @@ impl<P: BlobPlacementPolicy> CaptureSink for StorageCaptureSink<P> {
         &mut self,
         request: TextCaptureRequest,
     ) -> Result<CaptureSinkOutcome, CaptureSinkError> {
+        if detect_high_confidence_secret(request.captured_text().text()).is_some() {
+            let audit = CaptureAuditEvent::new(
+                CaptureAuditEventId::new_v4(),
+                CaptureAuditKind::SensitiveItemSkipped,
+                request.observed_at(),
+                None,
+                request.profile_id(),
+                AuditResultCode::Skipped,
+            );
+            self.storage
+                .insert_audit_event(audit)
+                .map_err(|_| CaptureSinkError::StorageFailure)?;
+            return Ok(CaptureSinkOutcome::SensitiveSkipped);
+        }
+
         let event_id = ClipEventId::new_v4();
         let representation_id = ClipRepresentationId::new_v4();
         let protection_domain = request.protection_domain();

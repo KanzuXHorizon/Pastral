@@ -624,6 +624,15 @@ impl<P: BlobPlacementPolicy> Storage<P> {
         .map(Some)
     }
 
+    pub fn capture_audit_event_count(&self) -> Result<u64, StorageError> {
+        let count: i64 =
+            self.connection
+                .query_row("SELECT count(*) FROM capture_audit_events", [], |row| {
+                    row.get(0)
+                })?;
+        u64::try_from(count).map_err(|_| StorageError::IntegerOutOfRange("audit event count"))
+    }
+
     pub fn insert_audit_event(&mut self, event: CaptureAuditEvent) -> Result<(), StorageError> {
         let capture_order = event
             .capture_order()
