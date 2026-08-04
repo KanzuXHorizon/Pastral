@@ -1,0 +1,67 @@
+name: Feature request
+description: Propose a focused Pastral capability or workflow improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Pastral prioritizes local ownership, privacy, native Windows behavior, accessibility, and measured performance. Describe the user problem before proposing implementation details.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is affected, what are they trying to do, and what currently prevents success?
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe observable behavior and acceptance criteria.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Product area
+      options:
+        - Native manager
+        - Quick Paste or overlay
+        - Clipboard formats and fidelity
+        - Search and organization
+        - Profiles, rules, and privacy
+        - Paste and replay
+        - Storage and retention
+        - Accessibility and localization
+        - Packaging, installer, and updates
+        - Developer experience or CI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Privacy, security, and compatibility constraints
+      description: Note sensitive-data behavior, network implications, Windows requirements, migration needs, or failure states.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or simpler approaches.
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Project principles
+      options:
+        - label: The request does not require clipboard polling, mandatory cloud access, or fabricated capabilities.
+          required: true
+        - label: I have not included real clipboard content, secrets, credentials, or private user data.
+          required: true

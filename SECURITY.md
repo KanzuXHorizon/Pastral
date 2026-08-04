@@ -10,7 +10,7 @@ After the first release, this file will list supported release lines, security-u
 
 Do not open a public issue for a vulnerability or attach clipboard data, databases, blobs, keys, logs, dumps, screenshots, or private paths to a public report.
 
-Until repository hosting is configured, report privately to the project owner through the same private channel used to receive this repository. After hosting is configured, use the repository host's private security-advisory mechanism. A dedicated security contact may be added only after it is active and monitored.
+Use GitHub private vulnerability reporting from the repository **Security** tab. This creates a private advisory visible only to the reporter and repository maintainers. A dedicated security email is not published until it is active and monitored.
 
 Include, using synthetic data:
 

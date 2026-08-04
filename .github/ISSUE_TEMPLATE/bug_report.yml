@@ -1,0 +1,87 @@
+name: Bug report
+description: Report a reproducible Pastral defect using synthetic data only
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include real clipboard history, passwords, tokens, private keys, personal paths, databases, dumps, or screenshots containing private data. Security vulnerabilities must use GitHub private vulnerability reporting instead of a public issue.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the defect and its user-visible impact.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe the exact expected result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic data and include the smallest reliable sequence.
+      placeholder: |
+        1. Start...
+        2. Open...
+        3. Observe...
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      placeholder: e.g. cb8a560
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows build and architecture
+      placeholder: e.g. Windows 11 24H2 build 26100, x64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Native manager UI
+        - Clipboard capture
+        - Privacy admission
+        - Storage and search
+        - IPC and authentication
+        - Agent lifecycle
+        - Build or CI
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Synthetic evidence
+      description: Add sanitized logs, screenshots, or fixture details. Explain how private data was excluded.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I used synthetic data and removed secrets, personal clipboard content, private paths, dumps, and credentials.
+          required: true
+        - label: This is not a security vulnerability requiring private disclosure.
+          required: true

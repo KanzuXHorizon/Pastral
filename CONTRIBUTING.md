@@ -4,7 +4,9 @@ Pastral handles sensitive, untrusted clipboard data and runs continuously in the
 
 ## Current phase
 
-The repository is in Phase 0. Do not add feature code, dependencies, package identities, public registries, signing configuration, network integrations, or generated brand assets until the relevant design/implementation plan is approved.
+The repository is in Phase 3G. The Rust foundation, diagnostic agent, authenticated IPC transport, manager Health bridge, and native WinUI manager shell exist, but Pastral is still an engineering preview rather than released software.
+
+Do not add new product behavior, dependencies, package identities, public registries, signing configuration, network integrations, or generated release assets without an accepted design and implementation plan. Keep unsupported capabilities visibly unavailable rather than fabricating live History, Search, Paste, encryption, Private-profile, packaging, or update behavior.
 
 ## Before changing behavior
 
