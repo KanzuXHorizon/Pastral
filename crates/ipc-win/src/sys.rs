@@ -3,8 +3,11 @@ use std::{os::windows::ffi::OsStrExt, path::Path};
 
 use windows_sys::Win32::{
     Foundation::{
-        CloseHandle, ERROR_ALREADY_EXISTS, ERROR_FILE_EXISTS, ERROR_INSUFFICIENT_BUFFER,
-        GetLastError, HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree,
+        CloseHandle, ERROR_ALREADY_EXISTS, ERROR_BROKEN_PIPE, ERROR_FILE_EXISTS,
+        ERROR_FILE_NOT_FOUND, ERROR_INSUFFICIENT_BUFFER, ERROR_IO_PENDING, ERROR_NO_DATA,
+        ERROR_NOT_FOUND, ERROR_OPERATION_ABORTED, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED,
+        ERROR_PIPE_NOT_CONNECTED, ERROR_SEM_TIMEOUT, GENERIC_READ, GENERIC_WRITE, GetLastError,
+        HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree, WAIT_TIMEOUT,
     },
     Security::Authorization::{
         ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
@@ -23,17 +26,22 @@ use windows_sys::Win32::{
         TokenIntegrityLevel, TokenSessionId, TokenUser,
     },
     Storage::FileSystem::{
-        FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, MOVEFILE_WRITE_THROUGH, MoveFileExW,
-        PIPE_ACCESS_DUPLEX,
+        CreateFileW, FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, MOVEFILE_WRITE_THROUGH,
+        MoveFileExW, OPEN_EXISTING, PIPE_ACCESS_DUPLEX, ReadFile, SECURITY_IDENTIFICATION,
+        SECURITY_SQOS_PRESENT, WriteFile,
     },
     System::{
+        IO::{CancelIoEx, GetOverlappedResultEx, OVERLAPPED},
         Pipes::{
-            CreateNamedPipeW, PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE,
-            PIPE_WAIT,
+            ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeClientProcessId,
+            GetNamedPipeClientSessionId, GetNamedPipeServerProcessId, GetNamedPipeServerSessionId,
+            PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
+            SetNamedPipeHandleState, WaitNamedPipeW,
         },
         SystemServices::{ACCESS_ALLOWED_ACE_TYPE, SE_GROUP_ENABLED, SE_GROUP_LOGON_ID},
         Threading::{
-            GetCurrentProcessId, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
+            CreateEventW, GetCurrentProcessId, OpenProcess, OpenProcessToken,
+            PROCESS_QUERY_LIMITED_INFORMATION,
         },
     },
 };
@@ -219,6 +227,12 @@ pub(crate) struct RawSecurityInspection {
 
 pub(crate) struct OwnedPipeHandle(HANDLE);
 
+impl OwnedPipeHandle {
+    pub(crate) fn raw(&self) -> HANDLE {
+        self.0
+    }
+}
+
 impl Drop for OwnedPipeHandle {
     fn drop(&mut self) {
         if !self.0.is_null() && self.0 != INVALID_HANDLE_VALUE {
@@ -361,6 +375,263 @@ pub(crate) fn create_first_named_pipe(
         return Err(last_error("CreateNamedPipeW"));
     }
     Ok(OwnedPipeHandle(handle))
+}
+
+pub(crate) fn wait_named_pipe(name: &[u16], timeout_ms: u32) -> Result<bool, TransportError> {
+    if name.is_empty() || name.last() != Some(&0) {
+        return Err(TransportError::InvalidPipeName(
+            "pipe name must be NUL terminated",
+        ));
+    }
+    let success = unsafe { WaitNamedPipeW(name.as_ptr(), timeout_ms) };
+    if success != 0 {
+        return Ok(true);
+    }
+    match unsafe { GetLastError() } {
+        ERROR_SEM_TIMEOUT | ERROR_FILE_NOT_FOUND | ERROR_PIPE_BUSY => Ok(false),
+        code => Err(TransportError::Windows {
+            operation: "WaitNamedPipeW",
+            code,
+        }),
+    }
+}
+
+pub(crate) fn open_named_pipe_client(
+    name: &[u16],
+) -> Result<Option<OwnedPipeHandle>, TransportError> {
+    let handle = unsafe {
+        CreateFileW(
+            name.as_ptr(),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_OVERLAPPED | SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
+            ptr::null_mut(),
+        )
+    };
+    if handle == INVALID_HANDLE_VALUE || handle.is_null() {
+        return match unsafe { GetLastError() } {
+            ERROR_FILE_NOT_FOUND | ERROR_PIPE_BUSY => Ok(None),
+            code => Err(TransportError::Windows {
+                operation: "CreateFileW named pipe client",
+                code,
+            }),
+        };
+    }
+    let owned = OwnedPipeHandle(handle);
+    let mode = PIPE_READMODE_BYTE;
+    if unsafe { SetNamedPipeHandleState(owned.raw(), &mode, ptr::null(), ptr::null()) } == 0 {
+        return Err(last_error("SetNamedPipeHandleState"));
+    }
+    Ok(Some(owned))
+}
+
+pub(crate) fn connect_named_pipe(
+    handle: &OwnedPipeHandle,
+    timeout_ms: u32,
+) -> Result<(), TransportError> {
+    let event = create_manual_reset_event()?;
+    let mut overlapped = OVERLAPPED {
+        hEvent: event.raw(),
+        ..Default::default()
+    };
+    let success = unsafe { ConnectNamedPipe(handle.raw(), &mut overlapped) };
+    if success != 0 {
+        return Ok(());
+    }
+    match unsafe { GetLastError() } {
+        ERROR_PIPE_CONNECTED => Ok(()),
+        ERROR_IO_PENDING => {
+            wait_overlapped(
+                handle.raw(),
+                &mut overlapped,
+                timeout_ms,
+                "connect named pipe",
+            )?;
+            Ok(())
+        }
+        code => Err(TransportError::Windows {
+            operation: "ConnectNamedPipe",
+            code,
+        }),
+    }
+}
+
+pub(crate) fn read_pipe(
+    handle: &OwnedPipeHandle,
+    buffer: &mut [u8],
+    timeout_ms: u32,
+) -> Result<usize, TransportError> {
+    if buffer.is_empty() {
+        return Ok(0);
+    }
+    let event = create_manual_reset_event()?;
+    let mut overlapped = OVERLAPPED {
+        hEvent: event.raw(),
+        ..Default::default()
+    };
+    let requested = u32::try_from(buffer.len())
+        .map_err(|_| TransportError::SizeLimit("pipe read exceeds u32"))?;
+    let success = unsafe {
+        ReadFile(
+            handle.raw(),
+            buffer.as_mut_ptr(),
+            requested,
+            ptr::null_mut(),
+            &mut overlapped,
+        )
+    };
+    if success == 0 {
+        match unsafe { GetLastError() } {
+            ERROR_IO_PENDING => {}
+            ERROR_BROKEN_PIPE | ERROR_PIPE_NOT_CONNECTED | ERROR_NO_DATA => {
+                return Err(TransportError::Disconnected);
+            }
+            _ => return Err(last_error("ReadFile")),
+        }
+    }
+    let transferred = wait_overlapped(handle.raw(), &mut overlapped, timeout_ms, "ReadFile")?;
+    if transferred == 0 {
+        return Err(TransportError::Disconnected);
+    }
+    usize::try_from(transferred)
+        .map_err(|_| TransportError::SizeLimit("pipe read result exceeds usize"))
+}
+
+pub(crate) fn write_pipe(
+    handle: &OwnedPipeHandle,
+    buffer: &[u8],
+    timeout_ms: u32,
+) -> Result<usize, TransportError> {
+    if buffer.is_empty() {
+        return Ok(0);
+    }
+    let event = create_manual_reset_event()?;
+    let mut overlapped = OVERLAPPED {
+        hEvent: event.raw(),
+        ..Default::default()
+    };
+    let requested = u32::try_from(buffer.len())
+        .map_err(|_| TransportError::SizeLimit("pipe write exceeds u32"))?;
+    let success = unsafe {
+        WriteFile(
+            handle.raw(),
+            buffer.as_ptr(),
+            requested,
+            ptr::null_mut(),
+            &mut overlapped,
+        )
+    };
+    if success == 0 && unsafe { GetLastError() } != ERROR_IO_PENDING {
+        return Err(last_error("WriteFile"));
+    }
+    let transferred = wait_overlapped(handle.raw(), &mut overlapped, timeout_ms, "WriteFile")?;
+    usize::try_from(transferred)
+        .map_err(|_| TransportError::SizeLimit("pipe write result exceeds usize"))
+}
+
+pub(crate) fn named_pipe_client_endpoint(
+    handle: &OwnedPipeHandle,
+) -> Result<(u32, u32), TransportError> {
+    endpoint_identity(
+        handle,
+        GetNamedPipeClientProcessId,
+        GetNamedPipeClientSessionId,
+        "named-pipe client identity",
+    )
+}
+
+pub(crate) fn named_pipe_server_endpoint(
+    handle: &OwnedPipeHandle,
+) -> Result<(u32, u32), TransportError> {
+    endpoint_identity(
+        handle,
+        GetNamedPipeServerProcessId,
+        GetNamedPipeServerSessionId,
+        "named-pipe server identity",
+    )
+}
+
+type PipeEndpointQuery = unsafe extern "system" fn(HANDLE, *mut u32) -> i32;
+
+fn endpoint_identity(
+    handle: &OwnedPipeHandle,
+    process_query: PipeEndpointQuery,
+    session_query: PipeEndpointQuery,
+    operation: &'static str,
+) -> Result<(u32, u32), TransportError> {
+    let mut process_id = 0u32;
+    if unsafe { process_query(handle.raw(), &mut process_id) } == 0 {
+        return Err(last_error(operation));
+    }
+    let mut session_id = 0u32;
+    if unsafe { session_query(handle.raw(), &mut session_id) } == 0 {
+        return Err(last_error(operation));
+    }
+    if process_id == 0 {
+        return Err(TransportError::InvalidTokenIdentity(
+            "named-pipe peer PID is zero",
+        ));
+    }
+    Ok((process_id, session_id))
+}
+
+fn create_manual_reset_event() -> Result<OwnedHandle, TransportError> {
+    let event = unsafe { CreateEventW(ptr::null(), 1, 0, ptr::null()) };
+    OwnedHandle::new(event, "CreateEventW")
+}
+
+fn wait_overlapped(
+    handle: HANDLE,
+    overlapped: &mut OVERLAPPED,
+    timeout_ms: u32,
+    operation: &'static str,
+) -> Result<u32, TransportError> {
+    let mut transferred = 0u32;
+    let success =
+        unsafe { GetOverlappedResultEx(handle, overlapped, &mut transferred, timeout_ms, 0) };
+    if success != 0 {
+        return Ok(transferred);
+    }
+    let error = unsafe { GetLastError() };
+    if matches!(
+        error,
+        ERROR_BROKEN_PIPE | ERROR_PIPE_NOT_CONNECTED | ERROR_NO_DATA
+    ) {
+        return Err(TransportError::Disconnected);
+    }
+    if error != WAIT_TIMEOUT {
+        return Err(TransportError::Windows {
+            operation,
+            code: error,
+        });
+    }
+
+    let cancelled = unsafe { CancelIoEx(handle, overlapped) };
+    if cancelled == 0 {
+        let cancel_error = unsafe { GetLastError() };
+        if cancel_error != ERROR_NOT_FOUND {
+            return Err(TransportError::Windows {
+                operation: "CancelIoEx",
+                code: cancel_error,
+            });
+        }
+    }
+
+    let drained =
+        unsafe { GetOverlappedResultEx(handle, overlapped, &mut transferred, u32::MAX, 0) };
+    if drained != 0 {
+        return Ok(transferred);
+    }
+    let drain_error = unsafe { GetLastError() };
+    if drain_error == ERROR_OPERATION_ABORTED {
+        return Err(TransportError::Timeout(operation));
+    }
+    Err(TransportError::Windows {
+        operation: "drain cancelled overlapped operation",
+        code: drain_error,
+    })
 }
 
 pub(crate) fn current_process_id() -> u32 {

@@ -18,6 +18,9 @@ pub enum TransportError {
     InvalidSecretEnvelope(&'static str),
     InvalidTokenIdentity(&'static str),
     InvalidPipeName(&'static str),
+    Timeout(&'static str),
+    Disconnected,
+    Protocol(&'static str),
     SizeLimit(&'static str),
 }
 
@@ -50,6 +53,9 @@ impl core::fmt::Display for TransportError {
                 write!(formatter, "invalid token identity: {reason}")
             }
             Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
+            Self::Timeout(operation) => write!(formatter, "{operation} timed out"),
+            Self::Disconnected => formatter.write_str("pipe disconnected"),
+            Self::Protocol(reason) => write!(formatter, "pipe protocol error: {reason}"),
             Self::SizeLimit(reason) => write!(formatter, "transport size limit: {reason}"),
         }
     }
