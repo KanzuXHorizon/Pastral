@@ -1,9 +1,11 @@
 #![forbid(unsafe_code)]
 
+mod decoder;
 mod error;
 mod frame;
 mod limits;
 
+pub use decoder::{Frame, FrameDecoder};
 pub use error::IpcError;
 pub use frame::{CorrelationId, FRAME_HEADER_BYTES, FRAMING_MAJOR, FrameHeader, FrameKind};
 pub use limits::{

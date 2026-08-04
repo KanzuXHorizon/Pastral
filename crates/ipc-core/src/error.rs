@@ -15,6 +15,10 @@ pub enum IpcError {
         limit: u32,
     },
     EmptyBulkChunk,
+    FrameBodyLengthMismatch {
+        declared: u32,
+        actual: usize,
+    },
     InvalidFrameSequence,
     InvalidCorrelation,
     DecoderPoisoned,
@@ -55,6 +59,10 @@ impl fmt::Display for IpcError {
                 "IPC frame body length {length} exceeds {limit} for {kind:?}"
             ),
             Self::EmptyBulkChunk => write!(f, "IPC bulk chunk body must not be empty"),
+            Self::FrameBodyLengthMismatch { declared, actual } => write!(
+                f,
+                "IPC frame body length mismatch: header declares {declared}, body has {actual} bytes"
+            ),
             Self::InvalidFrameSequence => write!(f, "IPC frame sequence is invalid for its kind"),
             Self::InvalidCorrelation => write!(f, "IPC correlation identifier is invalid"),
             Self::DecoderPoisoned => write!(f, "IPC decoder is poisoned"),
