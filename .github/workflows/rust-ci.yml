@@ -8,11 +8,14 @@ on:
       - "rust-toolchain.toml"
       - "apps/agent/**"
       - "apps/ipc-probe/**"
+      - "apps/ipc-transport-probe/**"
       - "crates/agent-core/**"
       - "crates/clipboard-win/**"
       - "crates/domain/**"
+      - "crates/ipc-auth/**"
       - "crates/ipc-core/**"
       - "crates/ipc-schema/**"
+      - "crates/ipc-win/**"
       - "crates/storage/**"
       - "protocols/ipc-schema/**"
       - "eng/**"
@@ -24,11 +27,14 @@ on:
       - "rust-toolchain.toml"
       - "apps/agent/**"
       - "apps/ipc-probe/**"
+      - "apps/ipc-transport-probe/**"
       - "crates/agent-core/**"
       - "crates/clipboard-win/**"
       - "crates/domain/**"
+      - "crates/ipc-auth/**"
       - "crates/ipc-core/**"
       - "crates/ipc-schema/**"
+      - "crates/ipc-win/**"
       - "crates/storage/**"
       - "protocols/ipc-schema/**"
       - "eng/**"
@@ -78,6 +84,9 @@ jobs:
       - name: Verify IPC prototype
         shell: powershell
         run: ./eng/verify-ipc-prototype.ps1 -Mode All
+      - name: Verify authenticated IPC transport
+        shell: powershell
+        run: ./eng/verify-ipc-transport.ps1 -Mode All
       - name: Test storage foundation
         shell: powershell
         run: cargo test --locked -p pastral-storage --all-targets

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'Agent', 'AgentPolicy', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'IpcTransport', 'Agent', 'AgentPolicy', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
     [string]$Task = 'All'
 )
 
@@ -34,6 +34,7 @@ function Invoke-Test { Invoke-Step 'Test workspace' { cargo test --locked --work
 function Invoke-Storage { Invoke-Step 'Test storage foundation' { cargo test --locked -p pastral-storage --all-targets } }
 function Invoke-Clipboard { Invoke-Step 'Test Win32 clipboard foundation' { cargo test --locked -p pastral-clipboard-win --all-targets } }
 function Invoke-IpcPrototype { Invoke-Step 'Verify IPC framing and schema prototype' { & "$PSScriptRoot\verify-ipc-prototype.ps1" -Mode All } }
+function Invoke-IpcTransport { Invoke-Step 'Verify authenticated IPC transport' { & "$PSScriptRoot\verify-ipc-transport.ps1" -Mode All } }
 function Invoke-Agent { Invoke-Step 'Verify diagnostic resident agent' { & "$PSScriptRoot\verify-agent.ps1" -Mode All } }
 function Invoke-AgentPolicy { Invoke-Step 'Verify diagnostic resident agent policy' { & "$PSScriptRoot\verify-agent.ps1" -Mode Static } }
 function Invoke-Manager { Invoke-Step 'Verify native manager including runtime smoke' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode All } }
@@ -52,6 +53,7 @@ switch ($Task) {
     'Storage' { Invoke-Storage }
     'Clipboard' { Invoke-Clipboard }
     'IpcPrototype' { Invoke-IpcPrototype }
+    'IpcTransport' { Invoke-IpcTransport }
     'Agent' { Invoke-Agent }
     'AgentPolicy' { Invoke-AgentPolicy }
     'Manager' { Invoke-Manager }
@@ -81,6 +83,7 @@ switch ($Task) {
         Invoke-Dependencies
         Invoke-SourcePolicy
         Invoke-IpcPrototype
+        Invoke-IpcTransport
         Invoke-Agent
         Invoke-NativePolicy
         Invoke-ManagerBuild
