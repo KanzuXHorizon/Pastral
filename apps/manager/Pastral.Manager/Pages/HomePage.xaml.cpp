@@ -24,7 +24,25 @@ namespace winrt::Pastral::Manager::implementation
 
     void HomePage::LoadSnapshot()
     {
-        ApplySnapshot(m_provider->LoadSnapshot());
+        auto const generation = ++m_loadGeneration;
+        ApplySnapshot(::Pastral::Manager::Presentation::CreateLoadingSnapshot());
+
+        auto const weakThis = get_weak();
+        auto const dispatcher = DispatcherQueue();
+        m_provider->LoadSnapshotAsync(
+            [weakThis, dispatcher, generation](
+                ::Pastral::Manager::Presentation::ManagerSnapshot snapshot) mutable {
+                dispatcher.TryEnqueue(
+                    [weakThis, generation, snapshot = std::move(snapshot)]() mutable {
+                        if (auto strongThis = weakThis.get())
+                        {
+                            if (strongThis->m_loadGeneration == generation)
+                            {
+                                strongThis->ApplySnapshot(snapshot);
+                            }
+                        }
+                    });
+            });
     }
 
     void HomePage::ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot const& snapshot)
@@ -71,10 +89,12 @@ namespace winrt::Pastral::Manager::implementation
 
         HomeSyntheticNotice().IsOpen(snapshot.synthetic);
         HomeSyntheticNotice().Visibility(snapshot.synthetic ? Visibility::Visible : Visibility::Collapsed);
+        auto const canRetry =
+            snapshot.connection == ConnectionState::Disconnected ||
+            snapshot.connection == ConnectionState::ProtocolMismatch ||
+            snapshot.connection == ConnectionState::Error;
         RetryConnectionButton().Visibility(
-            snapshot.connection == ConnectionState::Disconnected
-                ? Visibility::Visible
-                : Visibility::Collapsed);
+            canRetry ? Visibility::Visible : Visibility::Collapsed);
 
         m_recentClips.Clear();
         for (auto const& clip : snapshot.clips)

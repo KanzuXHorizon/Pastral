@@ -4,6 +4,8 @@
 #include "../Services/ManagerDataProvider.h"
 #include "../ViewModels/ClipPreviewViewModel.h"
 
+#include <cstdint>
+
 namespace winrt::Pastral::Manager::implementation
 {
     struct HistoryPage : HistoryPageT<HistoryPage>
@@ -36,6 +38,7 @@ namespace winrt::Pastral::Manager::implementation
             ::Pastral::Manager::Presentation::ConnectionState::Disconnected
         };
         bool m_synthetic{ false };
+        std::uint64_t m_loadGeneration{};
         winrt::Windows::Foundation::Collections::IObservableVector<
             winrt::Pastral::Manager::ClipPreviewViewModel> m_results{
                 winrt::single_threaded_observable_vector<winrt::Pastral::Manager::ClipPreviewViewModel>()

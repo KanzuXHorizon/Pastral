@@ -88,7 +88,25 @@ namespace winrt::Pastral::Manager::implementation
 
     void HistoryPage::LoadSnapshot()
     {
-        ApplySnapshot(m_provider->LoadSnapshot());
+        auto const generation = ++m_loadGeneration;
+        ApplySnapshot(::Pastral::Manager::Presentation::CreateLoadingSnapshot());
+
+        auto const weakThis = get_weak();
+        auto const dispatcher = DispatcherQueue();
+        m_provider->LoadSnapshotAsync(
+            [weakThis, dispatcher, generation](
+                ::Pastral::Manager::Presentation::ManagerSnapshot snapshot) mutable {
+                dispatcher.TryEnqueue(
+                    [weakThis, generation, snapshot = std::move(snapshot)]() mutable {
+                        if (auto strongThis = weakThis.get())
+                        {
+                            if (strongThis->m_loadGeneration == generation)
+                            {
+                                strongThis->ApplySnapshot(std::move(snapshot));
+                            }
+                        }
+                    });
+            });
     }
 
     void HistoryPage::ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot snapshot)
@@ -115,10 +133,11 @@ namespace winrt::Pastral::Manager::implementation
 
         auto const connected = m_connection == ConnectionState::Connected;
         HistorySearchBox().IsEnabled(connected);
-        HistoryRetryButton().Visibility(
-            m_connection == ConnectionState::Disconnected
-                ? Visibility::Visible
-                : Visibility::Collapsed);
+        auto const canRetry =
+            m_connection == ConnectionState::Disconnected ||
+            m_connection == ConnectionState::ProtocolMismatch ||
+            m_connection == ConnectionState::Error;
+        HistoryRetryButton().Visibility(canRetry ? Visibility::Visible : Visibility::Collapsed);
 
         RefreshResults();
     }
@@ -156,11 +175,24 @@ namespace winrt::Pastral::Manager::implementation
         }
         else
         {
-            if (m_connection == ConnectionState::Disconnected)
+            if (m_connection == ConnectionState::Loading)
+            {
+                HistoryNoResultsTitle().Text(L"Connecting to Pastral agent");
+                HistoryNoResultsDetail().Text(
+                    L"The manager is verifying the authenticated local Health endpoint.");
+            }
+            else if (m_connection == ConnectionState::Disconnected)
             {
                 HistoryNoResultsTitle().Text(L"History is not connected");
                 HistoryNoResultsDetail().Text(
-                    L"Connect the local agent through the future versioned IPC boundary. The manager never opens storage directly.");
+                    L"Start the local agent, then retry. The manager never opens storage directly.");
+            }
+            else if (m_connection == ConnectionState::ProtocolMismatch ||
+                     m_connection == ConnectionState::Error)
+            {
+                HistoryNoResultsTitle().Text(L"History is unavailable");
+                HistoryNoResultsDetail().Text(
+                    L"Resolve the agent connection issue before requesting history.");
             }
             else if (!query.empty())
             {
@@ -169,8 +201,9 @@ namespace winrt::Pastral::Manager::implementation
             }
             else
             {
-                HistoryNoResultsTitle().Text(L"No history is available");
-                HistoryNoResultsDetail().Text(L"The active provider returned no privacy-safe clip previews.");
+                HistoryNoResultsTitle().Text(L"History is not available yet");
+                HistoryNoResultsDetail().Text(
+                    L"The authenticated Health connection is active. Paged history IPC is the next implementation stage.");
             }
             ClearSelectionDetails();
         }

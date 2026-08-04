@@ -4,6 +4,8 @@
 #include "../Services/ManagerDataProvider.h"
 #include "../ViewModels/ClipPreviewViewModel.h"
 
+#include <cstdint>
+
 namespace winrt::Pastral::Manager::implementation
 {
     struct HomePage : HomePageT<HomePage>
@@ -19,6 +21,7 @@ namespace winrt::Pastral::Manager::implementation
         void ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot const& snapshot);
 
         std::shared_ptr<::Pastral::Manager::Presentation::IManagerDataProvider> m_provider;
+        std::uint64_t m_loadGeneration{};
         winrt::Windows::Foundation::Collections::IObservableVector<
             winrt::Pastral::Manager::ClipPreviewViewModel> m_recentClips{
                 winrt::single_threaded_observable_vector<winrt::Pastral::Manager::ClipPreviewViewModel>()

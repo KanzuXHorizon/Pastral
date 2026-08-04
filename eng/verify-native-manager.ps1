@@ -161,9 +161,16 @@ function Invoke-StaticVerification {
     Assert-Contains $homePage 'Text="\{Binding Source\}"' 'Home source binding'
     Assert-Contains $homePage 'Text="\{Binding RepresentationSummary\}"' 'Home representation binding'
 
+    $providerInterface = Join-Path $managerRoot 'Services\IManagerDataProvider.h'
+    Assert-Contains $providerInterface 'LoadSnapshotAsync\(SnapshotCompletion completion\)' 'asynchronous manager provider contract'
+
     $homeCode = Join-Path $managerRoot 'Pages\HomePage.xaml.cpp'
     Assert-Contains $homeCode 'CreateManagerDataProvider\(' 'Home provider boundary'
-    Assert-Contains $homeCode 'LoadSnapshot\(' 'Home snapshot loading'
+    Assert-Contains $homeCode 'CreateLoadingSnapshot\(' 'Home immediate Loading state'
+    Assert-Contains $homeCode 'LoadSnapshotAsync\(' 'Home asynchronous snapshot loading'
+    Assert-Contains $homeCode 'get_weak\(' 'Home weak page reference'
+    Assert-Contains $homeCode 'DispatcherQueue\(\)' 'Home UI-thread dispatcher capture'
+    Assert-Contains $homeCode 'm_loadGeneration\s*==\s*generation' 'Home stale-result rejection'
     Assert-Contains $homeCode 'RetryConnection_Click' 'Home retry handler'
 
     $historyPage = Join-Path $managerRoot 'Pages\HistoryPage.xaml'
@@ -186,6 +193,11 @@ function Invoke-StaticVerification {
 
     $historyCode = Join-Path $managerRoot 'Pages\HistoryPage.xaml.cpp'
     Assert-Contains $historyCode 'CreateManagerDataProvider\(' 'History provider boundary'
+    Assert-Contains $historyCode 'CreateLoadingSnapshot\(' 'History immediate Loading state'
+    Assert-Contains $historyCode 'LoadSnapshotAsync\(' 'History asynchronous snapshot loading'
+    Assert-Contains $historyCode 'get_weak\(' 'History weak page reference'
+    Assert-Contains $historyCode 'DispatcherQueue\(\)' 'History UI-thread dispatcher capture'
+    Assert-Contains $historyCode 'm_loadGeneration\s*==\s*generation' 'History stale-result rejection'
     Assert-Contains $historyCode 'SearchBox_TextChanged' 'History search handler'
     Assert-Contains $historyCode 'ResultsList_SelectionChanged' 'History selection handler'
     Assert-Contains $historyCode 'ClearFilters_Click' 'History clear-filter handler'
@@ -219,10 +231,14 @@ function Invoke-StaticVerification {
 
     $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
     Assert-Contains $provider '#if\s+defined\(_DEBUG\)' 'Debug-only synthetic provider guard'
-    Assert-Contains $provider '#else' 'Release provider branch'
+    Assert-Contains $provider 'if\s*\(!diagnosticFlag\.has_value\(\)\)\s*\{\s*return SyntheticSnapshot\(\);' 'Debug synthetic mode independent of local data-root resolution'
+    Assert-Contains $provider 'PASTRAL_MANAGER_DIAGNOSTIC' 'diagnostic live-mode gate'
+    Assert-Contains $provider 'std::thread\s+m_worker' 'single persistent provider worker'
+    Assert-Contains $provider 'm_pending\s*=\s*PendingRequest' 'latest pending request replacement'
+    Assert-Contains $provider 'request\.generation\s*==\s*m_generation' 'provider stale-result rejection'
     Assert-Contains $provider 'synthetic-clip-' 'bounded synthetic IDs'
-    Assert-Contains $provider 'ConnectionState::Disconnected' 'Release disconnected state'
-    Assert-Contains $provider 'snapshot\.synthetic\s*=\s*false' 'Release synthetic exclusion'
+    Assert-Contains $provider 'ConnectionState::Disconnected' 'live disconnected state'
+    Assert-Contains $provider 'snapshot\.synthetic\s*=\s*false' 'live synthetic exclusion'
 
     Write-Host 'Native manager static policy: PASS'
 }

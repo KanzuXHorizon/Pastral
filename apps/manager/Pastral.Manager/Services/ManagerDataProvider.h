@@ -6,5 +6,6 @@
 
 namespace Pastral::Manager::Presentation
 {
-    std::shared_ptr<IManagerDataProvider> CreateManagerDataProvider();
+    [[nodiscard]] ManagerSnapshot CreateLoadingSnapshot();
+    [[nodiscard]] std::shared_ptr<IManagerDataProvider> CreateManagerDataProvider();
 }
