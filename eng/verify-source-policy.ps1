@@ -165,6 +165,54 @@ try {
         }
     }
 
+    $managerNativeFiles = @(
+        $trackedFiles | Where-Object {
+            $_ -match '(?i)^apps/manager/Pastral\.Manager/.+\.(cpp|h|hpp)$'
+        }
+    )
+    foreach ($relativePath in $managerNativeFiles) {
+        $fullPath = Join-Path $repositoryRoot $relativePath
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            continue
+        }
+        $content = [System.IO.File]::ReadAllText($fullPath)
+        $isReviewedLoader = $relativePath.Equals(
+            'apps/manager/Pastral.Manager/Services/ManagerIpcBridge.cpp',
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+        if (-not $isReviewedLoader -and [System.Text.RegularExpressions.Regex]::IsMatch(
+            $content,
+            '(?m)\b(LoadLibraryExW|LoadLibraryW|LoadLibraryA|GetProcAddress)\b'
+        )) {
+            $violations.Add("native DLL loading outside reviewed manager bridge boundary in $relativePath")
+        }
+        if ([System.Text.RegularExpressions.Regex]::IsMatch(
+            $content,
+            '(?im)\b(sqlite3?_open|OpenClipboard|GetClipboardData|SetClipboardData|AddClipboardFormatListener|WinHttpOpen|InternetOpen[AW]?)\b'
+        )) {
+            $violations.Add("direct storage, clipboard, or network API in native manager source $relativePath")
+        }
+    }
+
+    foreach ($relativePath in @(
+        'crates/manager-ipc-bridge/src/lib.rs',
+        'crates/manager-ipc-bridge/src/abi.rs',
+        'crates/manager-ipc-bridge/src/client.rs',
+        'crates/manager-ipc-bridge/src/ffi.rs'
+    )) {
+        $fullPath = Join-Path $repositoryRoot $relativePath
+        if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            continue
+        }
+        $content = [System.IO.File]::ReadAllText($fullPath)
+        if ([System.Text.RegularExpressions.Regex]::IsMatch(
+            $content,
+            '(?im)\b(rusqlite|pastral_storage|pastral_clipboard|std::net|std::process::Command|Command::new)\b'
+        )) {
+            $violations.Add("forbidden storage, clipboard, network, or process behavior in $relativePath")
+        }
+    }
+
     if ($violations.Count -gt 0) {
         $violations | Sort-Object -Unique | ForEach-Object { Write-Error $_ }
         exit 1

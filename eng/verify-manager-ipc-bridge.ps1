@@ -80,12 +80,20 @@ function Resolve-Dumpbin {
 function Invoke-MSBuildProject {
     param(
         [Parameter(Mandatory = $true)][string]$Project,
-        [Parameter(Mandatory = $true)][ValidateSet('Debug', 'Release')][string]$Configuration
+        [Parameter(Mandatory = $true)][ValidateSet('Debug', 'Release')][string]$Configuration,
+        [Parameter(Mandatory = $true)][string]$OutputDirectory,
+        [Parameter(Mandatory = $true)][string]$IntermediateDirectory
     )
+
+    New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+    New-Item -ItemType Directory -Path $IntermediateDirectory -Force | Out-Null
+    $output = $OutputDirectory.TrimEnd('\') + '\'
+    $intermediate = $IntermediateDirectory.TrimEnd('\') + '\'
 
     $msbuild = Resolve-MSBuild
     & $msbuild $Project '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:minimal' `
-        "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RestoreLockedMode=false'
+        "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RestoreLockedMode=false' `
+        "/p:OutDir=$output" "/p:IntDir=$intermediate"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
@@ -209,6 +217,10 @@ function Invoke-StaticVerification {
     $provider = Join-Path $managerRoot 'Services\IManagerDataProvider.h'
     Assert-Contains $provider 'LoadSnapshotAsync\(' 'asynchronous provider contract'
 
+    Assert-Contains $PSCommandPath '/p:OutDir=' 'isolated native output override'
+    Assert-Contains $PSCommandPath '/p:IntDir=' 'isolated native intermediate override'
+    Assert-Contains $PSCommandPath 'target\\verification\\pastral-manager-(ipc|live)-' 'per-run native verification root'
+
     Assert-Contains $managerProject 'BuildPastralManagerIpcBridge' 'manager Rust bridge build target'
     Assert-Contains $managerProject 'cargo build --locked -p pastral-manager-ipc-bridge' 'locked bridge cargo build'
     Assert-Contains $managerProject 'pastral_manager_ipc_bridge\.dll' 'Cargo bridge source name'
@@ -268,32 +280,35 @@ function Invoke-TestVerification {
 
 function Invoke-ProbeVerification {
     Write-Host 'Building native manager IPC probe'
-    & cargo build --locked -p pastral-manager-ipc-bridge --release
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    & cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc --release
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Invoke-MSBuildProject -Project $probeProject -Configuration Release
-
-    $probeOutput = Join-Path $managerRoot 'Tests\x64\Release'
-    $probe = Join-Path $probeOutput 'Pastral.Manager.IpcProbe.exe'
-    if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) {
-        $probe = Join-Path $probeOutput 'pastral-manager-ipc-probe.exe'
-    }
-    Assert-File $probe
-    Copy-Item -LiteralPath $bridgeDllSource -Destination (Join-Path $probeOutput $bridgeDllName) -Force
-
-    $abiOutput = @(& $probe --abi 2>&1)
-    if ($LASTEXITCODE -ne 0 -or ($abiOutput -join "`n") -notmatch 'manager-ipc-abi=ok') {
-        Fail "Native bridge ABI probe failed: $($abiOutput -join ' ')"
-    }
-
-    $temporary = Join-Path ([System.IO.Path]::GetTempPath()) ('pastral-manager-ipc-' + [guid]::NewGuid().ToString('N'))
+    $temporary = Join-Path $repositoryRoot ('target\verification\pastral-manager-ipc-' + [guid]::NewGuid().ToString('N'))
+    $probeOutput = Join-Path $temporary 'probe-out'
+    $probeIntermediate = Join-Path $temporary 'probe-obj'
     $dataRoot = Join-Path $temporary 'data'
     $stdout = Join-Path $temporary 'agent.out'
     $stderr = Join-Path $temporary 'agent.err'
     New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
+
     $agent = $null
     try {
+        & cargo build --locked -p pastral-manager-ipc-bridge --release
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        & cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc --release
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Invoke-MSBuildProject -Project $probeProject -Configuration Release `
+            -OutputDirectory $probeOutput -IntermediateDirectory $probeIntermediate
+
+        $probe = Join-Path $probeOutput 'Pastral.Manager.IpcProbe.exe'
+        if (-not (Test-Path -LiteralPath $probe -PathType Leaf)) {
+            $probe = Join-Path $probeOutput 'pastral-manager-ipc-probe.exe'
+        }
+        Assert-File $probe
+        Copy-Item -LiteralPath $bridgeDllSource -Destination (Join-Path $probeOutput $bridgeDllName) -Force
+
+        $abiOutput = @(& $probe --abi 2>&1)
+        if ($LASTEXITCODE -ne 0 -or ($abiOutput -join "`n") -notmatch 'manager-ipc-abi=ok') {
+            Fail "Native bridge ABI probe failed: $($abiOutput -join ' ')"
+        }
+
         $agent = Start-AgentHealthServer -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
         $healthOutput = @(& $probe --health --data-root $dataRoot 2>&1)
         $healthExit = $LASTEXITCODE
@@ -337,22 +352,15 @@ function Invoke-ProbeVerification {
 
 function Invoke-LiveVerification {
     Write-Host 'Building Release manager with deployed Rust bridge'
-    & cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc --release
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    Invoke-MSBuildProject -Project $managerProject -Configuration Release
-
-    $managerOutput = Join-Path $managerRoot 'x64\Release'
-    $manager = Join-Path $managerOutput 'pastral-manager.exe'
-    Assert-File $manager
-    Assert-File (Join-Path $managerOutput $bridgeDllName)
-
     $runtime = @(Get-AppxPackage -Name 'Microsoft.WindowsAppRuntime.2' -ErrorAction SilentlyContinue |
         Where-Object { $_.Architecture -eq 'X64' -and $_.Version -eq [version]'2.3.1.0' })
     if ($runtime.Count -eq 0) {
         Fail 'Microsoft.WindowsAppRuntime.2 x64 version 2.3.1.0 is required for live manager verification'
     }
 
-    $temporary = Join-Path ([System.IO.Path]::GetTempPath()) ('pastral-manager-live-' + [guid]::NewGuid().ToString('N'))
+    $temporary = Join-Path $repositoryRoot ('target\verification\pastral-manager-live-' + [guid]::NewGuid().ToString('N'))
+    $managerOutput = Join-Path $temporary 'manager-out'
+    $managerIntermediate = Join-Path $temporary 'manager-obj'
     $dataRoot = Join-Path $temporary 'data'
     $stdout = Join-Path $temporary 'agent.out'
     $stderr = Join-Path $temporary 'agent.err'
@@ -363,6 +371,15 @@ function Invoke-LiveVerification {
     $oldDiagnostic = $env:PASTRAL_MANAGER_DIAGNOSTIC
     $oldRoot = $env:PASTRAL_MANAGER_DATA_ROOT
     try {
+        & cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc --release
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Invoke-MSBuildProject -Project $managerProject -Configuration Release `
+            -OutputDirectory $managerOutput -IntermediateDirectory $managerIntermediate
+
+        $manager = Join-Path $managerOutput 'pastral-manager.exe'
+        Assert-File $manager
+        Assert-File (Join-Path $managerOutput $bridgeDllName)
+
         $agent = Start-AgentHealthServer -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
         $env:PASTRAL_MANAGER_DIAGNOSTIC = '1'
         $env:PASTRAL_MANAGER_DATA_ROOT = $dataRoot

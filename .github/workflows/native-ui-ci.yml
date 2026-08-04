@@ -23,7 +23,9 @@ permissions:
 
 jobs:
   manager:
-    runs-on: windows-2025
+    # Keep the v143 C++/WinUI toolchain stable. The floating windows-2025 label
+    # can resolve to Visual Studio 2026 images that do not satisfy this project.
+    runs-on: windows-2022
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4

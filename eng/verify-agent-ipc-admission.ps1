@@ -253,6 +253,7 @@ function Invoke-SmokeVerification {
     }
 
     $output | ForEach-Object { Write-Host $_ }
+    $global:LASTEXITCODE = 0
     Write-Host 'Agent IPC admission Release smoke: PASS'
 }
 

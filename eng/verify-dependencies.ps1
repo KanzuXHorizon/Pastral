@@ -127,6 +127,16 @@ Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package '
 Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package 'protobuf-codegen' -ExpectedLine 'protobuf-codegen v4.35.0-release'
 Assert-ExactPackageVersion -Scope 'pastral-ipc-win' -Tree $ipcWinTree -Package 'protobuf-macros' -ExpectedLine 'protobuf-macros v4.35.0-release (proc-macro)'
 
+$agentIpcTree = Invoke-CargoTree -Arguments @('-p', 'pastral-agent', '--features', 'ipc-health', '--edges', 'all')
+Assert-ExactPackageVersion -Scope 'pastral-agent ipc-health' -Tree $agentIpcTree -Package 'protobuf' -ExpectedLine 'protobuf v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-agent ipc-health' -Tree $agentIpcTree -Package 'protobuf-codegen' -ExpectedLine 'protobuf-codegen v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-agent ipc-health' -Tree $agentIpcTree -Package 'protobuf-macros' -ExpectedLine 'protobuf-macros v4.35.0-release (proc-macro)'
+
+$managerBridgeTree = Invoke-CargoTree -Arguments @('-p', 'pastral-manager-ipc-bridge', '--edges', 'all')
+Assert-ExactPackageVersion -Scope 'pastral-manager-ipc-bridge' -Tree $managerBridgeTree -Package 'protobuf' -ExpectedLine 'protobuf v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-manager-ipc-bridge' -Tree $managerBridgeTree -Package 'protobuf-codegen' -ExpectedLine 'protobuf-codegen v4.35.0-release'
+Assert-ExactPackageVersion -Scope 'pastral-manager-ipc-bridge' -Tree $managerBridgeTree -Package 'protobuf-macros' -ExpectedLine 'protobuf-macros v4.35.0-release (proc-macro)'
+
 $ipcPrototypeForbidden = @(
     'tokio',
     'async-std',
@@ -202,6 +212,6 @@ Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'h
 Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'zeroize' -ExpectedLine 'zeroize v1.8.2'
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Official protobuf 4.35.0-release is isolated to agent-ipc-probe/ipc-schema/ipc-probe/ipc-transport-probe/ipc-win/manager-ipc-bridge; the default agent/domain/storage/clipboard/ipc-auth/ipc-core graphs remain protobuf-free.'
+Write-Host 'Official protobuf 4.35.0-release is isolated to feature-gated agent IPC, agent-ipc-probe, ipc-schema, ipc-probe, ipc-transport-probe, ipc-win, and manager-ipc-bridge; the default agent/domain/storage/clipboard/ipc-auth/ipc-core graphs remain protobuf-free.'
 Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/agent-ipc-probe/clipboard-win/ipc-transport-probe/ipc-win/manager-ipc-bridge use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'
