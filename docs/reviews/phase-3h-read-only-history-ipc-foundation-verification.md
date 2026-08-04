@@ -37,6 +37,7 @@ c5d5ddd feat: serve read-only history over IPC
 b48fe3b fix: bound read IPC responses to frame limits
 54780b7 test: verify read IPC binary cross-process
 7f85188 test: move read IPC process evidence to probe
+7b98072 test: smoke read IPC admission in release
 ```
 
 The final documentation/evidence commit follows this report.
@@ -165,7 +166,7 @@ The regression test proves that a 100-row response with long multi-byte previews
 2. Malformed authenticated request body returning a content-free `InvalidRequest` response with the original correlation ID.
 3. Worst-case 100-row long-preview response remaining inside the 256 KiB control-frame budget without dropping rows.
 
-`apps/agent-ipc-probe/tests/cross_process.rs` adds a fourth scenario through the repository's reviewed process-spawn boundary. The probe starts a distinct read-server child, negotiates the exact Health/HistoryPage/Search capability set, serves three authenticated requests, verifies empty bounded History/Search results on a disposable root, emits content-free markers only, and exits at the configured connection bound. The public `serve-read` CLI shape remains covered separately by strict agent CLI tests.
+`apps/agent-ipc-probe/tests/cross_process.rs` adds a fourth scenario through the repository's reviewed process-spawn boundary. The probe starts a distinct read-server child, negotiates the exact Health/HistoryPage/Search capability set, serves three authenticated requests, verifies empty bounded History/Search results on a disposable root, emits content-free markers only, and exits at the configured connection bound. The public `serve-read` CLI shape remains covered separately by strict agent CLI tests. `verify-agent-ipc-admission.ps1 -Mode All` now repeats this read path against the optimized Release probe and fails if any operation, PID/session evidence, output privacy check, or child exit check is invalid.
 
 The tests use:
 
@@ -215,6 +216,24 @@ Test breakdown:
 
 The agent total increased from 21 in Phase 3G to 24 through the positive read, malformed-request, and aggregate frame-budget tests. Agent IPC admission increased from 11 to 12 through the reviewed cross-process read probe. IPC Win32 increased from 28 to 29 through exact read-capability negotiation. Storage increased from 33 to 37 through the bounded read-model tests. The manager bridge total is 15 because the adjacent committed read-ABI layout test is included in this fresh aggregate run; live manager History/Search integration remains outside this foundation report.
 
+Fresh Release admission evidence after `7b98072`:
+
+```text
+agent-ipc-admission=ok
+admission-ceilings=passed
+default-agent-binary-bytes=2142208
+admission-binary-bytes=2467840
+binary-delta-bytes=325632
+working-set-delta-bytes=622592
+private-delta-bytes=77824
+agent-ipc-read=ok
+health=ok
+history=ok
+search=ok
+```
+
+The Health and read probes each used distinct client/server processes in the same validated logon session. The read probe emitted no path, pipe, query, preview, SID, secret, nonce, proof, or clipboard marker.
+
 ## 10. Dependency and source policy
 
 The default `pastral-agent` dependency graph remains Protobuf- and transport-free. The read server is available only through the existing `ipc-health` feature and pulls only the reviewed packages:
@@ -232,6 +251,7 @@ Policy verification confirms:
 - official Protobuf `4.35.0-release` remains isolated to feature-gated IPC/probe/bridge surfaces;
 - no async runtime or network stack was added;
 - no alternate database, JSON, logging, or process-spawn framework was added;
+- process spawning remains confined to the existing reviewed `agent-ipc-probe` diagnostic boundary;
 - storage remains Windows-binding-free;
 - the agent and IPC transport use only the pinned reviewed `windows-sys`/`windows-link` boundary;
 - the manager bridge dependency graph is unchanged;
