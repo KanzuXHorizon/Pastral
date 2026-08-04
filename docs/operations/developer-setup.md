@@ -9,12 +9,15 @@ These commands build and test the implemented foundation:
 - `pastral-clipboard-win` — Windows-only listener/session/format/HGLOBAL/Unicode-text platform boundary that never writes to the user's clipboard in automated tests;
 - `pastral-agent-core` — Windows-binding-free capture coordinator with bounded retry, transient-sequence duplicate suppression, exact text/byte preservation, and explicit terminal outcomes;
 - `pastral-ipc-core` — serializer-neutral safe Rust framing, incremental byte-stream decoding, handshake/in-flight/bulk state, and bounded validated control DTOs;
-- `pastral-ipc-schema` — isolated Edition 2024 schema prototype using exact official Protocol Buffers Rust runtime/codegen and conversion into `pastral-ipc-core` DTOs;
+- `pastral-ipc-schema` — Edition 2024 control schema using exact official Protocol Buffers Rust runtime/codegen and conversion into `pastral-ipc-core` DTOs;
+- `pastral-ipc-auth` — Windows-binding-free mutual HMAC transcript authentication, zeroized secret/proof material, and bounded replay cache;
+- `pastral-ipc-win` — Windows DPAPI identity, token/session peer validation, logon-SID-only DACLs, overlapped named-pipe stream, and authenticated handshake boundary;
 - `pastral-ipc-probe.exe` — deterministic content-free Release measurement executable for fragmented/coalesced schema round trips;
+- `pastral-ipc-transport-probe.exe` — content-free parent/server-child executable that verifies a real authenticated cross-process Health exchange;
 - `pastral-agent.exe` — diagnostic resident-agent executable with explicit health-check, one-shot current capture, and event-driven listen commands for ordinary `CF_UNICODETEXT`;
 - `pastral-manager.exe` — unpackaged C++20/C++/WinRT WinUI 3 manager with Home and History UI, adaptive layout, localization, accessibility landmarks, Debug-only synthetic preview data, and an empty disconnected Release provider.
 
-The repository contains the Rust framing/schema prototype but still does not contain production authenticated named-pipe transport, C++ schema/client parity, agent schema linkage, COM/OLE capture/replay, manager live data, reliable private-browser detection, publisher verification, comprehensive secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
+The repository contains the Rust framing/schema layer and authenticated cross-process named-pipe transport foundation, but still does not contain C++ schema/client parity, agent/manager transport linkage, COM/OLE capture/replay, manager live data, reliable private-browser detection, publisher verification, comprehensive secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, remains transport/Protobuf-free, and the manager never opens SQLite or blob storage directly.
 
 ## Required environment
 
@@ -123,6 +126,12 @@ Verify the bounded IPC framing/schema prototype and run 10,000 Release round tri
 .\eng\build.ps1 -Task IpcPrototype
 ```
 
+Verify the authenticated Windows transport and real parent/server-child Health exchange:
+
+```powershell
+.\eng\build.ps1 -Task IpcTransport
+```
+
 Build and smoke the diagnostic agent without reading the clipboard:
 
 ```powershell
@@ -151,6 +160,7 @@ Individual tasks:
 .\eng\build.ps1 -Task Storage
 .\eng\build.ps1 -Task Clipboard
 .\eng\build.ps1 -Task IpcPrototype
+.\eng\build.ps1 -Task IpcTransport
 .\eng\build.ps1 -Task AgentPolicy
 .\eng\build.ps1 -Task Agent
 .\eng\build.ps1 -Task NativePolicy
@@ -162,7 +172,7 @@ Individual tasks:
 .\eng\build.ps1 -Task SourcePolicy
 ```
 
-The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and completes 10,000 content-free round trips. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
+The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and completes 10,000 content-free round trips. `IpcTransport` runs static security checks, 36 focused authentication/transport/probe tests, builds the Release transport probe, and completes a content-free authenticated Health exchange between distinct processes. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
 
 ## Direct CI-equivalent commands
 
@@ -180,6 +190,10 @@ cargo tree --locked --workspace
 .\eng\verify-ipc-prototype.ps1 -Mode Static
 .\eng\verify-ipc-prototype.ps1 -Mode Test
 .\eng\verify-ipc-prototype.ps1 -Mode Probe
+
+.\eng\verify-ipc-transport.ps1 -Mode Static
+.\eng\verify-ipc-transport.ps1 -Mode Test
+.\eng\verify-ipc-transport.ps1 -Mode Smoke
 
 .\eng\verify-agent.ps1 -Mode Static
 .\eng\verify-agent.ps1 -Mode Build
@@ -213,17 +227,17 @@ A representative Release probe run on the current reference machine reported:
 ```text
 ipc-probe=ok
 protobuf-release=4.35.0-release
-schema-sha256=409c0da02f90e70e9bb1acbf1d7818d31ffcee3b61480cfa4ab250a5a8f493d8
+schema-sha256=2029ac9b19f7eb1644a2c12b3cd570586af9b62c40e130558b63c376676e3077
 iterations=10000
 round-trips=10000
-executable-bytes=379904
-average-roundtrip-ns=129576
-one-byte-average-ns=713
-coalesced-average-ns=583
+executable-bytes=380416
+average-roundtrip-ns=174042
+one-byte-average-ns=1029
+coalesced-average-ns=858
 max-body-capacity=7869
 ```
 
-These are prototype measurements, not release SLAs. The 2,137,088-byte Release agent remains protobuf-free. Production named-pipe transport, ACL/peer/session authentication, C++ parity, fuzzing, bulk staging, and resident-agent runtime linkage remain separate gates.
+These are prototype measurements, not release SLAs. The Release agent remains protobuf-free. Authenticated named-pipe transport, logon-SID DACLs, kernel peer/session validation, DPAPI material, replay defense, timeout/cancel-drain, and a cross-process Health exchange now pass dedicated gates. C++ parity, fuzzing, adjacent-version fixtures, bulk staging, and resident-agent/manager runtime linkage remain separate gates.
 
 ## Diagnostic agent commands and safety boundary
 

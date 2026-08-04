@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-08-03
-**Amended:** 2026-08-04 — correct same-user threat claims, use logon-SID-first ACLs, add anti-squatting/remote rejection, peer validation, and user-intent authorization after the Phase 0 adversarial audit.
+**Amended:** 2026-08-04 — correct same-user threat claims, use logon-SID-first ACLs, add anti-squatting/remote rejection, kernel peer validation, DPAPI/HMAC replay defense, and user-intent authorization after the Phase 0 adversarial audit and Phase 3E transport evidence.
 
 ## Context
 
@@ -18,10 +18,10 @@ Use Windows named pipes with the detailed model in `../architecture/ipc-security
 - a per-installation random component and per-session scope in the pipe name; the name is not treated as a secret;
 - protocol major/minor version negotiation and capability flags;
 - length-prefixed messages with strict maximum sizes;
-- the bounded 36-byte framing, Protobuf Edition 2024 control-schema prototype, and sequenced bulk-transfer state machine proposed by ADR 0018; never deserialize executable/arbitrary object types or put large clipboard payloads in control messages; final resident runtime adoption remains gated by footprint/build/security evidence;
+- the bounded 36-byte framing, Protobuf Edition 2024 control schema, and sequenced bulk-transfer state machine proposed by ADR 0018; never deserialize executable/arbitrary object types or put large clipboard payloads in control messages; the Rust transport foundation now passes Phase 3E gates, while resident/C++ adoption remains gated by footprint, parity, fuzzing, and compatibility evidence;
 - instance/transcript-bound challenge-response using a per-installation secret protected by user-scope DPAPI, for stale/wrong-client and replay/confusion resistance rather than a claimed barrier against fully compromised same-user processes;
 - correlation IDs, deadlines, cancellation, pagination, and bounded subscriptions;
-- server and client PID/token/user/logon-session validation through Windows pipe APIs, with bounded impersonation and guaranteed `RevertToSelf`;
+- server and client PID/token/user/logon-session validation through Windows pipe APIs and process-token queries; Phase 3E does not impersonate because selected evidence is available without introducing a `RevertToSelf` failure surface;
 - replay-resistant handshake nonces and short-lived connection state;
 - metadata-only security logging.
 
@@ -41,7 +41,7 @@ Positive:
 Costs:
 
 - protocol schemas, compatibility tests, and cancellation semantics are required;
-- named-pipe ACL construction and impersonation checks contain security-sensitive Win32 code;
+- named-pipe ACL construction, token inspection, DPAPI, and overlapped I/O contain security-sensitive Win32 code;
 - challenge secret lifecycle must be protected and rotated safely;
 - executable/PID/package evidence remains defense in depth and cannot prove safety after same-user process compromise.
 

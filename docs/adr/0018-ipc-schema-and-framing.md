@@ -1,6 +1,6 @@
 # ADR 0018: Protobuf control schema with bounded named-pipe framing
 
-**Status:** Proposed — Rust framing/schema prototype passes; C++ parity, authenticated transport, fuzzing, and resident-agent adoption gates remain open
+**Status:** Proposed — Rust framing/schema and authenticated Windows transport pass; C++ parity, fuzzing, bulk cleanup, and resident-agent adoption gates remain open
 **Date:** 2026-08-04
 
 ## Context
@@ -110,15 +110,28 @@ Phase 3D provides evidence for the Rust-side framing/schema candidate without ac
 
 - `pastral-ipc-core` implements the exact 36-byte header, field-by-field little-endian parsing, bounded incremental byte-stream decoding, handshake/in-flight/bulk state, and serializer-neutral validated DTOs with no unsafe code, Windows binding, serializer, async runtime, or I/O dependency.
 - `pastral-ipc-schema` generates Edition 2024 Rust bindings from `protocols/ipc-schema/pastral_ipc_v1.proto` using exact `protoc 35.0`, `protobuf 4.35.0-release`, and `protobuf-codegen 4.35.0-release`.
-- The schema SHA-256 is `409c0da02f90e70e9bb1acbf1d7818d31ffcee3b61480cfa4ab250a5a8f493d8`; generated output remains in Cargo `OUT_DIR` and is not tracked.
+- The current schema SHA-256 is `2029ac9b19f7eb1644a2c12b3cd570586af9b62c40e130558b63c376676e3077`; generated output remains in Cargo `OUT_DIR` and is not tracked.
 - Official generated bindings contain the expected upb/native unsafe implementation and generator-specific Clippy style findings. The repository permits those only inside the generated module; handwritten schema conversion remains `deny(unsafe_code)`, and `pastral-ipc-core` remains `forbid(unsafe_code)`.
 - Thirty framing/decoder/connection/DTO tests and eleven schema round-trip/adversarial tests pass. Coverage includes every header split, representative body splits, one-byte feeds, coalesced frames, poison/truncation, correlation and bulk ordering, missing oneofs, malformed wire data, zero/unknown enums, and all current semantic bounds.
-- The isolated Release probe completes 10,000 of 10,000 deterministic round trips. A representative final run measured a 379,904-byte executable, 129,576 ns average full round trip, 713 ns one-byte decoder component, 583 ns coalesced decoder component, and 7,869-byte maximum body capacity for the synthetic 100-item response.
+- The isolated Release probe completes 10,000 of 10,000 deterministic round trips. A representative authenticated-schema run measured a 380,416-byte executable, 174,042 ns average full round trip, 1,029 ns one-byte decoder component, 858 ns coalesced decoder component, and 7,869-byte maximum body capacity for the synthetic 100-item response.
 - These measurements are machine-specific prototype evidence, not a product SLA. The current 2,137,088-byte Release agent remains protobuf-free, so resident-agent incremental binary/private-working-set impact is deliberately not yet claimed.
-- Dependency policy proves official Protobuf packages are isolated to `pastral-ipc-schema` and `pastral-ipc-probe`; agent, clipboard, domain, storage, agent-core, and ipc-core remain protobuf-free.
+- Dependency policy proves official Protobuf packages are isolated to `pastral-ipc-schema`, `pastral-ipc-probe`, `pastral-ipc-win`, and `pastral-ipc-transport-probe`; agent, clipboard, domain, storage, agent-core, ipc-auth, and ipc-core remain protobuf-free.
 - CI is configured to retrieve the official `protoc-35.0-win64.zip` asset, verify SHA-256 `d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363`, and expose exact `libprotoc 35.0` before locked workspace gates. Hosted execution remains unproven until GitHub Actions runs the workflow.
 
-This evidence advances the official Rust runtime from an untested candidate to the selected Rust prototype runtime only. It does not accept ADR 0018 because C++ wire/runtime parity, authenticated named-pipe transport, fuzzing, staging cleanup, resident memory attribution, and adjacent-version compatibility remain incomplete.
+## Authenticated Windows transport evidence — 2026-08-04
+
+Phase 3E wraps the accepted Rust prototype layers in a real Windows local transport without linking the resident agent or manager:
+
+- `pastral-ipc-auth` implements role-separated HMAC-SHA256 proofs over a canonical transcript, exact 32-byte zeroized secret/proof material, per-field tamper rejection, and a bounded 1,024-entry replay cache.
+- `pastral-ipc-win` creates strict atomic public identity and user-scope DPAPI secret files, derives a session-scoped pipe name, extracts owned user/logon SID/session/integrity/PID evidence from bounded process-token queries, and validates both peers using kernel-reported pipe PID/session values.
+- The first pipe instance uses a protected explicit DACL with one current logon-SID allow ACE, `FILE_FLAG_FIRST_PIPE_INSTANCE`, `PIPE_REJECT_REMOTE_CLIENTS`, byte mode, overlapped I/O, and identification-only client SQOS. There is no broad user/SYSTEM/Everyone/Anonymous ACE in this phase.
+- Connect/read/write deadlines use one event and `OVERLAPPED` per operation. Timeout invokes `CancelIoEx` for the exact operation and drains completion before event/buffer release.
+- ServerHello, proof-bearing ClientHello, and proof-bearing ServerAccepted complete mutual authentication before any control request. Wrong secret, control-before-authentication, repeated nonce transcript, peer mismatch, timeout, disconnect, malformed DPAPI material, and first-instance squatting are rejected.
+- `pastral-ipc-transport-probe` starts a distinct server child process, validates kernel peer PIDs/session, completes mutual authentication, and exchanges one content-free Health request/response. Representative Release evidence: client PID `65440`, server PID `68176`, session `1`, connect `6,941 µs`, handshake `264 µs`, Health `38 µs`, total `48,626 µs`.
+- The dedicated gate runs 8 authentication tests, 25 Windows transport tests, and 3 transport-probe tests, then executes the Release cross-process smoke. Output is checked for pipe/root/SID/secret/nonce/proof/clipboard markers.
+- The resident agent and WinUI manager remain unlinked, so no resident footprint or C++ parity claim is made.
+
+This evidence advances official Rust schema/runtime plus Windows transport from isolated prototype to a verified Rust transport foundation. ADR 0018 remains Proposed because C++ wire/runtime parity, parser/schema fuzzing, adjacent-version fixtures, bulk staging cleanup, and resident-agent/manager memory/linkage evidence remain incomplete.
 
 ## Acceptance gates
 

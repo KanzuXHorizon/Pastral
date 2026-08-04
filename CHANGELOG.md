@@ -32,6 +32,12 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Edition 2024 `pastral.ipc.v1` schema prototype generated with exact official `protoc 35.0`, `protobuf 4.35.0-release`, and `protobuf-codegen 4.35.0-release`, with generated DTOs isolated behind validated conversion.
 - A content-free Release `pastral-ipc-probe` and PowerShell gate covering 44 focused IPC tests plus 10,000 fragmented/coalesced schema round trips, exact schema digest, binary size, latency, and decoder-capacity evidence.
 - Dependency/source/CI policy that keeps Protobuf out of the resident agent and core product crates, verifies exact official package versions, and hashes the official Windows protoc archive before CI use.
+- Pure `pastral-ipc-auth` mutual HMAC-SHA256 transcript authentication with role-separated proofs, constant-time verification, exact 32-byte secret/proof material, canonical capability binding, zeroization, and a bounded 1,024-entry replay cache.
+- Windows-only `pastral-ipc-win` transport identity with system CSPRNG, user-scope noninteractive DPAPI protection, strict versioned secret/identity files, no-replace atomic publication, canonical session-scoped pipe names, and concurrency convergence tests.
+- Kernel-derived peer identity validation for user SID, enabled logon SID, session ID, integrity RID, and PID using bounded token queries and reviewed handle/SID ownership.
+- Protected logon-SID-only named-pipe DACLs, first-instance anti-squatting, remote-client rejection, identification-only client SQOS, byte-mode overlapped I/O, bounded timeout/cancel-drain behavior, peer PID/session queries, and framed stream exchange.
+- Mutual authenticated ServerHello/ClientHello/ServerAccepted handshake and content-free cross-process `pastral-ipc-transport-probe` that performs one authenticated Health request/response between distinct processes.
+- `IpcTransport` PowerShell/CI gate covering static security policy, 36 focused auth/transport/probe tests, Release cross-process smoke, PID/session evidence, content-free output, and exact dependency/source boundaries.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -60,7 +66,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager and privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path exist, and the Rust framing/schema prototype passes isolated gates. Production authenticated named-pipe transport, C++ parity, agent schema linkage, auto-start, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
+- The native manager, privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path, Rust framing/schema layer, and authenticated cross-process Windows named-pipe transport exist. The transport remains diagnostic-only: C++ parity, fuzzing, adjacent-version fixtures, agent/manager linkage, auto-start, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.
