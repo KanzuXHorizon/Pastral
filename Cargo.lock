@@ -369,9 +369,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf-codegen"
-version = "4.35.0-release"
+version = "4.36.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ccd419b3785dd1692b50c9a9b81b1dbff75ec75a9f5b103224f669d7cc164af"
+checksum = "7286f94dc0a915a23cc752c18a7f85af78a2091957dce63012b76595e96eab7f"
 
 [[package]]
 name = "protobuf-macros"
