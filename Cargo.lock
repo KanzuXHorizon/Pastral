@@ -203,6 +203,7 @@ dependencies = [
 name = "pastral-ipc-core"
 version = "0.1.0"
 dependencies = [
+ "pastral-domain",
  "uuid",
 ]
 

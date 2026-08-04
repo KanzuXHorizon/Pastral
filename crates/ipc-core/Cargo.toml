@@ -7,4 +7,5 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+pastral-domain = { path = "../domain" }
 uuid.workspace = true
