@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType><xsd:choice maxOccurs="unbounded"><xsd:element name="data"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /><xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" /><xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" /><xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" /><xsd:attribute ref="xml:space" /></xsd:complexType></xsd:element><xsd:element name="resheader"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element></xsd:choice></xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="AppTitleBar.Title" xml:space="preserve"><value>Pastral</value></data>
+  <data name="AppTitleBar.Subtitle" xml:space="preserve"><value>Bộ nhớ clipboard riêng tư trên máy</value></data>
+  <data name="ShellNavigationView.PaneTitle" xml:space="preserve"><value>Pastral</value></data>
+  <data name="BrandName.Text" xml:space="preserve"><value>Pastral</value></data>
+  <data name="BrandPositioning.Text" xml:space="preserve"><value>Bộ nhớ clipboard cục bộ</value></data>
+  <data name="HomeNavigationItem.Content" xml:space="preserve"><value>Tổng quan</value></data>
+  <data name="HistoryNavigationItem.Content" xml:space="preserve"><value>Lịch sử</value></data>
+  <data name="HomePageEyebrow.Text" xml:space="preserve"><value>CỤC BỘ • RIÊNG TƯ • SẴN SÀNG</value></data>
+  <data name="HomePageTitle.Text" xml:space="preserve"><value>Clipboard của bạn, luôn được ghi nhớ</value></data>
+  <data name="HomePageSubtitle.Text" xml:space="preserve"><value>Kiểm tra trạng thái ghi nhận và quay lại nội dung vừa sao chép mà không rời khỏi phiên làm việc cục bộ.</value></data>
+  <data name="HomeStatusSectionTitle.Text" xml:space="preserve"><value>Trạng thái ghi nhận</value></data>
+  <data name="HomeOverviewTitle.Text" xml:space="preserve"><value>Riêng tư và lưu trữ</value></data>
+  <data name="HomeOverviewSubtitle.Text" xml:space="preserve"><value>Trạng thái cục bộ đã xác minh, bảo vệ hồ sơ và ranh giới lưu trữ.</value></data>
+  <data name="HomeRecentTitle.Text" xml:space="preserve"><value>Hoạt động gần đây</value></data>
+  <data name="HomeRecentSubtitle.Text" xml:space="preserve"><value>Bản xem trước an toàn về quyền riêng tư từ agent cục bộ đã xác minh.</value></data>
+  <data name="HomeConnectionStatus.Title" xml:space="preserve"><value>Chưa kết nối agent</value></data>
+  <data name="HomeConnectionStatus.Message" xml:space="preserve"><value>Khởi động agent cục bộ, sau đó làm mới kết nối đã xác thực. Trình quản lý không bao giờ đọc trực tiếp kho clipboard.</value></data>
+  <data name="HistoryPageEyebrow.Text" xml:space="preserve"><value>TÌM • NHỚ • DÁN</value></data>
+  <data name="HistoryPageTitle.Text" xml:space="preserve"><value>Tìm lại mọi thứ bạn đã sao chép</value></data>
+  <data name="HistoryPageSubtitle.Text" xml:space="preserve"><value>Tìm bản xem trước an toàn theo nội dung, nguồn, loại, hồ sơ hoặc biểu diễn dữ liệu.</value></data>
+  <data name="HistoryConnectionStatus.Title" xml:space="preserve"><value>Lịch sử chưa được kết nối</value></data>
+  <data name="HistoryConnectionStatus.Message" xml:space="preserve"><value>Tìm kiếm và bản xem trước an toàn sẽ khả dụng sau khi kết nối đã xác minh với agent cục bộ.</value></data>
+  <data name="HistorySearchBox.PlaceholderText" xml:space="preserve"><value>Tìm nội dung, ứng dụng, loại hoặc hồ sơ</value></data>
+  <data name="HistorySearchBox.AutomationProperties.Name" xml:space="preserve"><value>Tìm trong lịch sử clipboard</value></data>
+  <data name="HistoryNoResultsTitle.Text" xml:space="preserve"><value>Bộ nhớ clipboard đang trống</value></data>
+  <data name="HistoryNoResultsDetail.Text" xml:space="preserve"><value>Khởi động agent cục bộ để ghi nhận lịch sử an toàn. Pastral không tạo dữ liệu giả hoặc đọc dữ liệu ngoài provider đã xác minh.</value></data>
+  <data name="HistoryDetailsTitle.Text" xml:space="preserve"><value>Chi tiết nội dung</value></data>
+  <data name="HistoryDetailPreview.Text" xml:space="preserve"><value>Chọn một mục để xem nguồn và các biểu diễn dữ liệu khả dụng</value></data>
+</root>

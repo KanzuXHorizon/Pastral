@@ -3,30 +3,7 @@
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
-      <xsd:complexType>
-        <xsd:choice maxOccurs="unbounded">
-          <xsd:element name="data">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
-              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
-              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
-              <xsd:attribute ref="xml:space" />
-            </xsd:complexType>
-          </xsd:element>
-          <xsd:element name="resheader">
-            <xsd:complexType>
-              <xsd:sequence>
-                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
-              </xsd:sequence>
-              <xsd:attribute name="name" type="xsd:string" use="required" />
-            </xsd:complexType>
-          </xsd:element>
-        </xsd:choice>
-      </xsd:complexType>
+      <xsd:complexType><xsd:choice maxOccurs="unbounded"><xsd:element name="data"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /><xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" /><xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" /><xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" /><xsd:attribute ref="xml:space" /></xsd:complexType></xsd:element><xsd:element name="resheader"><xsd:complexType><xsd:sequence><xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" /></xsd:sequence><xsd:attribute name="name" type="xsd:string" use="required" /></xsd:complexType></xsd:element></xsd:choice></xsd:complexType>
     </xsd:element>
   </xsd:schema>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
@@ -36,15 +13,29 @@
   <data name="AppTitleBar.Title" xml:space="preserve"><value>Pastral</value></data>
   <data name="AppTitleBar.Subtitle" xml:space="preserve"><value>Private local clipboard memory</value></data>
   <data name="ShellNavigationView.PaneTitle" xml:space="preserve"><value>Pastral</value></data>
-  <data name="HomeNavigationItem.Content" xml:space="preserve"><value>Home</value></data>
+  <data name="BrandName.Text" xml:space="preserve"><value>Pastral</value></data>
+  <data name="BrandPositioning.Text" xml:space="preserve"><value>Local clipboard memory</value></data>
+  <data name="HomeNavigationItem.Content" xml:space="preserve"><value>Overview</value></data>
   <data name="HistoryNavigationItem.Content" xml:space="preserve"><value>History</value></data>
-  <data name="HomePageTitle.Text" xml:space="preserve"><value>Home</value></data>
-  <data name="HomePageSubtitle.Text" xml:space="preserve"><value>Agent health, privacy state, and recent clipboard activity.</value></data>
+  <data name="HomePageEyebrow.Text" xml:space="preserve"><value>LOCAL • PRIVATE • READY</value></data>
+  <data name="HomePageTitle.Text" xml:space="preserve"><value>Your clipboard, remembered</value></data>
+  <data name="HomePageSubtitle.Text" xml:space="preserve"><value>Check capture health and return to recent clipboard activity without leaving your local session.</value></data>
+  <data name="HomeStatusSectionTitle.Text" xml:space="preserve"><value>Capture status</value></data>
+  <data name="HomeOverviewTitle.Text" xml:space="preserve"><value>Privacy and storage</value></data>
+  <data name="HomeOverviewSubtitle.Text" xml:space="preserve"><value>Verified local state, profile protection, and storage boundaries.</value></data>
+  <data name="HomeRecentTitle.Text" xml:space="preserve"><value>Recent activity</value></data>
+  <data name="HomeRecentSubtitle.Text" xml:space="preserve"><value>Privacy-safe previews from the verified local agent.</value></data>
   <data name="HomeConnectionStatus.Title" xml:space="preserve"><value>Agent not connected</value></data>
-  <data name="HomeConnectionStatus.Message" xml:space="preserve"><value>Start the local agent, then retry the authenticated connection. The manager never reads clipboard storage directly.</value></data>
-  <data name="HistoryPageTitle.Text" xml:space="preserve"><value>History</value></data>
-  <data name="HistoryPageSubtitle.Text" xml:space="preserve"><value>Search privacy-safe previews by content, source, type, or profile.</value></data>
+  <data name="HomeConnectionStatus.Message" xml:space="preserve"><value>Start the local agent, then refresh the authenticated connection. The manager never reads clipboard storage directly.</value></data>
+  <data name="HistoryPageEyebrow.Text" xml:space="preserve"><value>SEARCH • RECALL • PASTE</value></data>
+  <data name="HistoryPageTitle.Text" xml:space="preserve"><value>Find anything you copied</value></data>
+  <data name="HistoryPageSubtitle.Text" xml:space="preserve"><value>Search privacy-safe previews by content, source, type, profile, or representation.</value></data>
   <data name="HistoryConnectionStatus.Title" xml:space="preserve"><value>History is not connected</value></data>
   <data name="HistoryConnectionStatus.Message" xml:space="preserve"><value>Search and privacy-safe previews become available after a verified connection to the local agent.</value></data>
-  <data name="HistorySearchBox.PlaceholderText" xml:space="preserve"><value>Search history</value></data>
+  <data name="HistorySearchBox.PlaceholderText" xml:space="preserve"><value>Search content, apps, types, or profiles</value></data>
+  <data name="HistorySearchBox.AutomationProperties.Name" xml:space="preserve"><value>Search clipboard history</value></data>
+  <data name="HistoryNoResultsTitle.Text" xml:space="preserve"><value>Your clipboard memory is empty</value></data>
+  <data name="HistoryNoResultsDetail.Text" xml:space="preserve"><value>Start the local agent to capture privacy-safe history. Pastral never invents or reads data outside the verified provider.</value></data>
+  <data name="HistoryDetailsTitle.Text" xml:space="preserve"><value>Clip details</value></data>
+  <data name="HistoryDetailPreview.Text" xml:space="preserve"><value>Select a clip to inspect its source and available representations</value></data>
 </root>

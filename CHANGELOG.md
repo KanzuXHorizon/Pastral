@@ -43,6 +43,11 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - `pastral-agent-ipc-probe` with strict parent/baseline-child/server-child modes, real agent-owned Health state, authenticated one-request Health serving, first-instance collision and non-Health rejection tests, bounded child cleanup, and content-free diagnostics.
 - Release agent IPC admission evidence and CI gate with explicit 25 MiB server-private, 8 MiB private-delta, 12 MiB working-set-delta, and 6 MiB binary-delta ceilings; representative evidence measured a 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta.
 - Dependency/source policy that permits the exact Protobuf/transport runtime only in the admission evidence executable while keeping the default diagnostic agent Protobuf/transport-free.
+- Feature-gated `pastral-agent-ipc.exe` Health serving with strict arguments, bounded connections, authenticated Health-only authorization, per-request real agent state reload, and deterministic cleanup.
+- Versioned fixed-size `pastral-manager-ipc-bridge` C ABI over the reviewed Rust framing/schema/authenticated named-pipe stack, with panic containment, normalized fail-closed status mapping, and content-free Health results.
+- Secure native manager bridge loading from the executable directory using an exact DLL name, restricted DLL search behavior, ABI/result-size validation, and no PATH/current-directory probing.
+- Off-XAML-thread manager Health loading with generation-based stale-result rejection, explicit Loading/Connected/Disconnected/ProtocolMismatch/Error presentation, refresh, and clear-on-disconnect behavior; Release remains free of synthetic history.
+- Dedicated manager live Health bridge gate covering Rust tests and Clippy, Release exports, native ABI/Health probe, isolated per-run MSBuild outputs, live Connected-to-Disconnected UI Automation, build dispatch, and Windows CI policy.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -71,7 +76,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager, privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path, Rust framing/schema layer, authenticated Windows named-pipe transport, and measured real-agent Health admission path exist. The default resident agent and manager remain unlinked: C++ parity, fuzzing, adjacent-version fixtures, production agent lifecycle integration, auto-start, reconnect, and live manager data do not yet exist. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
+- The native manager, privacy-admitted diagnostic resident-agent ordinary Unicode-text capture path, Rust framing/schema layer, authenticated Windows named-pipe transport, measured real-agent Health admission path, and live content-free manager Health bridge exist. The bridge currently targets the feature-gated bounded Health server rather than the default resident lifecycle; generated C++ Protobuf parity, fuzzing, adjacent-version fixtures, production startup/supervision, live History/Search/Paste, and bulk transfer remain open. COM/OLE formats, reliable private-browser detection, publisher verification, comprehensive secret classification, encryption, Quick Paste, passive overlay, and packaging also remain incomplete.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.

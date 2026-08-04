@@ -10,7 +10,7 @@
         VerticalScrollBarVisibility="Auto">
         <Grid
             MaxWidth="{StaticResource PastralContentMaxWidth}"
-            Padding="24,20,24,32"
+            Padding="28,24,28,36"
             RowSpacing="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -20,19 +20,44 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Spacing="6">
-                <TextBlock
-                    x:Uid="HomePageTitle"
-                    AutomationProperties.HeadingLevel="Level1"
-                    Style="{StaticResource PastralPageHeaderStyle}"
-                    Text="Home" />
-                <TextBlock
-                    x:Uid="HomePageSubtitle"
-                    MaxWidth="720"
-                    HorizontalAlignment="Left"
-                    Style="{StaticResource BodyTextBlockStyle}"
-                    Text="Agent health, privacy state, and recent clipboard activity." />
-            </StackPanel>
+            <Border Style="{StaticResource PastralHeroPanelStyle}">
+                <Grid ColumnSpacing="20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="7">
+                        <TextBlock
+                            x:Uid="HomePageEyebrow"
+                            Foreground="{StaticResource PastralBrandPrimaryBrush}"
+                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                            Text="LOCAL • PRIVATE • READY" />
+                        <TextBlock
+                            x:Uid="HomePageTitle"
+                            AutomationProperties.HeadingLevel="Level1"
+                            Style="{StaticResource PastralPageHeaderStyle}"
+                            Text="Your clipboard, remembered" />
+                        <TextBlock
+                            x:Uid="HomePageSubtitle"
+                            MaxWidth="720"
+                            HorizontalAlignment="Left"
+                            Style="{StaticResource BodyTextBlockStyle}"
+                            Text="Check capture health and return to recent clipboard activity without leaving your local session." />
+                    </StackPanel>
+                    <Border
+                        Grid.Column="1"
+                        Width="48"
+                        Height="48"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource PastralBrandMarkStyle}">
+                        <FontIcon
+                            AutomationProperties.Name="Clipboard memory"
+                            FontSize="22"
+                            Foreground="White"
+                            Glyph="&#xE81C;" />
+                    </Border>
+                </Grid>
+            </Border>
 
             <StackPanel
                 Grid.Row="1"
@@ -88,8 +113,9 @@
                         Spacing="5">
                         <TextBlock
                             AutomationProperties.HeadingLevel="Level2"
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Manager status" />
+                            x:Uid="HomeStatusSectionTitle"
+                            Style="{StaticResource PastralSectionHeaderStyle}"
+                            Text="Capture status" />
                         <TextBlock
                             x:Name="HomeStatusTitle"
                             AutomationProperties.LiveSetting="Polite"
@@ -121,11 +147,13 @@
                     <StackPanel Spacing="4">
                         <TextBlock
                             AutomationProperties.HeadingLevel="Level2"
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="System overview" />
+                            x:Uid="HomeOverviewTitle"
+                            Style="{StaticResource PastralSectionHeaderStyle}"
+                            Text="Privacy and storage" />
                         <TextBlock
+                            x:Uid="HomeOverviewSubtitle"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Operational facts supplied through the verified manager boundary." />
+                            Text="Verified local state, profile protection, and storage boundaries." />
                     </StackPanel>
 
                     <Grid ColumnSpacing="14">
@@ -236,11 +264,13 @@
                     <StackPanel Spacing="4">
                         <TextBlock
                             AutomationProperties.HeadingLevel="Level2"
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Recent clips" />
+                            x:Uid="HomeRecentTitle"
+                            Style="{StaticResource PastralSectionHeaderStyle}"
+                            Text="Recent activity" />
                         <TextBlock
+                            x:Uid="HomeRecentSubtitle"
                             Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Privacy-safe preview metadata supplied by the active provider." />
+                            Text="Privacy-safe previews from the verified local agent." />
                     </StackPanel>
                     <TextBlock
                         x:Name="HomeRecentCount"

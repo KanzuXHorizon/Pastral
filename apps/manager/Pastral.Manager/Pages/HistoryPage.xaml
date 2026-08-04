@@ -11,8 +11,8 @@
         <Grid
             x:Name="HistoryLayoutRoot"
             MaxWidth="{StaticResource PastralContentMaxWidth}"
-            Padding="24,20,24,32"
-            RowSpacing="16">
+            Padding="28,24,28,36"
+            RowSpacing="18">
             <VisualStateManager.VisualStateGroups>
                 <VisualStateGroup x:Name="HistoryLayoutStates">
                     <VisualState x:Name="NarrowLayout">
@@ -53,17 +53,22 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Spacing="6">
+                <StackPanel Spacing="7">
+                    <TextBlock
+                        x:Uid="HistoryPageEyebrow"
+                        Foreground="{StaticResource PastralBrandPrimaryBrush}"
+                        Style="{StaticResource BodyStrongTextBlockStyle}"
+                        Text="SEARCH • RECALL • PASTE" />
                     <TextBlock
                         x:Uid="HistoryPageTitle"
                         AutomationProperties.HeadingLevel="Level1"
                         Style="{StaticResource PastralPageHeaderStyle}"
-                        Text="History" />
+                        Text="Find anything you copied" />
                     <TextBlock
                         x:Uid="HistoryPageSubtitle"
                         MaxWidth="720"
                         Style="{StaticResource BodyTextBlockStyle}"
-                        Text="Search privacy-safe previews by content, source, type, or profile." />
+                        Text="Search privacy-safe previews by content, source, type, profile, or representation." />
                 </StackPanel>
                 <TextBlock
                     x:Name="HistoryResultCount"
@@ -133,7 +138,10 @@
                     Grid.ColumnSpan="3"
                     AutomationProperties.HelpText="Searches only privacy-safe preview metadata supplied by the active provider"
                     AutomationProperties.Name="Search clipboard history"
-                    PlaceholderText="Search safe previews, source, type, or profile"
+                    x:Uid="HistorySearchBox"
+                    MinHeight="44"
+                    PlaceholderText="Search content, apps, types, or profiles"
+                    QueryIcon="Find"
                     TextChanged="SearchBox_TextChanged" />
                 <Button
                     x:Name="HistoryClearButton"
@@ -174,7 +182,7 @@
                 <Border
                     x:Name="HistoryResultsRegion"
                     AutomationProperties.Name="History results"
-                    Style="{StaticResource PastralCardStyle}">
+                    Style="{StaticResource PastralHeroPanelStyle}">
                     <Grid MinHeight="420">
                         <ListView
                             x:Name="HistoryResultsList"
@@ -278,12 +286,14 @@
                                 x:Name="HistoryNoResultsTitle"
                                 HorizontalAlignment="Center"
                                 Style="{StaticResource SubtitleTextBlockStyle}"
-                                Text="No history is available" />
+                                x:Uid="HistoryNoResultsTitle"
+                                Text="Your clipboard memory is empty" />
                             <TextBlock
                                 x:Name="HistoryNoResultsDetail"
                                 TextAlignment="Center"
                                 Style="{StaticResource PastralMetadataTextStyle}"
-                                Text="The manager intentionally remains empty instead of opening storage directly or inventing Release data." />
+                                x:Uid="HistoryNoResultsDetail"
+                                Text="Start the local agent to capture privacy-safe history. Pastral never invents or reads data outside the verified provider." />
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -296,14 +306,16 @@
                     <StackPanel Spacing="16">
                         <StackPanel Spacing="4">
                             <TextBlock
+                                x:Uid="HistoryDetailsTitle"
                                 AutomationProperties.HeadingLevel="Level2"
-                                Style="{StaticResource SubtitleTextBlockStyle}"
+                                Style="{StaticResource PastralSectionHeaderStyle}"
                                 Text="Clip details" />
                             <TextBlock
                                 x:Name="HistoryDetailPreview"
                                 MaxLines="4"
                                 Style="{StaticResource BodyStrongTextBlockStyle}"
-                                Text="Select a history item"
+                                x:Uid="HistoryDetailPreview"
+                                Text="Select a clip to inspect its source and available representations"
                                 TextTrimming="CharacterEllipsis"
                                 TextWrapping="Wrap" />
                         </StackPanel>

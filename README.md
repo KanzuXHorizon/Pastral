@@ -75,7 +75,8 @@ From Windows PowerShell:
 - `.\eng\build.ps1 -Task IpcTransport` verifies DPAPI material, logon-SID DACLs, peer token/session evidence, bounded overlapped I/O, mutual HMAC authentication, replay rejection, and a real cross-process Health exchange.
 - `.\eng\build.ps1 -Task AgentIpcAdmission` verifies shared Health truth, process-memory diagnostics, authenticated real-agent Health serving, Release footprint ceilings, dependency isolation, and content-free output.
 - `.\eng\build.ps1 -Task Agent` builds Debug/Release agent binaries and runs a disposable, content-free `health-check` smoke.
-- `.\eng\build.ps1 -Task Full` runs Rust gates, the IPC prototype, authenticated transport, agent IPC admission, agent build/smoke gate, plus native static policy and Debug/Release manager builds.
+- `.\eng\build.ps1 -Task ManagerIpcBridge` verifies the feature-gated agent Health server, Rust C ABI bridge, exported symbols, native probe, isolated Release manager build, and Connected-to-Disconnected UI Automation flow.
+- `.\eng\build.ps1 -Task Full` runs Rust gates, the IPC prototype, authenticated transport, agent IPC admission, agent build/smoke gate, manager live Health bridge gate, native static policy, and Debug/Release manager builds.
 - `.\eng\build.ps1 -Task Manager` additionally launches the Debug manager, navigates to History through UI Automation, exercises filtering/selection/no-results states, and verifies clean shutdown.
 
 Exact setup and current limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
