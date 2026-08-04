@@ -10,6 +10,11 @@ Set-StrictMode -Version 2.0
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $managerRoot = Join-Path $repositoryRoot 'apps\manager\Pastral.Manager'
 $projectPath = Join-Path $managerRoot 'Pastral.Manager.vcxproj'
+$verificationRoot = Join-Path $repositoryRoot ('target\verification\pastral-native-manager-' + [guid]::NewGuid().ToString('N'))
+$debugOutput = Join-Path $verificationRoot 'debug-out'
+$debugIntermediate = Join-Path $verificationRoot 'debug-obj'
+$releaseOutput = Join-Path $verificationRoot 'release-out'
+$releaseIntermediate = Join-Path $verificationRoot 'release-obj'
 
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -140,6 +145,7 @@ function Invoke-StaticVerification {
     Assert-Contains $projectPath 'Microsoft\.Windows\.CppWinRT' 'C++/WinRT PackageReference'
     Assert-Contains $projectPath 'Services\\ManagerIpcBridge\.cpp' 'manager IPC bridge source'
     Assert-Contains $projectPath 'manager-ipc-bridge\\include' 'manager IPC bridge header path'
+    Assert-Contains $PSCommandPath 'target\\verification\\pastral-native-manager-' 'per-run native verification root'
 
     $bridgeCode = Join-Path $managerRoot 'Services\ManagerIpcBridge.cpp'
     Assert-Contains $bridgeCode 'GetModuleFileNameW' 'executable-directory bridge resolution'
@@ -270,6 +276,10 @@ function Invoke-StaticVerification {
     Assert-Contains $provider 'ConnectionState::Disconnected' 'live disconnected state'
     Assert-Contains $provider 'snapshot\.synthetic\s*=\s*false' 'live synthetic exclusion'
 
+    Assert-Contains $PSCommandPath '"/p:OutDir=\$output"' 'isolated native manager output override'
+    Assert-Contains $PSCommandPath '"/p:IntDir=\$intermediate"' 'isolated native manager intermediate override'
+    Assert-Contains $PSCommandPath 'Join-Path \$debugOutput ''pastral-manager\.exe''' 'isolated Debug smoke executable'
+
     Write-Host 'Native manager static policy: PASS'
 }
 
@@ -304,12 +314,24 @@ function Invoke-BuildVerification {
     $locked = if (Test-Path -LiteralPath $lockFile -PathType Leaf) { 'true' } else { 'false' }
 
     foreach ($configuration in @('Debug', 'Release')) {
+        $outputDirectory = if ($configuration -eq 'Debug') { $debugOutput } else { $releaseOutput }
+        $intermediateDirectory = if ($configuration -eq 'Debug') { $debugIntermediate } else { $releaseIntermediate }
+        New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+        New-Item -ItemType Directory -Path $intermediateDirectory -Force | Out-Null
+        $output = $outputDirectory.TrimEnd('\') + '\'
+        $intermediate = $intermediateDirectory.TrimEnd('\') + '\'
+
         Write-Host "Building manager $configuration|x64"
-        & $msbuild $projectPath '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:minimal' `
+        & $msbuild $projectPath '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
             "/p:Configuration=$configuration" '/p:Platform=x64' `
-            "/p:RestoreLockedMode=$locked"
+            "/p:RestoreLockedMode=$locked" "/p:OutDir=$output" "/p:IntDir=$intermediate"
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
+        }
+
+        $executable = Join-Path $outputDirectory 'pastral-manager.exe'
+        if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            Fail "Manager $configuration executable was not produced at $executable"
         }
     }
 
@@ -318,6 +340,7 @@ function Invoke-BuildVerification {
 
 function Resolve-DebugExecutable {
     $candidates = @(
+        (Join-Path $debugOutput 'pastral-manager.exe'),
         (Join-Path $managerRoot 'x64\Debug\pastral-manager.exe'),
         (Join-Path $managerRoot 'bin\x64\Debug\pastral-manager.exe')
     )
@@ -524,4 +547,5 @@ try {
 }
 finally {
     Pop-Location
+    Remove-Item -LiteralPath $verificationRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
