@@ -6,6 +6,7 @@ mod error;
 mod handshake;
 mod overlapped;
 mod pipe;
+mod process_memory;
 mod random;
 mod security;
 mod stream;
@@ -26,6 +27,7 @@ pub use handshake::{
     client_handshake_with_nonce_for_test, server_handshake, server_handshake_with_nonce_for_test,
 };
 pub use pipe::{PipeClient, PipeServer, create_first_pipe_server, open_pipe_client};
+pub use process_memory::{ProcessMemorySnapshot, process_memory_snapshot};
 pub use random::random_bytes;
 pub use security::{
     PipeSecurity, SecurityInspection, build_logon_sid_pipe_security, inspect_pipe_security,

@@ -110,7 +110,7 @@ try {
                     $violations.Add("forbidden product-source pattern in $relativePath")
                 }
             }
-            $isTransportProbeProcessBoundary =
+            $isReviewedProcessSpawnBoundary =
                 $relativePath.Equals(
                     'apps/ipc-transport-probe/src/main.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
@@ -118,15 +118,19 @@ try {
                 $relativePath.Equals(
                     'apps/ipc-transport-probe/tests/cross_process.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'crates/ipc-win/tests/process_memory.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
                 )
-            if (-not $isTransportProbeProcessBoundary) {
+            if (-not $isReviewedProcessSpawnBoundary) {
                 foreach ($pattern in $processSpawnPatterns) {
                     if ([System.Text.RegularExpressions.Regex]::IsMatch(
                         $content,
                         $pattern,
                         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
                     )) {
-                        $violations.Add("process spawning outside transport probe main in $relativePath")
+                        $violations.Add("process spawning outside reviewed diagnostic boundaries in $relativePath")
                     }
                 }
             }

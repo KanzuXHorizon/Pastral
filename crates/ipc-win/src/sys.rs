@@ -7,7 +7,7 @@ use windows_sys::Win32::{
         ERROR_FILE_NOT_FOUND, ERROR_INSUFFICIENT_BUFFER, ERROR_IO_PENDING, ERROR_NO_DATA,
         ERROR_NOT_FOUND, ERROR_OPERATION_ABORTED, ERROR_PIPE_BUSY, ERROR_PIPE_CONNECTED,
         ERROR_PIPE_NOT_CONNECTED, ERROR_SEM_TIMEOUT, GENERIC_READ, GENERIC_WRITE, GetLastError,
-        HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree, WAIT_TIMEOUT,
+        HANDLE, HLOCAL, INVALID_HANDLE_VALUE, LocalFree, STILL_ACTIVE, WAIT_TIMEOUT,
     },
     Security::Authorization::{
         ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
@@ -38,10 +38,13 @@ use windows_sys::Win32::{
             PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_WAIT,
             SetNamedPipeHandleState, WaitNamedPipeW,
         },
+        ProcessStatus::{
+            K32GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS, PROCESS_MEMORY_COUNTERS_EX,
+        },
         SystemServices::{ACCESS_ALLOWED_ACE_TYPE, SE_GROUP_ENABLED, SE_GROUP_LOGON_ID},
         Threading::{
-            CreateEventW, GetCurrentProcessId, OpenProcess, OpenProcessToken,
-            PROCESS_QUERY_LIMITED_INFORMATION,
+            CreateEventW, GetCurrentProcessId, GetExitCodeProcess, OpenProcess, OpenProcessToken,
+            PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_VM_READ,
         },
     },
 };
@@ -636,6 +639,50 @@ fn wait_overlapped(
 
 pub(crate) fn current_process_id() -> u32 {
     unsafe { GetCurrentProcessId() }
+}
+
+pub(crate) struct RawProcessMemorySnapshot {
+    pub working_set_bytes: u64,
+    pub private_usage_bytes: u64,
+}
+
+pub(crate) fn query_process_memory(
+    process_id: u32,
+) -> Result<RawProcessMemorySnapshot, TransportError> {
+    let process =
+        unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, process_id) };
+    let process = OwnedHandle::new(process, "OpenProcess process memory")?;
+    let mut exit_code = 0u32;
+    if unsafe { GetExitCodeProcess(process.raw(), &mut exit_code) } == 0 {
+        return Err(last_error("GetExitCodeProcess"));
+    }
+    if exit_code != u32::try_from(STILL_ACTIVE).expect("STILL_ACTIVE is a nonnegative Win32 status")
+    {
+        return Err(TransportError::InvalidProcessMemory(
+            "process is not active",
+        ));
+    }
+    let mut counters = PROCESS_MEMORY_COUNTERS_EX {
+        cb: u32::try_from(mem::size_of::<PROCESS_MEMORY_COUNTERS_EX>())
+            .expect("process memory counters size fits u32"),
+        ..Default::default()
+    };
+    let success = unsafe {
+        K32GetProcessMemoryInfo(
+            process.raw(),
+            (&raw mut counters).cast::<PROCESS_MEMORY_COUNTERS>(),
+            counters.cb,
+        )
+    };
+    if success == 0 {
+        return Err(last_error("K32GetProcessMemoryInfo"));
+    }
+    Ok(RawProcessMemorySnapshot {
+        working_set_bytes: u64::try_from(counters.WorkingSetSize)
+            .map_err(|_| TransportError::InvalidProcessMemory("working set exceeds u64"))?,
+        private_usage_bytes: u64::try_from(counters.PrivateUsage)
+            .map_err(|_| TransportError::InvalidProcessMemory("private usage exceeds u64"))?,
+    })
 }
 
 pub(crate) fn query_process_token_identity(

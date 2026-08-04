@@ -19,6 +19,7 @@ pub enum TransportError {
     InvalidIdentity(&'static str),
     InvalidSecretEnvelope(&'static str),
     InvalidTokenIdentity(&'static str),
+    InvalidProcessMemory(&'static str),
     InvalidPipeName(&'static str),
     Authentication(AuthError),
     Timeout(&'static str),
@@ -54,6 +55,9 @@ impl core::fmt::Display for TransportError {
             }
             Self::InvalidTokenIdentity(reason) => {
                 write!(formatter, "invalid token identity: {reason}")
+            }
+            Self::InvalidProcessMemory(reason) => {
+                write!(formatter, "invalid process memory evidence: {reason}")
             }
             Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
             Self::Authentication(error) => write!(formatter, "IPC authentication failed: {error}"),
