@@ -200,6 +200,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-ipc-core"
+version = "0.1.0"
+dependencies = [
+ "uuid",
+]
+
+[[package]]
 name = "pastral-storage"
 version = "0.1.0"
 dependencies = [

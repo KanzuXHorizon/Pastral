@@ -4,6 +4,7 @@ members = [
     "crates/agent-core",
     "crates/clipboard-win",
     "crates/domain",
+    "crates/ipc-core",
     "crates/storage",
 ]
 resolver = "3"
