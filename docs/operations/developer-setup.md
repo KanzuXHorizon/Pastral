@@ -145,7 +145,13 @@ Build and smoke the diagnostic agent without reading the clipboard:
 .\eng\build.ps1 -Task Agent
 ```
 
-Run Rust, agent health-check smoke, and native manager static/build gates:
+Verify the live manager Health bridge end to end:
+
+```powershell
+.\eng\build.ps1 -Task ManagerIpcBridge
+```
+
+Run Rust, agent health-check smoke, the live manager Health bridge, and native manager static/build gates:
 
 ```powershell
 .\eng\build.ps1 -Task Full
@@ -171,6 +177,7 @@ Individual tasks:
 .\eng\build.ps1 -Task AgentIpcAdmission
 .\eng\build.ps1 -Task AgentPolicy
 .\eng\build.ps1 -Task Agent
+.\eng\build.ps1 -Task ManagerIpcBridge
 .\eng\build.ps1 -Task NativePolicy
 .\eng\build.ps1 -Task ManagerBuild
 .\eng\build.ps1 -Task Manager
@@ -180,7 +187,7 @@ Individual tasks:
 .\eng\build.ps1 -Task SourcePolicy
 ```
 
-The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and completes 10,000 content-free round trips. `IpcTransport` runs static security checks, 38 focused authentication/transport/probe tests, builds the Release transport probe, and completes a content-free authenticated Health exchange between distinct processes. `AgentIpcAdmission` runs 16 focused shared-Health/process-memory/admission tests, builds the default agent and admission executable in Release, verifies a real agent-owned Health exchange, and fails if server private usage exceeds 25 MiB, private delta exceeds 8 MiB, working-set delta exceeds 12 MiB, or binary delta exceeds 6 MiB. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
+The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `IpcPrototype` verifies exact `protoc 35.0`, runs 44 focused IPC tests, builds the Release probe, and completes 10,000 content-free round trips. `IpcTransport` runs static security checks, 38 focused authentication/transport/probe tests, builds the Release transport probe, and completes a content-free authenticated Health exchange between distinct processes. `AgentIpcAdmission` runs 16 focused shared-Health/process-memory/admission tests, builds the default agent and admission executable in Release, verifies a real agent-owned Health exchange, and fails if server private usage exceeds 25 MiB, private delta exceeds 8 MiB, working-set delta exceeds 12 MiB, or binary delta exceeds 6 MiB. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerIpcBridge` runs 35 focused feature-enabled agent and bridge tests, Clippy, exact export/dependency checks, a native C++ ABI/Health probe, and a Release Connected-to-Disconnected UI Automation smoke. Native probe and manager builds use unique ignored `target\verification\...` output/intermediate roots so concurrent verification cannot corrupt normal `x64` build artifacts. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
 
 ## Direct CI-equivalent commands
 
@@ -210,6 +217,11 @@ cargo tree --locked --workspace
 .\eng\verify-agent.ps1 -Mode Static
 .\eng\verify-agent.ps1 -Mode Build
 .\eng\verify-agent.ps1 -Mode Smoke
+
+.\eng\verify-manager-ipc-bridge.ps1 -Mode Static
+.\eng\verify-manager-ipc-bridge.ps1 -Mode Test
+.\eng\verify-manager-ipc-bridge.ps1 -Mode Probe
+.\eng\verify-manager-ipc-bridge.ps1 -Mode Live
 
 .\eng\verify-native-manager.ps1 -Mode Static
 .\eng\verify-native-manager.ps1 -Mode Build
@@ -249,7 +261,7 @@ coalesced-average-ns=858
 max-body-capacity=7869
 ```
 
-These are prototype measurements, not release SLAs. The default Release agent remains protobuf-free. Authenticated named-pipe transport, logon-SID DACLs, kernel peer/session validation, DPAPI material, replay defense, timeout/cancel-drain, and a cross-process Health exchange pass dedicated gates. Phase 3F also measures real agent Health admission: representative Release evidence reports a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta, all below the explicit ceilings. C++ parity, fuzzing, adjacent-version fixtures, bulk staging, and production resident-agent/manager runtime linkage remain separate gates.
+These are prototype measurements, not release SLAs. The default Release agent remains protobuf-free. Authenticated named-pipe transport, logon-SID DACLs, kernel peer/session validation, DPAPI material, replay defense, timeout/cancel-drain, and a cross-process Health exchange pass dedicated gates. Phase 3F also measures real agent Health admission: representative Release evidence reports a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta, all below the explicit ceilings. Phase 3G connects the feature-gated real Health server to the native manager through a 414,208-byte Release bridge DLL; one representative native run measured connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. Generated C++ Protobuf parity, fuzzing, adjacent-version fixtures, bulk staging, and production default-agent lifecycle integration remain separate gates.
 
 ## Diagnostic agent commands and safety boundary
 

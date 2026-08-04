@@ -29,7 +29,7 @@ function Get-CommandOutput {
 
 function Add-Failure {
     param(
-        [Parameter(Mandatory = $true)][System.Collections.Generic.List[string]]$List,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.List[string]]$List,
         [Parameter(Mandatory = $true)][string]$Message
     )
 
@@ -62,7 +62,7 @@ Write-Host "target: $actualTarget"
 Write-Host "rustfmt: $rustfmtVersion"
 Write-Host "clippy: $clippyVersion"
 
-if ($rustcVersion -notmatch '^rustc 1\.97\.1 ') {
+if ($rustcVersion -notmatch '(?m)^rustc 1\.97\.1 ') {
     Add-Failure $rustFailures 'rustc must be 1.97.1'
 }
 if ($activeToolchain -notmatch '^1\.97\.1-x86_64-pc-windows-msvc\s') {
@@ -71,7 +71,7 @@ if ($activeToolchain -notmatch '^1\.97\.1-x86_64-pc-windows-msvc\s') {
 if ($actualTarget -ne $requiredTarget) {
     Add-Failure $rustFailures "host/target must be $requiredTarget"
 }
-if ($clippyVersion -notmatch '^clippy 0\.1\.97 ') {
+if ($clippyVersion -notmatch '(?m)^clippy 0\.1\.97 ') {
     Add-Failure $rustFailures 'Clippy must be the Rust 1.97.1 component'
 }
 

@@ -1,6 +1,6 @@
 # ADR 0018: Protobuf control schema with bounded named-pipe framing
 
-**Status:** Proposed — Rust framing/schema, authenticated Windows transport, and measured agent Health admission pass; C++ parity, fuzzing, bulk cleanup, and production resident/manager linkage gates remain open
+**Status:** Proposed — Rust framing/schema, authenticated Windows transport, measured agent Health admission, and the native manager Health bridge pass; generated C++ schema parity, fuzzing, bulk cleanup, and production default-agent lifecycle gates remain open
 **Date:** 2026-08-04
 
 ## Context
@@ -144,7 +144,20 @@ Phase 3F measures whether the authenticated transport and official Rust schema r
 - The aggregate Rust workspace now passes 208 tests. The dedicated admission gate runs 3 shared-agent Health tests, 2 process-memory tests, and 11 admission tests, then builds both Release binaries and executes the authenticated cross-process smoke with content-leak checks.
 - The default `pastral-agent` remains Protobuf/transport-free. The admission executable is evidence for a later resident integration; it is not a second production storage owner, auto-start host, or manager service.
 
-This evidence advances official Rust schema/runtime plus Windows transport from isolated transport foundation to a measured agent Health admission candidate. ADR 0018 remains Proposed because C++ wire/runtime parity, parser/schema fuzzing, adjacent-version fixtures, bulk staging cleanup, and actual resident-agent/manager lifecycle and linkage evidence remain incomplete.
+## Native manager Health bridge evidence — 2026-08-05
+
+Phase 3G connects the measured Health path to the unpackaged C++/WinRT manager without introducing a second schema/parser implementation or allowing the manager to open storage directly:
+
+- `pastral-agent-ipc.exe` is a feature-gated bounded Health server with strict CLI parsing, authenticated Health-only authorization, per-request reload of the real content-free agent snapshot, first-instance collision rejection, and deterministic connection-count shutdown.
+- `pastral-manager-ipc-bridge` is a small Rust `cdylib` that reuses the accepted Rust schema, authentication, and Windows named-pipe transport. Its fixed-size versioned C ABI exports only ABI version, result size, and a bounded UTF-16 Health query; panics are contained and every failure is normalized to an initialized fail-closed result.
+- The C++ manager resolves the bridge beside `pastral-manager.exe`, uses the exact deployed filename `pastral-manager-ipc-bridge.dll`, restricts DLL dependency search to the loaded DLL directory, validates ABI/result size before use, and never probes PATH or the current directory.
+- The provider performs Health work on one persistent background worker, replaces pending refresh requests with the newest generation, marshals accepted results to the XAML dispatcher, and rejects stale completion. Disconnect, authentication failure, protocol mismatch, timeout, bridge absence, and unhealthy state clear live data instead of retaining stale values.
+- Debug synthetic preview remains explicitly labeled and bounded. Release live mode contains no synthetic history; Health is content-free and History/Search/Paste remain unavailable rather than being inferred from storage.
+- The manager project builds the locked Release/Debug Rust bridge before link and copies it beside the executable under the exact deployed name. Dedicated verification checks exports, dependency isolation, native ABI/Health behavior, and live UI Automation.
+- Native verifier builds use unique ignored `target\verification\<run>` output and intermediate roots. This prevents concurrent verification from locking or corrupting the normal manager `x64` artifacts.
+- Focused verification runs 21 feature-enabled agent tests and 14 bridge ABI/client/FFI tests. A representative native Release query returned storage schema `1`, privacy/integrity success, connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. The bridge DLL measured 414,208 bytes. These machine-specific values are evidence, not release SLAs.
+
+Phase 3G satisfies manager linkage for content-free Health through a reviewed C ABI boundary. ADR 0018 remains Proposed because the manager does not yet host generated C++ Protobuf parsing, parser/schema fuzzing and adjacent-version fixtures remain incomplete, bulk staging is absent, and the default clipboard-owning resident agent does not yet supervise this IPC lifecycle during simultaneous capture.
 
 ## Acceptance gates
 
