@@ -18,7 +18,7 @@ use pastral_domain::{
 };
 use pastral_ipc_core::{
     Capability, CorrelationId, Frame, FrameHeader, FrameKind, FrameLimits, HealthRequestDto,
-    HistoryPageRequestDto, RequestDto, ResponseDto, SearchRequestDto,
+    HistoryPageRequestDto, ProtocolErrorCode, RequestDto, ResponseDto, SearchRequestDto,
 };
 use pastral_ipc_schema::{decode_response, encode_request};
 use pastral_ipc_win::{
@@ -123,6 +123,65 @@ fn request(
 }
 
 #[test]
+fn malformed_authenticated_read_request_returns_content_free_protocol_error() {
+    let root = TestRoot::new();
+    let material = load_or_create_transport_material(root.path()).unwrap();
+    let current = current_token_identity().unwrap();
+    let name = derive_pipe_name(material.identity(), current.session_id()).unwrap();
+    let server_root = root.path().to_path_buf();
+    let server = thread::spawn(move || {
+        let config = HealthServerConfig::new(
+            server_root,
+            NonZeroUsize::MIN,
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+        let mut output = Vec::new();
+        serve_read(config, &mut output).map(|summary| (summary, output))
+    });
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let client = open_pipe_client(&name, deadline).unwrap();
+    let peer = client.peer_identity().unwrap();
+    let stream = PipeFrameStream::from_client(client, FrameLimits::default());
+    let authenticated =
+        client_handshake_with_capabilities(stream, &material, peer, &READ_CAPABILITIES, deadline)
+            .unwrap();
+    let mut stream = authenticated.into_stream();
+    let correlation = CorrelationId::new_v4();
+    let malformed_body = vec![0xff, 0xff, 0xff];
+    let header = FrameHeader::new(
+        FrameKind::ControlProto,
+        u32::try_from(malformed_body.len()).unwrap(),
+        0,
+        correlation,
+        FrameLimits::default(),
+    )
+    .unwrap();
+    stream
+        .write_frame(&Frame::new(header, malformed_body).unwrap(), deadline)
+        .unwrap();
+    let response = stream.read_frame(deadline).unwrap();
+    assert_eq!(response.header().correlation(), correlation);
+    match decode_response(response.body()).unwrap() {
+        ResponseDto::Error(error) => {
+            assert_eq!(error.code(), ProtocolErrorCode::InvalidRequest);
+            assert!(!error.retryable());
+            assert_eq!(error.developer_detail(), None);
+        }
+        _ => panic!("unexpected malformed-request response"),
+    }
+
+    let (summary, output) = server.join().unwrap().unwrap();
+    assert_eq!(summary.connections_served(), 1);
+    assert_eq!(
+        output,
+        b"agent-ipc-ready=1\nagent-ipc-connections-served=1\n"
+    );
+}
+
+#[test]
 fn authenticated_read_server_serves_health_history_and_literal_search() {
     let root = TestRoot::new();
     let mut storage = Storage::open(
@@ -206,4 +265,63 @@ fn authenticated_read_server_serves_health_history_and_literal_search() {
     let output = String::from_utf8(output).unwrap();
     assert!(!output.contains("alpha"));
     assert!(!output.contains(root.path().to_string_lossy().as_ref()));
+}
+
+#[test]
+fn large_history_page_trims_previews_to_the_control_frame_budget() {
+    let root = TestRoot::new();
+    let mut storage = Storage::open(
+        root.path().join("storage"),
+        diagnostic_storage_limits(),
+        DiagnosticStoragePolicy,
+    )
+    .unwrap();
+    let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+    let long_preview = "é".repeat(3000);
+    for order in 1..=101 {
+        commit_text(&mut storage, domain, order, Some(&long_preview));
+    }
+    drop(storage);
+
+    let material = load_or_create_transport_material(root.path()).unwrap();
+    let current = current_token_identity().unwrap();
+    let name = derive_pipe_name(material.identity(), current.session_id()).unwrap();
+    let server_root = root.path().to_path_buf();
+    let server = thread::spawn(move || {
+        let config = HealthServerConfig::new(
+            server_root,
+            NonZeroUsize::MIN,
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        )
+        .unwrap();
+        let mut output = Vec::new();
+        serve_read(config, &mut output).map(|summary| (summary, output))
+    });
+
+    match request(
+        &material,
+        &name,
+        RequestDto::HistoryPage(HistoryPageRequestDto::new(100, None).unwrap()),
+    ) {
+        ResponseDto::HistoryPage(page) => {
+            assert_eq!(page.items().len(), 100);
+            assert!(page.has_more());
+            assert!(page.items().iter().all(|item| item.preview().len() <= 4096));
+            assert!(page.items().iter().any(|item| item.preview().len() < 4096));
+            assert!(
+                page.items()
+                    .iter()
+                    .all(|item| item.preview().is_char_boundary(item.preview().len()))
+            );
+        }
+        _ => panic!("unexpected large History response"),
+    }
+
+    let (summary, output) = server.join().unwrap().unwrap();
+    assert_eq!(summary.connections_served(), 1);
+    assert_eq!(
+        output,
+        b"agent-ipc-ready=1\nagent-ipc-connections-served=1\n"
+    );
 }

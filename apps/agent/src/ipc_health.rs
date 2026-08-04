@@ -297,10 +297,7 @@ fn response_for_request(
             };
             let limit = usize::try_from(request.limit()).map_err(|_| AgentIpcError::Protocol)?;
             match storage.history_page(request.before_capture_order(), limit) {
-                Ok(page) => Ok(ResponseDto::HistoryPage(
-                    HistoryPageResponseDto::new(map_page(&page)?, page.has_more())
-                        .map_err(|_| AgentIpcError::Protocol)?,
-                )),
+                Ok(page) => bounded_page_response(&page, PageResponseKind::History),
                 Err(error) => storage_error_response(&error),
             }
         }
@@ -311,10 +308,7 @@ fn response_for_request(
             };
             let limit = usize::try_from(request.limit()).map_err(|_| AgentIpcError::Protocol)?;
             match storage.search_page(request.query(), limit) {
-                Ok(page) => Ok(ResponseDto::Search(
-                    SearchResponseDto::new(map_page(&page)?, page.has_more())
-                        .map_err(|_| AgentIpcError::Protocol)?,
-                )),
+                Ok(page) => bounded_page_response(&page, PageResponseKind::Search),
                 Err(error) => storage_error_response(&error),
             }
         }
@@ -334,13 +328,67 @@ fn health_response(data_root: &std::path::Path) -> Result<ResponseDto, AgentIpcE
     ))
 }
 
-fn map_page(page: &ClipPage) -> Result<Vec<ClipPreviewDto>, AgentIpcError> {
-    page.items().iter().map(map_item).collect()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PageResponseKind {
+    History,
+    Search,
 }
 
-fn map_item(item: &ClipListItem) -> Result<ClipPreviewDto, AgentIpcError> {
+fn bounded_page_response(
+    page: &ClipPage,
+    kind: PageResponseKind,
+) -> Result<ResponseDto, AgentIpcError> {
+    let frame_limit = usize::try_from(FrameLimits::default().max_control_body_bytes())
+        .map_err(|_| AgentIpcError::Protocol)?;
+    let mut lower = 0usize;
+    let mut upper = 4096usize;
+    let mut best = None;
+
+    while lower <= upper {
+        let preview_limit = lower + (upper - lower) / 2;
+        let response = page_response(page, kind, preview_limit)?;
+        let encoded = encode_response(&response).map_err(|_| AgentIpcError::Protocol)?;
+        if encoded.len() <= frame_limit {
+            best = Some(response);
+            lower = preview_limit.saturating_add(1);
+        } else if preview_limit == 0 {
+            break;
+        } else {
+            upper = preview_limit - 1;
+        }
+    }
+
+    best.ok_or(AgentIpcError::Protocol)
+}
+
+fn page_response(
+    page: &ClipPage,
+    kind: PageResponseKind,
+    preview_limit: usize,
+) -> Result<ResponseDto, AgentIpcError> {
+    let items = page
+        .items()
+        .iter()
+        .map(|item| map_item(item, preview_limit))
+        .collect::<Result<Vec<_>, _>>()?;
+    match kind {
+        PageResponseKind::History => Ok(ResponseDto::HistoryPage(
+            HistoryPageResponseDto::new(items, page.has_more())
+                .map_err(|_| AgentIpcError::Protocol)?,
+        )),
+        PageResponseKind::Search => Ok(ResponseDto::Search(
+            SearchResponseDto::new(items, page.has_more()).map_err(|_| AgentIpcError::Protocol)?,
+        )),
+    }
+}
+
+fn map_item(item: &ClipListItem, preview_limit: usize) -> Result<ClipPreviewDto, AgentIpcError> {
     let (kind, preview, unavailable) = match item.preview() {
-        Some(preview) => (ClipPreviewKind::Text, preview.to_owned(), false),
+        Some(preview) => (
+            ClipPreviewKind::Text,
+            truncate_preview(preview, preview_limit),
+            false,
+        ),
         None => (ClipPreviewKind::Unavailable, String::new(), true),
     };
     ClipPreviewDto::new(
@@ -354,6 +402,17 @@ fn map_item(item: &ClipListItem) -> Result<ClipPreviewDto, AgentIpcError> {
         unavailable,
     )
     .map_err(|_| AgentIpcError::Protocol)
+}
+
+fn truncate_preview(value: &str, max_bytes: usize) -> String {
+    if value.len() <= max_bytes {
+        return value.to_owned();
+    }
+    let mut end = max_bytes;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    value[..end].to_owned()
 }
 
 fn storage_error_response(error: &StorageError) -> Result<ResponseDto, AgentIpcError> {
