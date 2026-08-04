@@ -91,7 +91,7 @@ function Invoke-MSBuildProject {
     $intermediate = $IntermediateDirectory.TrimEnd('\') + '\'
 
     $msbuild = Resolve-MSBuild
-    & $msbuild $Project '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:minimal' `
+    & $msbuild $Project '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
         "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RestoreLockedMode=false' `
         "/p:OutDir=$output" "/p:IntDir=$intermediate"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
