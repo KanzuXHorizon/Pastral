@@ -8,6 +8,7 @@ pub enum AgentRuntimeError {
         kind: ErrorKind,
     },
     InvalidIdentity(&'static str),
+    InvalidPrivacyPolicy(&'static str),
     Storage(&'static str),
     Clipboard(&'static str),
     CoordinatorConfiguration,
@@ -35,6 +36,9 @@ impl fmt::Display for AgentRuntimeError {
                 )
             }
             Self::InvalidIdentity(reason) => write!(f, "agent identity is invalid: {reason}"),
+            Self::InvalidPrivacyPolicy(reason) => {
+                write!(f, "agent privacy policy is invalid: {reason}")
+            }
             Self::Storage(operation) => write!(f, "agent storage operation failed: {operation}"),
             Self::Clipboard(operation) => {
                 write!(f, "agent clipboard operation failed: {operation}")

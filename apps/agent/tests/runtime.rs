@@ -43,6 +43,7 @@ fn health_check_reports_content_free_integrity_markers() {
 
     let output = String::from_utf8(output).unwrap();
     assert!(output.contains("agent-health=ok"));
+    assert!(output.contains("privacy-policy=ok"));
     assert!(output.contains("storage-schema=1"));
     assert!(output.contains("sqlite-integrity=ok"));
     assert!(output.contains("fts-integrity=ok"));
@@ -51,6 +52,7 @@ fn health_check_reports_content_free_integrity_markers() {
     assert!(!output.to_ascii_lowercase().contains("clipboard-text"));
     assert!(!output.to_ascii_lowercase().contains("content-hash"));
     assert!(root.path().join("agent-identity.txt").is_file());
+    assert!(root.path().join("privacy-policy.txt").is_file());
     assert!(
         root.path()
             .join("storage")

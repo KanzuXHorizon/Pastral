@@ -41,6 +41,7 @@ function Invoke-StaticVerification {
         'src\cli.rs',
         'src\runtime.rs',
         'src\platform.rs',
+        'src\privacy_config.rs',
         'src\storage_sink.rs',
         'src\config.rs'
     )
@@ -72,7 +73,29 @@ function Invoke-StaticVerification {
     Assert-Contains $runtime 'Duration::from_millis\(15\)' '15 ms retry delay'
     Assert-Contains $runtime 'Duration::from_millis\(35\)' '35 ms retry delay'
     Assert-Contains $runtime 'integrity_check\(\)' 'storage integrity health check'
+    Assert-Contains $runtime 'PrivacyPolicyConfig::load_or_create' 'strict privacy policy loading'
+    Assert-Contains $runtime 'privacy-policy=ok' 'privacy policy health marker'
     Assert-Contains $runtime 'capture-outcome=stored' 'content-free stored outcome'
+    Assert-Contains $runtime 'capture-outcome=hard-denied' 'hard-deny outcome'
+    Assert-Contains $runtime 'capture-outcome=policy-denied' 'source-policy outcome'
+    Assert-Contains $runtime 'capture-outcome=sensitive-skipped' 'sensitive-skip outcome'
+
+    $privacyConfig = Join-Path $agentRoot 'src\privacy_config.rs'
+    Assert-Contains $privacyConfig 'PRIVACY_POLICY_FILE:\s*&str\s*=\s*"privacy-policy\.txt"' 'privacy policy filename'
+    Assert-Contains $privacyConfig 'SourceAdmissionPolicy::new\(\s*true' 'fail-closed unresolved-source default'
+    foreach ($executable in @('1password\.exe', 'bitwarden\.exe', 'keepass\.exe', 'keepassxc\.exe')) {
+        Assert-Contains $privacyConfig $executable 'baseline denied executable'
+    }
+
+    $privacyCore = Join-Path $repositoryRoot 'crates\agent-core\src\privacy.rs'
+    Assert-Contains $privacyCore 'MAX_SECRET_SCAN_BYTES:\s*usize\s*=\s*1024\s*\*\s*1024' '1 MiB detector bound'
+    Assert-Contains $privacyCore 'PrivateKeyMaterial' 'private-key sensitive class'
+    Assert-Contains $privacyCore 'DetectorLimitExceeded' 'detector-limit sensitive class'
+
+    $historyControls = Join-Path $repositoryRoot 'crates\clipboard-win\src\history_controls.rs'
+    Assert-Contains $historyControls 'ExcludeClipboardContentFromMonitorProcessing' 'source-owned monitor exclusion format'
+    Assert-Contains $historyControls 'CanIncludeInClipboardHistory' 'source-owned history inclusion format'
+    Assert-Contains $historyControls 'CanUploadToCloudClipboard' 'cloud-only clipboard control format'
 
     $runtimeContent = [System.IO.File]::ReadAllText($runtime)
     foreach ($pattern in @(
@@ -136,6 +159,7 @@ function Invoke-SmokeVerification {
         }
         foreach ($marker in @(
             'agent-health=ok',
+            'privacy-policy=ok',
             'storage-schema=1',
             'sqlite-integrity=ok',
             'fts-integrity=ok',
@@ -153,6 +177,9 @@ function Invoke-SmokeVerification {
         }
         if (-not (Test-Path -LiteralPath (Join-Path $temporaryRoot 'agent-identity.txt') -PathType Leaf)) {
             Fail 'Agent health-check did not create its content-free identity file'
+        }
+        if (-not (Test-Path -LiteralPath (Join-Path $temporaryRoot 'privacy-policy.txt') -PathType Leaf)) {
+            Fail 'Agent health-check did not create its strict privacy policy file'
         }
         if (-not (Test-Path -LiteralPath (Join-Path $temporaryRoot 'storage\metadata.sqlite3') -PathType Leaf)) {
             Fail 'Agent health-check did not create/open storage metadata'

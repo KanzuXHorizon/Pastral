@@ -1,15 +1,14 @@
 use core::num::{NonZeroU32, NonZeroUsize};
 use std::{io::Write, path::Path, time::Duration};
 
-use pastral_agent_core::{
-    CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence, SourceAdmissionPolicy,
-};
+use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
 use pastral_storage::Storage;
 
 use crate::{
-    AgentCommand, AgentIdentity, AgentRuntimeError, DiagnosticStoragePolicy, StorageCaptureSink,
-    SystemClock, ThreadSleeper, WindowsClipboardSource, diagnostic_storage_limits,
+    AgentCommand, AgentIdentity, AgentRuntimeError, DiagnosticStoragePolicy, PrivacyPolicyConfig,
+    StorageCaptureSink, SystemClock, ThreadSleeper, WindowsClipboardSource,
+    diagnostic_storage_limits,
 };
 
 const MAX_UNICODE_TEXT_BYTES: usize = 16 * 1024 * 1024;
@@ -36,6 +35,7 @@ pub fn run_command<W: Write>(
 
 fn run_health_check<W: Write>(data_root: &Path, output: &mut W) -> Result<(), AgentRuntimeError> {
     let _identity = AgentIdentity::load_or_create(data_root)?;
+    let _privacy_policy = PrivacyPolicyConfig::load_or_create(data_root)?;
     let storage = open_storage(data_root)?;
     let runtime = storage
         .runtime_info()
@@ -53,6 +53,7 @@ fn run_health_check<W: Write>(data_root: &Path, output: &mut W) -> Result<(), Ag
 
     write_line(output, &format!("data-root={}", data_root.display()))?;
     write_line(output, "agent-health=ok")?;
+    write_line(output, "privacy-policy=ok")?;
     write_line(
         output,
         &format!("storage-schema={}", runtime.schema_version),
@@ -97,8 +98,9 @@ fn run_capture_current<W: Write>(
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
     let identity = AgentIdentity::load_or_create(data_root)?;
+    let privacy_policy = PrivacyPolicyConfig::load_or_create(data_root)?;
     let mut coordinator = capture_coordinator(identity)?;
-    let mut source = WindowsClipboardSource::new(default_source_policy()?);
+    let mut source = WindowsClipboardSource::new(privacy_policy.source_policy().clone());
     let mut sink = StorageCaptureSink::new(open_storage(data_root)?);
     let mut clock = SystemClock;
     let mut sleeper = ThreadSleeper;
@@ -115,8 +117,9 @@ fn run_listener<W: Write>(
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
     let identity = AgentIdentity::load_or_create(data_root)?;
+    let privacy_policy = PrivacyPolicyConfig::load_or_create(data_root)?;
     let mut coordinator = capture_coordinator(identity)?;
-    let mut source = WindowsClipboardSource::new(default_source_policy()?);
+    let mut source = WindowsClipboardSource::new(privacy_policy.source_policy().clone());
     let mut sink = StorageCaptureSink::new(open_storage(data_root)?);
     let mut clock = SystemClock;
     let mut sleeper = ThreadSleeper;
@@ -160,19 +163,6 @@ fn run_listener<W: Write>(
     listener
         .stop()
         .map_err(|_| AgentRuntimeError::Clipboard("listener-stop"))
-}
-
-fn default_source_policy() -> Result<SourceAdmissionPolicy, AgentRuntimeError> {
-    SourceAdmissionPolicy::new(
-        true,
-        [
-            "1password.exe",
-            "bitwarden.exe",
-            "keepass.exe",
-            "keepassxc.exe",
-        ],
-    )
-    .map_err(|_| AgentRuntimeError::CoordinatorConfiguration)
 }
 
 fn capture_coordinator(identity: AgentIdentity) -> Result<CaptureCoordinator, AgentRuntimeError> {
