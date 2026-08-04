@@ -6,6 +6,10 @@ mod clock;
 mod config;
 mod error;
 mod health;
+#[cfg(feature = "ipc-health")]
+mod ipc_cli;
+#[cfg(feature = "ipc-health")]
+mod ipc_health;
 mod platform;
 mod privacy_config;
 mod runtime;
@@ -16,6 +20,10 @@ pub use clock::{SystemClock, ThreadSleeper};
 pub use config::AgentIdentity;
 pub use error::AgentRuntimeError;
 pub use health::{AgentHealthSnapshot, load_health_snapshot};
+#[cfg(feature = "ipc-health")]
+pub use ipc_cli::{AgentIpcCliError, AgentIpcCommand, ipc_usage, parse_ipc_arguments};
+#[cfg(feature = "ipc-health")]
+pub use ipc_health::{AgentIpcError, HealthServerConfig, HealthServerSummary, serve_health};
 pub use platform::WindowsClipboardSource;
 pub use privacy_config::PrivacyPolicyConfig;
 pub use runtime::run_command;

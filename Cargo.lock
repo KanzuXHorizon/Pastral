@@ -209,6 +209,10 @@ dependencies = [
  "pastral-agent-core",
  "pastral-clipboard-win",
  "pastral-domain",
+ "pastral-ipc-auth",
+ "pastral-ipc-core",
+ "pastral-ipc-schema",
+ "pastral-ipc-win",
  "pastral-storage",
 ]
 

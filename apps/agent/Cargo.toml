@@ -10,8 +10,26 @@ publish = false
 [lib]
 path = "src/lib.rs"
 
+[[bin]]
+name = "pastral-agent-ipc"
+path = "src/ipc_main.rs"
+required-features = ["ipc-health"]
+
+[features]
+default = []
+ipc-health = [
+    "dep:pastral-ipc-auth",
+    "dep:pastral-ipc-core",
+    "dep:pastral-ipc-schema",
+    "dep:pastral-ipc-win",
+]
+
 [dependencies]
 pastral-agent-core = { path = "../../crates/agent-core" }
 pastral-clipboard-win = { path = "../../crates/clipboard-win" }
 pastral-domain = { path = "../../crates/domain" }
+pastral-ipc-auth = { path = "../../crates/ipc-auth", optional = true }
+pastral-ipc-core = { path = "../../crates/ipc-core", optional = true }
+pastral-ipc-schema = { path = "../../crates/ipc-schema", optional = true }
+pastral-ipc-win = { path = "../../crates/ipc-win", optional = true }
 pastral-storage = { path = "../../crates/storage" }

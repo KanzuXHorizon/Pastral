@@ -21,7 +21,7 @@ const BASELINE_CHILD_FLAG: &str = "--baseline-child";
 const SERVER_CHILD_FLAG: &str = "--server-child";
 const DATA_ROOT_FLAG: &str = "--data-root";
 const BASELINE_READINESS_LINE: &str = "agent-baseline-ready=ok\n";
-const SERVER_READINESS_LINE: &str = "agent-health-server-ready=ok\n";
+const SERVER_READINESS_LINE: &str = "agent-ipc-ready=1\n";
 const READINESS_TIMEOUT: Duration = Duration::from_secs(5);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(2);

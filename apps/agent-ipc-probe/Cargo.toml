@@ -11,7 +11,7 @@ publish = false
 path = "src/lib.rs"
 
 [dependencies]
-pastral-agent = { path = "../agent" }
+pastral-agent = { path = "../agent", features = ["ipc-health"] }
 pastral-ipc-auth = { path = "../../crates/ipc-auth" }
 pastral-ipc-core = { path = "../../crates/ipc-core" }
 pastral-ipc-schema = { path = "../../crates/ipc-schema" }

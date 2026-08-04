@@ -94,10 +94,7 @@ fn server_child_returns_real_agent_health_once_and_exits() {
         _ => panic!("unexpected Health response variant"),
     }
 
-    assert_eq!(
-        server.join().unwrap().unwrap(),
-        b"agent-health-server-ready=ok\n"
-    );
+    assert_eq!(server.join().unwrap().unwrap(), b"agent-ipc-ready=1\n");
 }
 
 #[test]
@@ -157,5 +154,5 @@ fn authenticated_non_health_request_is_rejected() {
 
     let (result, output) = server.join().unwrap();
     assert_eq!(result, Err(AdmissionError::Protocol));
-    assert_eq!(output, b"agent-health-server-ready=ok\n");
+    assert_eq!(output, b"agent-ipc-ready=1\n");
 }

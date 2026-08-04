@@ -78,6 +78,7 @@ function Invoke-StaticVerification {
         (Join-Path $probeRoot 'src\protocol.rs'),
         (Join-Path $probeRoot 'tests\cross_process.rs'),
         (Join-Path $repositoryRoot 'apps\agent\src\health.rs'),
+        (Join-Path $repositoryRoot 'apps\agent\src\ipc_health.rs'),
         (Join-Path $repositoryRoot 'crates\ipc-win\src\process_memory.rs')
     )) {
         Assert-File $path
@@ -128,9 +129,13 @@ function Invoke-StaticVerification {
     Assert-Contains $child 'agent-baseline-ready=ok' 'baseline readiness marker'
 
     $server = Join-Path $probeRoot 'src\server.rs'
-    Assert-Contains $server 'agent-health-server-ready=ok' 'server readiness marker'
-    Assert-Contains $server 'server_handshake' 'authenticated server handshake'
-    Assert-Contains $server 'RequestDto::Health' 'Health-only request authorization'
+    Assert-Contains $server 'serve_health' 'shared agent Health server delegation'
+
+    $sharedServer = Join-Path $repositoryRoot 'apps\agent\src\ipc_health.rs'
+    Assert-Contains $sharedServer 'agent-ipc-ready=1' 'server readiness marker'
+    Assert-Contains $sharedServer 'server_handshake' 'authenticated server handshake'
+    Assert-Contains $sharedServer 'RequestDto::Health' 'Health-only request authorization'
+    Assert-Contains $sharedServer 'load_health_snapshot\(data_root\)' 'per-request Health reload'
 
     $metrics = Join-Path $probeRoot 'src\metrics.rs'
     Assert-Contains $metrics '25\s*\*\s*MIB' '25 MiB server private ceiling'
