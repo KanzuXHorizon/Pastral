@@ -8,20 +8,28 @@ use std::{
 
 use pastral_ipc_auth::NonceReplayCache;
 use pastral_ipc_core::{
-    CorrelationId, Frame, FrameHeader, FrameKind, FrameLimits, HealthRequestDto, HealthResponseDto,
-    RequestDto, ResponseDto,
+    Capability, ClipPreviewDto, ClipPreviewKind, CorrelationId, Frame, FrameHeader, FrameKind,
+    FrameLimits, HealthRequestDto, HealthResponseDto, HistoryPageResponseDto, ProtocolErrorCode,
+    ProtocolErrorDto, RequestDto, ResponseDto, SearchResponseDto,
 };
 use pastral_ipc_schema::{decode_request, encode_response};
 use pastral_ipc_win::{
     PipeFrameStream, PipeSecurity, PipeServer, TransportMaterial, build_logon_sid_pipe_security,
     create_first_pipe_server, current_token_identity, derive_pipe_name, inspect_pipe_security,
-    load_or_create_transport_material, server_handshake,
+    load_or_create_transport_material, server_handshake_with_capabilities,
 };
+use pastral_storage::{ClipListItem, ClipPage, StorageError};
 
-use crate::{AgentHealthSnapshot, load_health_snapshot};
+use crate::{health::open_storage, load_health_snapshot};
 
 const MAX_CONNECTIONS: usize = 16;
 const EXPECTED_PIPE_ACCESS_MASK: u32 = 0xc010_0000;
+const HEALTH_CAPABILITIES: [Capability; 1] = [Capability::Health];
+const READ_CAPABILITIES: [Capability; 3] = [
+    Capability::Health,
+    Capability::HistoryPage,
+    Capability::Search,
+];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AgentIpcError {
@@ -128,9 +136,39 @@ impl HealthServerSummary {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ServerMode {
+    HealthOnly,
+    ReadOnly,
+}
+
+impl ServerMode {
+    const fn capabilities(self) -> &'static [Capability] {
+        match self {
+            Self::HealthOnly => &HEALTH_CAPABILITIES,
+            Self::ReadOnly => &READ_CAPABILITIES,
+        }
+    }
+}
+
 pub fn serve_health<W: Write>(
     config: HealthServerConfig,
     output: &mut W,
+) -> Result<HealthServerSummary, AgentIpcError> {
+    serve(config, output, ServerMode::HealthOnly)
+}
+
+pub fn serve_read<W: Write>(
+    config: HealthServerConfig,
+    output: &mut W,
+) -> Result<HealthServerSummary, AgentIpcError> {
+    serve(config, output, ServerMode::ReadOnly)
+}
+
+fn serve<W: Write>(
+    config: HealthServerConfig,
+    output: &mut W,
+    mode: ServerMode,
 ) -> Result<HealthServerSummary, AgentIpcError> {
     let _initial_snapshot =
         load_health_snapshot(config.data_root()).map_err(|_| AgentIpcError::AgentHealth)?;
@@ -156,6 +194,7 @@ pub fn serve_health<W: Write>(
             config.data_root(),
             config.connect_timeout,
             config.operation_timeout,
+            mode,
         )?;
         served += 1;
         if served >= config.max_connections.get() {
@@ -196,6 +235,7 @@ fn serve_one(
     data_root: &std::path::Path,
     connect_timeout: Duration,
     operation_timeout: Duration,
+    mode: ServerMode,
 ) -> Result<(), AgentIpcError> {
     server
         .connect(Instant::now() + connect_timeout)
@@ -204,11 +244,12 @@ fn serve_one(
         .peer_identity()
         .map_err(|_| AgentIpcError::Transport)?;
     let stream = PipeFrameStream::from_server(server, FrameLimits::default());
-    let authenticated = server_handshake(
+    let authenticated = server_handshake_with_capabilities(
         stream,
         material,
         peer,
         replay_cache,
+        mode.capabilities(),
         Instant::now() + operation_timeout,
     )
     .map_err(|_| AgentIpcError::Authentication)?;
@@ -218,24 +259,71 @@ fn serve_one(
         .map_err(|_| AgentIpcError::Transport)?;
     if request.header().kind() != FrameKind::ControlProto
         || request.header().correlation().is_zero()
-        || decode_request(request.body()).map_err(|_| AgentIpcError::Protocol)?
-            != RequestDto::Health(HealthRequestDto)
     {
         return Err(AgentIpcError::Protocol);
     }
 
-    let snapshot = load_health_snapshot(data_root).map_err(|_| AgentIpcError::AgentHealth)?;
-    let response = health_response_frame(&snapshot, request.header().correlation())?;
+    let correlation = request.header().correlation();
+    let request = match decode_request(request.body()) {
+        Ok(request) => request,
+        Err(_) if mode == ServerMode::ReadOnly => {
+            let response = error_response(ProtocolErrorCode::InvalidRequest, false)?;
+            let frame = response_frame(&response, correlation)?;
+            return stream
+                .write_frame(&frame, Instant::now() + operation_timeout)
+                .map_err(|_| AgentIpcError::Transport);
+        }
+        Err(_) => return Err(AgentIpcError::Protocol),
+    };
+    let response = response_for_request(mode, data_root, request)?;
+    let frame = response_frame(&response, correlation)?;
     stream
-        .write_frame(&response, Instant::now() + operation_timeout)
+        .write_frame(&frame, Instant::now() + operation_timeout)
         .map_err(|_| AgentIpcError::Transport)
 }
 
-fn health_response_frame(
-    snapshot: &AgentHealthSnapshot,
-    correlation: CorrelationId,
-) -> Result<Frame, AgentIpcError> {
-    let response = ResponseDto::Health(
+fn response_for_request(
+    mode: ServerMode,
+    data_root: &std::path::Path,
+    request: RequestDto,
+) -> Result<ResponseDto, AgentIpcError> {
+    match (mode, request) {
+        (_, RequestDto::Health(HealthRequestDto)) => health_response(data_root),
+        (ServerMode::HealthOnly, _) => Err(AgentIpcError::Protocol),
+        (ServerMode::ReadOnly, RequestDto::HistoryPage(request)) => {
+            let storage = match open_storage(data_root) {
+                Ok(storage) => storage,
+                Err(_) => return error_response(ProtocolErrorCode::Internal, true),
+            };
+            let limit = usize::try_from(request.limit()).map_err(|_| AgentIpcError::Protocol)?;
+            match storage.history_page(request.before_capture_order(), limit) {
+                Ok(page) => Ok(ResponseDto::HistoryPage(
+                    HistoryPageResponseDto::new(map_page(&page)?, page.has_more())
+                        .map_err(|_| AgentIpcError::Protocol)?,
+                )),
+                Err(error) => storage_error_response(&error),
+            }
+        }
+        (ServerMode::ReadOnly, RequestDto::Search(request)) => {
+            let storage = match open_storage(data_root) {
+                Ok(storage) => storage,
+                Err(_) => return error_response(ProtocolErrorCode::Internal, true),
+            };
+            let limit = usize::try_from(request.limit()).map_err(|_| AgentIpcError::Protocol)?;
+            match storage.search_page(request.query(), limit) {
+                Ok(page) => Ok(ResponseDto::Search(
+                    SearchResponseDto::new(map_page(&page)?, page.has_more())
+                        .map_err(|_| AgentIpcError::Protocol)?,
+                )),
+                Err(error) => storage_error_response(&error),
+            }
+        }
+    }
+}
+
+fn health_response(data_root: &std::path::Path) -> Result<ResponseDto, AgentIpcError> {
+    let snapshot = load_health_snapshot(data_root).map_err(|_| AgentIpcError::AgentHealth)?;
+    Ok(ResponseDto::Health(
         HealthResponseDto::new(
             snapshot.storage_schema_version(),
             snapshot.capture_enabled(),
@@ -243,8 +331,54 @@ fn health_response_frame(
             snapshot.storage_integrity_ok(),
         )
         .map_err(|_| AgentIpcError::Protocol)?,
-    );
-    let body = encode_response(&response).map_err(|_| AgentIpcError::Protocol)?;
+    ))
+}
+
+fn map_page(page: &ClipPage) -> Result<Vec<ClipPreviewDto>, AgentIpcError> {
+    page.items().iter().map(map_item).collect()
+}
+
+fn map_item(item: &ClipListItem) -> Result<ClipPreviewDto, AgentIpcError> {
+    let (kind, preview, unavailable) = match item.preview() {
+        Some(preview) => (ClipPreviewKind::Text, preview.to_owned(), false),
+        None => (ClipPreviewKind::Unavailable, String::new(), true),
+    };
+    ClipPreviewDto::new(
+        item.clip_event_id(),
+        item.capture_order(),
+        item.observed_at(),
+        kind,
+        preview,
+        None,
+        false,
+        unavailable,
+    )
+    .map_err(|_| AgentIpcError::Protocol)
+}
+
+fn storage_error_response(error: &StorageError) -> Result<ResponseDto, AgentIpcError> {
+    match error {
+        StorageError::SearchQueryInvalid(_) => {
+            error_response(ProtocolErrorCode::InvalidRequest, false)
+        }
+        StorageError::IntegerOutOfRange(_) => {
+            error_response(ProtocolErrorCode::ResourceLimit, false)
+        }
+        _ => error_response(ProtocolErrorCode::Internal, true),
+    }
+}
+
+fn error_response(code: ProtocolErrorCode, retryable: bool) -> Result<ResponseDto, AgentIpcError> {
+    Ok(ResponseDto::Error(
+        ProtocolErrorDto::new(code, retryable, None).map_err(|_| AgentIpcError::Protocol)?,
+    ))
+}
+
+fn response_frame(
+    response: &ResponseDto,
+    correlation: CorrelationId,
+) -> Result<Frame, AgentIpcError> {
+    let body = encode_response(response).map_err(|_| AgentIpcError::Protocol)?;
     let header = FrameHeader::new(
         FrameKind::ControlProto,
         u32::try_from(body.len()).map_err(|_| AgentIpcError::Protocol)?,

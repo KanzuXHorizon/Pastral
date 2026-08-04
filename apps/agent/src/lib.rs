@@ -23,7 +23,9 @@ pub use health::{AgentHealthSnapshot, load_health_snapshot};
 #[cfg(feature = "ipc-health")]
 pub use ipc_cli::{AgentIpcCliError, AgentIpcCommand, ipc_usage, parse_ipc_arguments};
 #[cfg(feature = "ipc-health")]
-pub use ipc_health::{AgentIpcError, HealthServerConfig, HealthServerSummary, serve_health};
+pub use ipc_health::{
+    AgentIpcError, HealthServerConfig, HealthServerSummary, serve_health, serve_read,
+};
 pub use platform::WindowsClipboardSource;
 pub use privacy_config::PrivacyPolicyConfig;
 pub use runtime::run_command;

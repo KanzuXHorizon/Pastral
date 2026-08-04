@@ -1,7 +1,7 @@
 use std::{env, io, process::ExitCode, time::Duration};
 
 use pastral_agent::{
-    AgentIpcCommand, HealthServerConfig, ipc_usage, parse_ipc_arguments, serve_health,
+    AgentIpcCommand, HealthServerConfig, ipc_usage, parse_ipc_arguments, serve_health, serve_read,
 };
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -17,32 +17,40 @@ fn main() -> ExitCode {
         }
     };
 
-    match command {
+    let (data_root, max_connections, read_only) = match command {
         AgentIpcCommand::ServeHealth {
             data_root,
             max_connections,
-        } => {
-            let config = match HealthServerConfig::new(
-                data_root,
-                max_connections,
-                CONNECT_TIMEOUT,
-                OPERATION_TIMEOUT,
-            ) {
-                Ok(config) => config,
-                Err(error) => {
-                    eprintln!("error: {error}");
-                    return ExitCode::from(1);
-                }
-            };
-            let stdout = io::stdout();
-            let mut output = stdout.lock();
-            match serve_health(config, &mut output) {
-                Ok(_) => ExitCode::SUCCESS,
-                Err(error) => {
-                    eprintln!("error: {error}");
-                    ExitCode::from(1)
-                }
-            }
+        } => (data_root, max_connections, false),
+        AgentIpcCommand::ServeRead {
+            data_root,
+            max_connections,
+        } => (data_root, max_connections, true),
+    };
+    let config = match HealthServerConfig::new(
+        data_root,
+        max_connections,
+        CONNECT_TIMEOUT,
+        OPERATION_TIMEOUT,
+    ) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("error: {error}");
+            return ExitCode::from(1);
+        }
+    };
+    let stdout = io::stdout();
+    let mut output = stdout.lock();
+    let result = if read_only {
+        serve_read(config, &mut output)
+    } else {
+        serve_health(config, &mut output)
+    };
+    match result {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("error: {error}");
+            ExitCode::from(1)
         }
     }
 }

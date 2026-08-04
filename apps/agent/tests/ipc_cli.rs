@@ -5,7 +5,7 @@ use std::{ffi::OsString, num::NonZeroUsize, path::PathBuf};
 use pastral_agent::{AgentIpcCliError, AgentIpcCommand, parse_ipc_arguments};
 
 #[test]
-fn accepts_exact_serve_health_shape_and_default() {
+fn accepts_exact_serve_health_and_read_shapes() {
     assert_eq!(
         parse_ipc_arguments([
             OsString::from("serve-health"),
@@ -29,6 +29,20 @@ fn accepts_exact_serve_health_shape_and_default() {
         Ok(AgentIpcCommand::ServeHealth {
             data_root: PathBuf::from(r"C:\temp\pastral"),
             max_connections: NonZeroUsize::new(16).unwrap(),
+        })
+    );
+
+    assert_eq!(
+        parse_ipc_arguments([
+            OsString::from("serve-read"),
+            OsString::from("--data-root"),
+            OsString::from(r"C:\temp\pastral"),
+            OsString::from("--max-connections"),
+            OsString::from("3"),
+        ]),
+        Ok(AgentIpcCommand::ServeRead {
+            data_root: PathBuf::from(r"C:\temp\pastral"),
+            max_connections: NonZeroUsize::new(3).unwrap(),
         })
     );
 }

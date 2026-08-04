@@ -9,6 +9,10 @@ pub enum AgentIpcCommand {
         data_root: PathBuf,
         max_connections: NonZeroUsize,
     },
+    ServeRead {
+        data_root: PathBuf,
+        max_connections: NonZeroUsize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,9 +54,11 @@ pub fn parse_ipc_arguments(
 ) -> Result<AgentIpcCommand, AgentIpcCliError> {
     let mut arguments = arguments.into_iter();
     let command = arguments.next().ok_or(AgentIpcCliError::MissingCommand)?;
-    if command.to_str() != Some("serve-health") {
-        return Err(AgentIpcCliError::UnknownCommand);
-    }
+    let command = match command.to_str() {
+        Some("serve-health") => IpcCommandKind::Health,
+        Some("serve-read") => IpcCommandKind::Read,
+        _ => return Err(AgentIpcCliError::UnknownCommand),
+    };
 
     let mut data_root = None;
     let mut max_connections = None;
@@ -92,13 +98,27 @@ pub fn parse_ipc_arguments(
         }
     }
 
-    Ok(AgentIpcCommand::ServeHealth {
-        data_root: data_root.ok_or(AgentIpcCliError::MissingDataRoot)?,
-        max_connections: max_connections.unwrap_or(NonZeroUsize::MIN),
+    let data_root = data_root.ok_or(AgentIpcCliError::MissingDataRoot)?;
+    let max_connections = max_connections.unwrap_or(NonZeroUsize::MIN);
+    Ok(match command {
+        IpcCommandKind::Health => AgentIpcCommand::ServeHealth {
+            data_root,
+            max_connections,
+        },
+        IpcCommandKind::Read => AgentIpcCommand::ServeRead {
+            data_root,
+            max_connections,
+        },
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IpcCommandKind {
+    Health,
+    Read,
 }
 
 #[must_use]
 pub const fn ipc_usage() -> &'static str {
-    "Usage:\n  pastral-agent-ipc serve-health --data-root <path> [--max-connections <1..=16>]"
+    "Usage:\n  pastral-agent-ipc serve-health --data-root <path> [--max-connections <1..=16>]\n  pastral-agent-ipc serve-read --data-root <path> [--max-connections <1..=16>]"
 }
