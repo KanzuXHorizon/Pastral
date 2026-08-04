@@ -1,0 +1,54 @@
+use std::io;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransportError {
+    Io {
+        operation: &'static str,
+        kind: io::ErrorKind,
+    },
+    Windows {
+        operation: &'static str,
+        code: u32,
+    },
+    NtStatus {
+        operation: &'static str,
+        status: i32,
+    },
+    InvalidIdentity(&'static str),
+    InvalidSecretEnvelope(&'static str),
+    InvalidPipeName(&'static str),
+    SizeLimit(&'static str),
+}
+
+impl TransportError {
+    pub(crate) fn io(operation: &'static str, error: &io::Error) -> Self {
+        Self::Io {
+            operation,
+            kind: error.kind(),
+        }
+    }
+}
+
+impl core::fmt::Display for TransportError {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Io { operation, kind } => write!(formatter, "{operation} failed: {kind:?}"),
+            Self::Windows { operation, code } => {
+                write!(formatter, "{operation} failed with Win32 error {code}")
+            }
+            Self::NtStatus { operation, status } => {
+                write!(formatter, "{operation} failed with NTSTATUS {status:#x}")
+            }
+            Self::InvalidIdentity(reason) => {
+                write!(formatter, "invalid transport identity: {reason}")
+            }
+            Self::InvalidSecretEnvelope(reason) => {
+                write!(formatter, "invalid secret envelope: {reason}")
+            }
+            Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
+            Self::SizeLimit(reason) => write!(formatter, "transport size limit: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for TransportError {}

@@ -79,17 +79,22 @@ try {
             $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase)
         if ($isRustProductSource) {
-            $isClipboardSys = $relativePath.Equals(
-                'crates/clipboard-win/src/sys.rs',
-                [System.StringComparison]::OrdinalIgnoreCase
-            )
+            $isReviewedUnsafeBoundary =
+                $relativePath.Equals(
+                    'crates/clipboard-win/src/sys.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'crates/ipc-win/src/sys.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                )
             $unsafeMatch = [System.Text.RegularExpressions.Regex]::IsMatch(
                 $content,
                 $unsafePattern,
                 [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
             )
-            if ((-not $isClipboardSys) -and $unsafeMatch) {
-                $violations.Add("unsafe product-source pattern outside clipboard sys boundary in $relativePath")
+            if ((-not $isReviewedUnsafeBoundary) -and $unsafeMatch) {
+                $violations.Add("unsafe product-source pattern outside reviewed sys boundaries in $relativePath")
             }
             foreach ($pattern in $sourcePatterns) {
                 if ([System.Text.RegularExpressions.Regex]::IsMatch(

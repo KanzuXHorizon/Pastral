@@ -8,6 +8,7 @@ members = [
     "crates/ipc-auth",
     "crates/ipc-core",
     "crates/ipc-schema",
+    "crates/ipc-win",
     "crates/storage",
 ]
 resolver = "3"
@@ -26,10 +27,12 @@ protobuf-codegen = { version = "=4.35.0-release", default-features = false }
 rusqlite = { version = "=0.40.1", default-features = false, features = ["bundled", "blob"] }
 sha2 = { version = "=0.10.9", default-features = false }
 uuid = { version = "=1.18.1", default-features = false, features = ["std", "v4"] }
-zeroize = { version = "=1.8.2", default-features = false }
+zeroize = { version = "=1.8.2", default-features = false, features = ["alloc"] }
 windows-sys = { version = "=0.61.2", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
     "Win32_System_DataExchange",
     "Win32_System_LibraryLoader",
     "Win32_System_Memory",

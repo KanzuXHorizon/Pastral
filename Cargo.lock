@@ -276,6 +276,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-ipc-win"
+version = "0.1.0"
+dependencies = [
+ "pastral-ipc-auth",
+ "pastral-ipc-core",
+ "uuid",
+ "windows-sys",
+ "zeroize",
+]
+
+[[package]]
 name = "pastral-storage"
 version = "0.1.0"
 dependencies = [

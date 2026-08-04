@@ -1,0 +1,14 @@
+[package]
+name = "pastral-ipc-win"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+pastral-ipc-auth = { path = "../ipc-auth" }
+pastral-ipc-core = { path = "../ipc-core" }
+uuid.workspace = true
+windows-sys.workspace = true
+zeroize.workspace = true
