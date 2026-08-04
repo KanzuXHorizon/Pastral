@@ -476,7 +476,7 @@ function Invoke-LiveVerification {
         Assert-File $manager
         Assert-File (Join-Path $managerOutput $bridgeDllName)
 
-        $agent = Start-AgentServer -Command serve-health -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
+        $agent = Start-AgentServer -Command serve-read -DataRoot $dataRoot -MaxConnections 6 -OutputPath $stdout -ErrorPath $stderr
         $env:PASTRAL_MANAGER_DIAGNOSTIC = '1'
         $env:PASTRAL_MANAGER_DATA_ROOT = $dataRoot
         $managerProcess = Start-Process -FilePath $manager -PassThru
@@ -503,10 +503,32 @@ function Invoke-LiveVerification {
 
         [void](Find-AutomationElementByName -Root $root -Name 'Pastral agent is connected' -TimeoutSeconds 15)
         [void](Find-AutomationElementByName -Root $root -Name '0 items' -TimeoutSeconds 5)
-        if (-not $agent.WaitForExit(10000)) {
-            Fail 'Agent Health server did not exit after serving the manager connection'
+
+        $history = Find-AutomationElementByName -Root $root -Name 'History' -TimeoutSeconds 5
+        $historySelection = $history.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+        $historySelection.Select()
+        $search = Find-AutomationElementByName -Root $root -Name 'Search clipboard history' -TimeoutSeconds 10
+        $editCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::Edit
+        )
+        $edit = $search.FindFirst([System.Windows.Automation.TreeScope]::Subtree, $editCondition)
+        if ($null -eq $edit) {
+            $edit = $root.FindFirst([System.Windows.Automation.TreeScope]::Subtree, $editCondition)
+        }
+        if ($null -eq $edit) {
+            Fail 'History Search edit control is missing from the UI Automation tree'
+        }
+        $value = $edit.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
+        $value.SetValue('probe')
+        [void](Find-AutomationElementByName -Root $root -Name 'No matching clips' -TimeoutSeconds 10)
+        if (-not $agent.WaitForExit(15000)) {
+            Fail 'Agent read server did not exit after Home, History, and Search connections'
         }
 
+        $overview = Find-AutomationElementByName -Root $root -Name 'Overview' -TimeoutSeconds 5
+        $overviewSelection = $overview.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern)
+        $overviewSelection.Select()
         $refresh = Find-AutomationElementByName -Root $root -Name 'Refresh local agent connection' -TimeoutSeconds 5
         $invoke = $refresh.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
         $invoke.Invoke()
@@ -538,7 +560,7 @@ function Invoke-LiveVerification {
         Remove-Item -LiteralPath $temporary -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    Write-Host 'Release manager live Connected-to-Disconnected UIA smoke: PASS'
+    Write-Host 'Release manager live History/Search and Connected-to-Disconnected UIA smoke: PASS'
 }
 
 Push-Location $repositoryRoot

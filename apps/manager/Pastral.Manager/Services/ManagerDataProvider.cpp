@@ -2,7 +2,9 @@
 #include "ManagerDataProvider.h"
 #include "ManagerIpcBridge.h"
 
+#include <chrono>
 #include <condition_variable>
+#include <cwctype>
 #include <filesystem>
 #include <mutex>
 #include <optional>
@@ -17,11 +19,22 @@ namespace Pastral::Manager::Presentation
         constexpr wchar_t DiagnosticRootName[] = L"PASTRAL_MANAGER_DATA_ROOT";
         constexpr wchar_t LocalAppDataName[] = L"LOCALAPPDATA";
         constexpr std::uint32_t HealthTimeoutMilliseconds = 2000;
+        constexpr std::uint32_t ReadTimeoutMilliseconds = 2000;
+        constexpr std::uint32_t InitialPageLimit = 50;
         constexpr DWORD MaximumEnvironmentCharacters = 32768;
+
+        enum class RequestKind
+        {
+            Load,
+            Refresh,
+            Search,
+        };
 
         struct PendingRequest final
         {
             std::uint64_t generation{};
+            RequestKind kind{ RequestKind::Load };
+            std::wstring query;
             SnapshotCompletion completion;
         };
 
@@ -126,6 +139,8 @@ namespace Pastral::Manager::Presentation
             snapshot.activeProfile = L"Ordinary";
             snapshot.storageSummary = L"Unavailable until the local agent is healthy";
             snapshot.clips.clear();
+            snapshot.query.clear();
+            snapshot.hasMore = false;
             snapshot.synthetic = false;
             return snapshot;
         }
@@ -136,6 +151,8 @@ namespace Pastral::Manager::Presentation
             ManagerSnapshot snapshot;
             snapshot.activeProfile = L"Ordinary";
             snapshot.clips.clear();
+            snapshot.query.clear();
+            snapshot.hasMore = false;
             snapshot.synthetic = false;
 
             using Services::ManagerIpcBridgeStatus;
@@ -145,7 +162,7 @@ namespace Pastral::Manager::Presentation
                 snapshot.connection = ConnectionState::Connected;
                 snapshot.statusTitle = L"Pastral agent is connected";
                 snapshot.statusDetail =
-                    L"The authenticated local Health endpoint passed privacy and storage integrity checks.";
+                    L"The secure local connection is ready and storage checks passed.";
                 snapshot.storageSummary =
                     L"Schema " + std::to_wstring(health.storageSchemaVersion) + L" · Integrity verified";
                 break;
@@ -160,14 +177,14 @@ namespace Pastral::Manager::Presentation
                 snapshot.connection = ConnectionState::Disconnected;
                 snapshot.statusTitle = L"Pastral agent did not respond";
                 snapshot.statusDetail =
-                    L"The bounded local Health request timed out. Retry after checking the agent.";
-                snapshot.storageSummary = L"Unavailable because the local Health request timed out";
+                    L"The local agent took too long to respond. Check it, then retry.";
+                snapshot.storageSummary = L"Unavailable because the local agent timed out";
                 break;
             case ManagerIpcBridgeStatus::ProtocolMismatch:
                 snapshot.connection = ConnectionState::ProtocolMismatch;
                 snapshot.statusTitle = L"Pastral versions are incompatible";
                 snapshot.statusDetail =
-                    L"The manager and local agent could not negotiate a compatible Health protocol.";
+                    L"The manager and local agent use incompatible connection versions.";
                 snapshot.storageSummary = L"Unavailable until manager and agent versions match";
                 break;
             case ManagerIpcBridgeStatus::AuthenticationFailed:
@@ -181,18 +198,71 @@ namespace Pastral::Manager::Presentation
             case ManagerIpcBridgeStatus::InvalidArgument:
                 return ErrorSnapshot(
                     L"Pastral connection configuration is invalid",
-                    L"The diagnostic or local data location is not valid for the manager Health connection.");
+                    L"The diagnostic or local data location is not valid for the secure local connection.");
             case ManagerIpcBridgeStatus::AbiMismatch:
                 return ErrorSnapshot(
                     L"Pastral bridge versions are incompatible",
                     L"The manager and local IPC bridge use different native interface versions.");
+            case ManagerIpcBridgeStatus::InsufficientBuffer:
+                return ErrorSnapshot(
+                    L"Pastral history changed during refresh",
+                    L"The bounded history page changed too quickly to copy safely. Retry the request.");
             case ManagerIpcBridgeStatus::InternalError:
             default:
                 return ErrorSnapshot(
                     L"Pastral agent connection failed",
-                    L"The manager could not complete the local authenticated Health check.");
+                    L"The manager could not complete the secure local connection check.");
             }
             return snapshot;
+        }
+
+        [[nodiscard]] std::wstring FormatUuid(
+            std::array<std::uint8_t, 16> const& bytes)
+        {
+            constexpr wchar_t Hex[] = L"0123456789abcdef";
+            std::wstring value;
+            value.reserve(36);
+            for (std::size_t index = 0; index < bytes.size(); ++index)
+            {
+                if (index == 4 || index == 6 || index == 8 || index == 10)
+                {
+                    value.push_back(L'-');
+                }
+                value.push_back(Hex[(bytes[index] >> 4) & 0x0f]);
+                value.push_back(Hex[bytes[index] & 0x0f]);
+            }
+            return value;
+        }
+
+        [[nodiscard]] std::wstring RelativeTime(std::int64_t observedAtUnixMicros)
+        {
+            using namespace std::chrono;
+            auto const now = duration_cast<microseconds>(
+                system_clock::now().time_since_epoch()).count();
+            auto const elapsed = now > observedAtUnixMicros
+                ? now - observedAtUnixMicros
+                : 0;
+            auto const seconds = elapsed / 1'000'000;
+            if (seconds < 60)
+            {
+                return L"Just now";
+            }
+            auto const minutes = seconds / 60;
+            if (minutes < 60)
+            {
+                return std::to_wstring(minutes) + (minutes == 1 ? L" min ago" : L" min ago");
+            }
+            auto const hours = minutes / 60;
+            if (hours < 24)
+            {
+                return std::to_wstring(hours) + (hours == 1 ? L" hour ago" : L" hours ago");
+            }
+            auto const days = hours / 24;
+            if (days < 30)
+            {
+                return std::to_wstring(days) + (days == 1 ? L" day ago" : L" days ago");
+            }
+            return L"More than a month ago";
         }
 
         [[nodiscard]] ClipPreviewData MakeClip(
@@ -205,7 +275,8 @@ namespace Pastral::Manager::Presentation
             std::wstring representationSummary,
             std::wstring automationName,
             bool pinned,
-            bool unavailable)
+            bool unavailable,
+            bool previewTruncated = false)
         {
             ClipPreviewData clip;
             clip.id = std::move(id);
@@ -218,10 +289,71 @@ namespace Pastral::Manager::Presentation
             clip.automationName = std::move(automationName);
             clip.pinned = pinned;
             clip.unavailable = unavailable;
+            clip.previewTruncated = previewTruncated;
             return clip;
         }
 
-        [[nodiscard]] ManagerSnapshot SyntheticSnapshot()
+        [[nodiscard]] ClipPreviewData MapClip(
+            Services::ManagerIpcBridgeClip const& value)
+        {
+            auto const unavailable = value.unavailable;
+            auto const source = value.sourceLabel.has_value() && !value.sourceLabel->empty()
+                ? *value.sourceLabel
+                : L"Unknown source";
+            auto const relativeTime = RelativeTime(value.observedAtUnixMicros);
+            std::wstring const type = unavailable ? L"Unavailable" : L"Text";
+            auto const preview = unavailable
+                ? L"Preview unavailable"
+                : (value.preview.empty() ? L"Empty text preview" : value.preview);
+            auto const representation = unavailable
+                ? L"Preview metadata only · Content unavailable"
+                : (value.previewTruncated ? L"Text preview · Truncated" : L"Text preview");
+            auto automationName = type + L" clip from " + source + L", " + relativeTime;
+            if (value.previewTruncated)
+            {
+                automationName += L", preview truncated";
+            }
+            return MakeClip(
+                FormatUuid(value.eventId),
+                preview,
+                source,
+                relativeTime,
+                type,
+                L"Ordinary",
+                representation,
+                automationName,
+                value.pinned,
+                unavailable,
+                value.previewTruncated);
+        }
+
+        [[nodiscard]] std::wstring Lowercase(std::wstring_view value)
+        {
+            std::wstring lowered;
+            lowered.reserve(value.size());
+            for (auto const character : value)
+            {
+                lowered.push_back(static_cast<wchar_t>(std::towlower(character)));
+            }
+            return lowered;
+        }
+
+        [[nodiscard]] bool SyntheticMatch(
+            ClipPreviewData const& clip,
+            std::wstring const& loweredQuery)
+        {
+            if (loweredQuery.empty())
+            {
+                return true;
+            }
+            return Lowercase(clip.safePreview).find(loweredQuery) != std::wstring::npos ||
+                Lowercase(clip.source).find(loweredQuery) != std::wstring::npos ||
+                Lowercase(clip.typeLabel).find(loweredQuery) != std::wstring::npos ||
+                Lowercase(clip.profile).find(loweredQuery) != std::wstring::npos ||
+                Lowercase(clip.representationSummary).find(loweredQuery) != std::wstring::npos;
+        }
+
+        [[nodiscard]] ManagerSnapshot SyntheticSnapshot(std::wstring const& query)
         {
             ManagerSnapshot snapshot;
             snapshot.connection = ConnectionState::Connected;
@@ -230,6 +362,8 @@ namespace Pastral::Manager::Presentation
                 L"These bounded examples exercise manager layout and accessibility. They are not clipboard history.";
             snapshot.activeProfile = L"Development";
             snapshot.storageSummary = L"Synthetic examples only · No database or blob access";
+            snapshot.query = query;
+            snapshot.hasMore = false;
             snapshot.synthetic = true;
             snapshot.clips = {
                 MakeClip(
@@ -299,15 +433,48 @@ namespace Pastral::Manager::Presentation
                     false,
                     true),
             };
+
+            if (!query.empty())
+            {
+                auto const loweredQuery = Lowercase(query);
+                std::vector<ClipPreviewData> filtered;
+                for (auto& clip : snapshot.clips)
+                {
+                    if (SyntheticMatch(clip, loweredQuery))
+                    {
+                        filtered.push_back(std::move(clip));
+                    }
+                }
+                snapshot.clips = std::move(filtered);
+            }
             return snapshot;
         }
 
-        [[nodiscard]] ManagerSnapshot BuildSnapshot()
+        [[nodiscard]] ManagerSnapshot SyntheticSnapshot()
+        {
+            return SyntheticSnapshot({});
+        }
+
+        [[nodiscard]] ManagerSnapshot ReadFailureSnapshot(
+            Services::ManagerIpcBridgeStatus status)
+        {
+            Services::ManagerIpcBridgeHealth failure;
+            failure.status = status;
+            return LiveSnapshot(failure);
+        }
+
+        [[nodiscard]] ManagerSnapshot BuildSnapshot(
+            RequestKind kind,
+            std::wstring const& query)
         {
 #if defined(_DEBUG)
             auto const diagnosticFlag = ReadEnvironment(DiagnosticFlagName);
             if (!diagnosticFlag.has_value())
             {
+                if (kind == RequestKind::Search)
+                {
+                    return SyntheticSnapshot(query);
+                }
                 return SyntheticSnapshot();
             }
 #endif
@@ -316,12 +483,53 @@ namespace Pastral::Manager::Presentation
             {
                 return ErrorSnapshot(
                     L"Pastral connection configuration is invalid",
-                    L"The manager could not resolve a safe local data location for the Health connection.");
+                    L"The manager could not resolve a safe local data location for the secure connection.");
             }
-            return LiveSnapshot(
-                Services::ManagerIpcBridge::QueryHealth(
+
+            auto const health = Services::ManagerIpcBridge::QueryHealth(
+                root.path.native(),
+                HealthTimeoutMilliseconds);
+            auto snapshot = LiveSnapshot(health);
+            if (snapshot.connection != ConnectionState::Connected)
+            {
+                return snapshot;
+            }
+            if (!Services::ManagerIpcBridge::IsReadAvailable())
+            {
+                return ErrorSnapshot(
+                    L"Pastral history bridge is unavailable",
+                    L"Repair the installation so the manager can load the bounded History interface.");
+            }
+
+            auto const page = kind == RequestKind::Search && !query.empty()
+                ? Services::ManagerIpcBridge::QuerySearch(
                     root.path.native(),
-                    HealthTimeoutMilliseconds));
+                    ReadTimeoutMilliseconds,
+                    query,
+                    InitialPageLimit)
+                : Services::ManagerIpcBridge::QueryHistory(
+                    root.path.native(),
+                    ReadTimeoutMilliseconds,
+                    InitialPageLimit);
+            if (page.status != Services::ManagerIpcBridgeStatus::Connected)
+            {
+                return ReadFailureSnapshot(page.status);
+            }
+
+            snapshot.query = kind == RequestKind::Search ? query : std::wstring{};
+            snapshot.hasMore = page.hasMore;
+            snapshot.clips.reserve(page.items.size());
+            for (auto const& item : page.items)
+            {
+                snapshot.clips.push_back(MapClip(item));
+            }
+            snapshot.statusDetail = page.hasMore
+                ? L"The secure local connection returned the first bounded page of history."
+                : L"The secure local connection returned the current bounded history page.";
+            snapshot.storageSummary +=
+                L" · " + std::to_wstring(snapshot.clips.size()) +
+                (snapshot.clips.size() == 1 ? L" item" : L" items");
+            return snapshot;
         }
 
         class ManagerDataProvider final : public IManagerDataProvider
@@ -352,6 +560,25 @@ namespace Pastral::Manager::Presentation
 
             void LoadSnapshotAsync(SnapshotCompletion completion) override
             {
+                Queue(RequestKind::Load, {}, std::move(completion));
+            }
+
+            void RefreshAsync(SnapshotCompletion completion) override
+            {
+                Queue(RequestKind::Refresh, {}, std::move(completion));
+            }
+
+            void SearchAsync(std::wstring query, SnapshotCompletion completion) override
+            {
+                Queue(RequestKind::Search, std::move(query), std::move(completion));
+            }
+
+        private:
+            void Queue(
+                RequestKind kind,
+                std::wstring query,
+                SnapshotCompletion completion)
+            {
                 if (!completion)
                 {
                     return;
@@ -363,12 +590,16 @@ namespace Pastral::Manager::Presentation
                         return;
                     }
                     ++m_generation;
-                    m_pending = PendingRequest{ m_generation, std::move(completion) };
+                    m_pending = PendingRequest{
+                        m_generation,
+                        kind,
+                        std::move(query),
+                        std::move(completion),
+                    };
                 }
                 m_condition.notify_one();
             }
 
-        private:
             void WorkerLoop() noexcept
             {
                 for (;;)
@@ -390,13 +621,13 @@ namespace Pastral::Manager::Presentation
                     ManagerSnapshot snapshot;
                     try
                     {
-                        snapshot = BuildSnapshot();
+                        snapshot = BuildSnapshot(request.kind, request.query);
                     }
                     catch (...)
                     {
                         snapshot = ErrorSnapshot(
                             L"Pastral agent connection failed",
-                            L"The manager could not prepare the local Health connection state.");
+                            L"The manager could not prepare the secure local connection state.");
                     }
 
                     bool deliver = false;
@@ -430,11 +661,13 @@ namespace Pastral::Manager::Presentation
     {
         ManagerSnapshot snapshot;
         snapshot.connection = ConnectionState::Loading;
-        snapshot.statusTitle = L"Connecting to Pastral agent";
-        snapshot.statusDetail = L"Verifying the authenticated local Health endpoint.";
+        snapshot.statusTitle = L"Connecting to local agent";
+        snapshot.statusDetail = L"Checking the secure local connection.";
         snapshot.activeProfile = L"Ordinary";
-        snapshot.storageSummary = L"Checking local agent integrity";
+        snapshot.storageSummary = L"Preparing local status";
         snapshot.clips.clear();
+        snapshot.query.clear();
+        snapshot.hasMore = false;
         snapshot.synthetic = false;
         return snapshot;
     }

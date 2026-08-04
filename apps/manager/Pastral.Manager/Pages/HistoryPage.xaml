@@ -2,7 +2,9 @@
     x:Class="Pastral.Manager.HistoryPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    NavigationCacheMode="Enabled">
+    Loaded="Page_Loaded"
+    NavigationCacheMode="Enabled"
+    Unloaded="Page_Unloaded">
 
     <ScrollViewer
         AutomationProperties.Name="History page content"
@@ -17,6 +19,7 @@
                 <VisualStateGroup x:Name="HistoryLayoutStates">
                     <VisualState x:Name="NarrowLayout">
                         <VisualState.Setters>
+                            <Setter Target="HistoryLayoutRoot.Padding" Value="20,16,20,28" />
                             <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="*" />
                             <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="0" />
                             <Setter Target="HistoryResultsRegion.(Grid.Column)" Value="0" />
@@ -30,12 +33,39 @@
                             <AdaptiveTrigger MinWindowWidth="920" />
                         </VisualState.StateTriggers>
                         <VisualState.Setters>
+                            <Setter Target="HistoryLayoutRoot.Padding" Value="28,24,28,36" />
                             <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="3*" />
                             <Setter Target="HistoryColumns.ColumnDefinitions[1].Width" Value="2*" />
                             <Setter Target="HistoryResultsRegion.(Grid.Column)" Value="0" />
                             <Setter Target="HistoryResultsRegion.(Grid.Row)" Value="0" />
                             <Setter Target="HistoryDetailsRegion.(Grid.Column)" Value="1" />
                             <Setter Target="HistoryDetailsRegion.(Grid.Row)" Value="0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+                <VisualStateGroup x:Name="HistoryHeaderStates">
+                    <VisualState x:Name="NarrowHistoryHeader">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="HistoryHeader.ColumnDefinitions[1].Width" Value="0" />
+                            <Setter Target="HistoryResultCount.(Grid.Row)" Value="1" />
+                            <Setter Target="HistoryResultCount.(Grid.Column)" Value="0" />
+                            <Setter Target="HistoryResultCount.HorizontalAlignment" Value="Left" />
+                            <Setter Target="HistoryResultCount.Margin" Value="0,4,0,0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="WideHistoryHeader">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="640" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="HistoryHeader.ColumnDefinitions[1].Width" Value="Auto" />
+                            <Setter Target="HistoryResultCount.(Grid.Row)" Value="0" />
+                            <Setter Target="HistoryResultCount.(Grid.Column)" Value="1" />
+                            <Setter Target="HistoryResultCount.HorizontalAlignment" Value="Right" />
+                            <Setter Target="HistoryResultCount.Margin" Value="0" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -48,17 +78,23 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <Grid ColumnSpacing="16">
+            <Grid
+                x:Name="HistoryHeader"
+                ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <StackPanel Spacing="7">
                     <TextBlock
                         x:Uid="HistoryPageEyebrow"
                         Foreground="{StaticResource PastralBrandPrimaryBrush}"
                         Style="{StaticResource BodyStrongTextBlockStyle}"
-                        Text="SEARCH • RECALL • PASTE" />
+                        Text="Search with context" />
                     <TextBlock
                         x:Uid="HistoryPageTitle"
                         AutomationProperties.HeadingLevel="Level1"
@@ -74,6 +110,7 @@
                     x:Name="HistoryResultCount"
                     Grid.Column="1"
                     AutomationProperties.LiveSetting="Polite"
+                    HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
                     Style="{StaticResource PastralMetadataTextStyle}"
                     Text="0 items" />

@@ -9,9 +9,54 @@
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto">
         <Grid
+            x:Name="HomeLayoutRoot"
             MaxWidth="{StaticResource PastralContentMaxWidth}"
             Padding="28,24,28,36"
             RowSpacing="24">
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup x:Name="HomeLayoutStates">
+                    <VisualState x:Name="NarrowHomeLayout">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="HomeLayoutRoot.Padding" Value="20,16,20,28" />
+                            <Setter Target="HomeHeroIcon.Visibility" Value="Collapsed" />
+                            <Setter Target="HomeHeroGrid.ColumnDefinitions[1].Width" Value="0" />
+                            <Setter Target="HomeOperationalGrid.ColumnDefinitions[2].Width" Value="0" />
+                            <Setter Target="RetryConnectionButton.(Grid.Row)" Value="1" />
+                            <Setter Target="RetryConnectionButton.(Grid.Column)" Value="1" />
+                            <Setter Target="RetryConnectionButton.HorizontalAlignment" Value="Left" />
+                            <Setter Target="RetryConnectionButton.Margin" Value="0,4,0,0" />
+                            <Setter Target="HomeRecentHeader.ColumnDefinitions[1].Width" Value="0" />
+                            <Setter Target="HomeRecentCount.(Grid.Row)" Value="1" />
+                            <Setter Target="HomeRecentCount.(Grid.Column)" Value="0" />
+                            <Setter Target="HomeRecentCount.HorizontalAlignment" Value="Left" />
+                            <Setter Target="HomeRecentCount.Margin" Value="0,4,0,0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="WideHomeLayout">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="720" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="HomeLayoutRoot.Padding" Value="28,24,28,36" />
+                            <Setter Target="HomeHeroIcon.Visibility" Value="Visible" />
+                            <Setter Target="HomeHeroGrid.ColumnDefinitions[1].Width" Value="Auto" />
+                            <Setter Target="HomeOperationalGrid.ColumnDefinitions[2].Width" Value="Auto" />
+                            <Setter Target="RetryConnectionButton.(Grid.Row)" Value="0" />
+                            <Setter Target="RetryConnectionButton.(Grid.Column)" Value="2" />
+                            <Setter Target="RetryConnectionButton.HorizontalAlignment" Value="Stretch" />
+                            <Setter Target="RetryConnectionButton.Margin" Value="0" />
+                            <Setter Target="HomeRecentHeader.ColumnDefinitions[1].Width" Value="Auto" />
+                            <Setter Target="HomeRecentCount.(Grid.Row)" Value="0" />
+                            <Setter Target="HomeRecentCount.(Grid.Column)" Value="1" />
+                            <Setter Target="HomeRecentCount.HorizontalAlignment" Value="Stretch" />
+                            <Setter Target="HomeRecentCount.Margin" Value="0" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -21,7 +66,9 @@
             </Grid.RowDefinitions>
 
             <Border Style="{StaticResource PastralHeroPanelStyle}">
-                <Grid ColumnSpacing="20">
+                <Grid
+                    x:Name="HomeHeroGrid"
+                    ColumnSpacing="20">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
@@ -31,7 +78,7 @@
                             x:Uid="HomePageEyebrow"
                             Foreground="{StaticResource PastralBrandPrimaryBrush}"
                             Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="LOCAL • PRIVATE • READY" />
+                            Text="Private by design" />
                         <TextBlock
                             x:Uid="HomePageTitle"
                             AutomationProperties.HeadingLevel="Level1"
@@ -45,6 +92,7 @@
                             Text="Check capture health and return to recent clipboard activity without leaving your local session." />
                     </StackPanel>
                     <Border
+                        x:Name="HomeHeroIcon"
                         Grid.Column="1"
                         Width="48"
                         Height="48"
@@ -86,6 +134,7 @@
                 AutomationProperties.Name="Operational state"
                 Style="{StaticResource PastralCardStyle}">
                 <Grid
+                    x:Name="HomeOperationalGrid"
                     ColumnSpacing="16"
                     RowSpacing="12">
                     <Grid.ColumnDefinitions>
@@ -93,6 +142,10 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <ProgressRing
                         x:Name="HomeLoadingIndicator"
                         Width="24"
@@ -256,11 +309,17 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <Grid ColumnSpacing="12">
+                <Grid
+                    x:Name="HomeRecentHeader"
+                    ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
                     <StackPanel Spacing="4">
                         <TextBlock
                             AutomationProperties.HeadingLevel="Level2"

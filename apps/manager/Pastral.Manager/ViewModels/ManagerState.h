@@ -27,6 +27,7 @@ namespace Pastral::Manager::Presentation
         std::wstring automationName;
         bool pinned{ false };
         bool unavailable{ false };
+        bool previewTruncated{ false };
     };
 
     struct ManagerSnapshot
@@ -37,6 +38,8 @@ namespace Pastral::Manager::Presentation
         std::wstring activeProfile;
         std::wstring storageSummary;
         std::vector<ClipPreviewData> clips;
+        std::wstring query;
+        bool hasMore{ false };
         bool synthetic{ false };
     };
 }

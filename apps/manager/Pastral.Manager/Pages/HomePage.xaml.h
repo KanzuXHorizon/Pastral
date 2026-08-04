@@ -17,7 +17,7 @@ namespace winrt::Pastral::Manager::implementation
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
 
     private:
-        void LoadSnapshot();
+        void LoadSnapshot(bool refresh = false);
         void ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot const& snapshot);
 
         std::shared_ptr<::Pastral::Manager::Presentation::IManagerDataProvider> m_provider;

@@ -3,6 +3,7 @@
 #include "../ViewModels/ManagerState.h"
 
 #include <functional>
+#include <string>
 
 namespace Pastral::Manager::Presentation
 {
@@ -12,5 +13,7 @@ namespace Pastral::Manager::Presentation
     {
         virtual ~IManagerDataProvider() = default;
         virtual void LoadSnapshotAsync(SnapshotCompletion completion) = 0;
+        virtual void RefreshAsync(SnapshotCompletion completion) = 0;
+        virtual void SearchAsync(std::wstring query, SnapshotCompletion completion) = 0;
     };
 }

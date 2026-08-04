@@ -404,7 +404,7 @@ namespace Pastral::Manager::Services
                 converted.clear();
                 return true;
             }
-            if (length > static_cast<std::uint32_t>(std::numeric_limits<int>::max()))
+            if (length > static_cast<std::uint32_t>((std::numeric_limits<int>::max)()))
             {
                 return false;
             }

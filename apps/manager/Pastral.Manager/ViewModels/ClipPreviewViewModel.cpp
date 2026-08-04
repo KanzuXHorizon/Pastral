@@ -23,6 +23,10 @@ namespace winrt::Pastral::Manager::implementation
         {
             m_stateSummary = L"Pinned · Unavailable";
         }
+        else if (m_pinned && data.previewTruncated)
+        {
+            m_stateSummary = L"Pinned · Preview truncated";
+        }
         else if (m_pinned)
         {
             m_stateSummary = L"Pinned";
@@ -30,6 +34,10 @@ namespace winrt::Pastral::Manager::implementation
         else if (m_unavailable)
         {
             m_stateSummary = L"Unavailable";
+        }
+        else if (data.previewTruncated)
+        {
+            m_stateSummary = L"Preview truncated";
         }
     }
 

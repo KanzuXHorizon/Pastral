@@ -18,62 +18,19 @@
             x:Name="AppTitleBar"
             x:Uid="AppTitleBar"
             AutomationProperties.Name="Pastral manager title bar"
-            Subtitle="Private local clipboard memory"
-            Title="Pastral" />
+            Title="Pastral"
+            Subtitle="Private local clipboard memory" />
 
         <NavigationView
             x:Name="ShellNavigationView"
             Grid.Row="1"
-            x:Uid="ShellNavigationView"
             AutomationProperties.Name="Pastral manager navigation"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
             PaneDisplayMode="Auto"
+            OpenPaneLength="248"
+            CompactPaneLength="48"
             SelectionChanged="ShellNavigationView_SelectionChanged">
-
-            <NavigationView.PaneHeader>
-                <Grid
-                    Margin="0,8,0,12"
-                    ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border
-                        AutomationProperties.Name="Pastral signal trail logo"
-                        Style="{StaticResource PastralBrandMarkStyle}">
-                        <Grid>
-                            <Border
-                                Width="14"
-                                Height="18"
-                                Margin="5,0,0,0"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Center"
-                                Background="White"
-                                CornerRadius="4" />
-                            <Border
-                                Width="12"
-                                Height="12"
-                                Margin="0,0,5,0"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Center"
-                                BorderBrush="#CCFFFFFF"
-                                BorderThickness="2"
-                                CornerRadius="4" />
-                        </Grid>
-                    </Border>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
-                        <TextBlock
-                            x:Uid="BrandName"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Pastral" />
-                        <TextBlock
-                            x:Uid="BrandPositioning"
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Local clipboard memory" />
-                    </StackPanel>
-                </Grid>
-            </NavigationView.PaneHeader>
 
             <NavigationView.MenuItems>
                 <NavigationViewItem

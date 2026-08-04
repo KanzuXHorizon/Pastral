@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [Parameter()][ValidateSet('Static', 'Build', 'Smoke', 'All')]
-    [string]$Mode = 'All'
+    [string]$Mode = 'All',
+    [Parameter()][string]$SmokeExecutable = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +16,7 @@ $debugOutput = Join-Path $verificationRoot 'debug-out'
 $debugIntermediate = Join-Path $verificationRoot 'debug-obj'
 $releaseOutput = Join-Path $verificationRoot 'release-out'
 $releaseIntermediate = Join-Path $verificationRoot 'release-obj'
+$nativeBuildMutexName = 'Local\Pastral.NativeManager.Build'
 
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -36,6 +38,31 @@ function Assert-Contains {
         [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
     )) {
         Fail "$Description is missing from $Path"
+    }
+}
+
+function Invoke-WithNativeBuildLock {
+    param([Parameter(Mandatory = $true)][scriptblock]$Action)
+
+    $mutex = [System.Threading.Mutex]::new($false, $nativeBuildMutexName)
+    $acquired = $false
+    try {
+        try {
+            $acquired = $mutex.WaitOne([TimeSpan]::FromMinutes(10))
+        }
+        catch [System.Threading.AbandonedMutexException] {
+            $acquired = $true
+        }
+        if (-not $acquired) {
+            Fail "Timed out waiting for native manager build lock: $nativeBuildMutexName"
+        }
+        & $Action
+    }
+    finally {
+        if ($acquired) {
+            [void]$mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
     }
 }
 
@@ -145,7 +172,9 @@ function Invoke-StaticVerification {
     Assert-Contains $projectPath 'Microsoft\.Windows\.CppWinRT' 'C++/WinRT PackageReference'
     Assert-Contains $projectPath 'Services\\ManagerIpcBridge\.cpp' 'manager IPC bridge source'
     Assert-Contains $projectPath 'manager-ipc-bridge\\include' 'manager IPC bridge header path'
+    Assert-Contains $PSCommandPath 'Local\\Pastral\.NativeManager\.Build' 'shared native XAML build mutex'
     Assert-Contains $PSCommandPath 'target\\verification\\pastral-native-manager-' 'per-run native verification root'
+    Assert-Contains $PSCommandPath '\[string\]\$SmokeExecutable' 'explicit isolated smoke executable override'
 
     $bridgeCode = Join-Path $managerRoot 'Services\ManagerIpcBridge.cpp'
     Assert-Contains $bridgeCode 'GetModuleFileNameW' 'executable-directory bridge resolution'
@@ -167,6 +196,11 @@ function Invoke-StaticVerification {
     $mainWindow = Join-Path $managerRoot 'MainWindow.xaml'
     Assert-Contains $mainWindow '<MicaBackdrop' 'Mica backdrop'
     Assert-Contains $mainWindow '<TitleBar' 'TitleBar control'
+    Assert-Contains $mainWindow 'x:Name="AppTitleBar"[\s\S]*x:Uid="AppTitleBar"[\s\S]*Title="Pastral"' 'single localized title-bar brand'
+    Assert-NotContains $mainWindow '<NavigationView\.PaneHeader>' 'duplicate sidebar branding'
+    Assert-NotContains $mainWindow 'x:Uid="ShellNavigationView"' 'localized duplicate navigation pane title'
+    Assert-Contains $mainWindow 'OpenPaneLength="248"' 'balanced expanded navigation width'
+    Assert-Contains $mainWindow 'CompactPaneLength="48"' 'compact navigation width'
     Assert-Contains $mainWindow '<NavigationView' 'NavigationView shell'
     Assert-Contains $mainWindow '<InfoBar' 'global InfoBar'
     Assert-Contains $mainWindow '<Frame' 'content Frame'
@@ -174,9 +208,20 @@ function Invoke-StaticVerification {
     Assert-Contains $mainWindow 'x:Name="GlobalStatusBar"[\s\S]*Visibility="Collapsed"' 'non-duplicative global status default'
     Assert-NotContains $mainWindow 'Live clipboard history remains disconnected until local IPC is implemented' 'obsolete disconnected shell copy'
 
+    $englishResources = Join-Path $managerRoot 'Strings\en-US\Resources.resw'
+    $vietnameseResources = Join-Path $managerRoot 'Strings\vi-VN\Resources.resw'
+    Assert-Contains $englishResources 'HomePageEyebrow\.Text"[\s\S]*<value>Private by design</value>' 'English Home positioning copy'
+    Assert-Contains $vietnameseResources 'HomePageEyebrow\.Text"[\s\S]*<value>Riêng tư từ thiết kế</value>' 'Vietnamese Home positioning copy'
+    Assert-Contains $englishResources 'HistoryPageEyebrow\.Text"[\s\S]*<value>Search with context</value>' 'English History positioning copy'
+    Assert-Contains $vietnameseResources 'HistoryPageEyebrow\.Text"[\s\S]*<value>Tìm kiếm theo ngữ cảnh</value>' 'Vietnamese History positioning copy'
+
     $homePage = Join-Path $managerRoot 'Pages\HomePage.xaml'
     Assert-Contains $homePage 'HeadingLevel="Level1"' 'Home Level1 heading'
     Assert-Contains $homePage 'AutomationProperties\.Name=' 'Home accessibility names'
+    Assert-Contains $homePage 'x:Name="HomeLayoutStates"' 'Home adaptive visual states'
+    Assert-Contains $homePage 'MinWindowWidth="720"' 'Home wide-layout trigger'
+    Assert-Contains $homePage 'x:Name="HomeHeroIcon"' 'Home responsive hero mark'
+    Assert-Contains $homePage 'x:Name="HomeRecentHeader"' 'Home responsive recent header'
     Assert-Contains $homePage 'x:Name="HomeOperationalStateRegion"' 'Home operational state region'
     Assert-Contains $homePage 'x:Name="HomeLoadingIndicator"' 'Home loading indicator'
     Assert-Contains $homePage 'x:Name="HomeOverviewRegion"' 'Home consolidated overview region'
@@ -191,8 +236,14 @@ function Invoke-StaticVerification {
     Assert-Contains $homePage 'Text="\{Binding Source\}"' 'Home source binding'
     Assert-Contains $homePage 'Text="\{Binding RepresentationSummary\}"' 'Home representation binding'
 
+    $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
+    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*statusDetail\s*=\s*L"Checking the secure local connection\."' 'plain-language loading connection copy'
+    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*storageSummary\s*=\s*L"Preparing local status"' 'plain-language loading storage copy'
+
     $providerInterface = Join-Path $managerRoot 'Services\IManagerDataProvider.h'
     Assert-Contains $providerInterface 'LoadSnapshotAsync\(SnapshotCompletion completion\)' 'asynchronous manager provider contract'
+    Assert-Contains $providerInterface 'RefreshAsync\(SnapshotCompletion completion\)' 'asynchronous manager refresh contract'
+    Assert-Contains $providerInterface 'SearchAsync\(std::wstring query, SnapshotCompletion completion\)' 'asynchronous manager Search contract'
 
     $homeCode = Join-Path $managerRoot 'Pages\HomePage.xaml.cpp'
     Assert-Contains $homeCode 'CreateManagerDataProvider\(' 'Home provider boundary'
@@ -203,6 +254,7 @@ function Invoke-StaticVerification {
     Assert-Contains $homeCode 'm_loadGeneration\s*==\s*generation' 'Home stale-result rejection'
     Assert-Contains $homeCode 'RetryConnection_Click' 'Home retry handler'
     Assert-Contains $homeCode 'HomeLoadingIndicator\(\)\.IsActive' 'Home loading progress state'
+    Assert-Contains $homeCode 'snapshot\.connection\s*!=\s*ConnectionState::Loading[\s\S]*snapshot\.connection\s*!=\s*ConnectionState::Connected' 'non-duplicative Home connection banner policy'
     Assert-Contains $homeCode 'HomeEmptyStateTitle\(\)\.Text' 'Home contextual empty-state copy'
 
     $historyPage = Join-Path $managerRoot 'Pages\HistoryPage.xaml'
@@ -210,6 +262,9 @@ function Invoke-StaticVerification {
     Assert-Contains $historyPage 'AutomationProperties\.Name=' 'History accessibility names'
     Assert-Contains $historyPage '<VisualStateManager\.VisualStateGroups>' 'History adaptive visual states'
     Assert-Contains $historyPage 'MinWindowWidth="920"' 'History wide-layout trigger'
+    Assert-Contains $historyPage 'x:Name="HistoryHeaderStates"' 'History responsive header states'
+    Assert-Contains $historyPage 'x:Name="HistoryHeader"' 'History responsive header region'
+    Assert-NotContains $historyPage 'SEARCH • RECALL • PASTE' 'premature History paste promise'
     Assert-Contains $historyPage 'x:Name="HistorySearchBox"' 'History search box'
     Assert-Contains $historyPage 'x:Name="HistoryResultsList"' 'History results list'
     Assert-Contains $historyPage 'x:Name="HistoryResultCount"' 'History result-count live region'
@@ -234,10 +289,15 @@ function Invoke-StaticVerification {
     Assert-Contains $historyCode 'DispatcherQueue\(\)' 'History UI-thread dispatcher capture'
     Assert-Contains $historyCode 'm_loadGeneration\s*==\s*generation' 'History stale-result rejection'
     Assert-Contains $historyCode 'SearchBox_TextChanged' 'History search handler'
+    Assert-Contains $historyCode 'CreateTimer\(' 'History debounce timer'
+    Assert-Contains $historyCode 'std::chrono::milliseconds\(250\)' 'History 250 millisecond debounce'
+    Assert-Contains $historyCode 'SearchAsync\(' 'History backend Search dispatch'
+    Assert-Contains $historyCode 'RefreshAsync\(' 'History backend refresh dispatch'
     Assert-Contains $historyCode 'ResultsList_SelectionChanged' 'History selection handler'
     Assert-Contains $historyCode 'ClearFilters_Click' 'History clear-filter handler'
     Assert-Contains $historyCode 'Retry_Click' 'History retry handler'
     Assert-Contains $historyCode 'HistoryLoadingIndicator\(\)\.IsActive' 'History loading progress state'
+    Assert-Contains $historyCode 'm_connection\s*!=\s*ConnectionState::Loading[\s\S]*m_connection\s*!=\s*ConnectionState::Connected' 'non-duplicative History connection banner policy'
 
     foreach ($page in @($homePage, $historyPage)) {
         $content = [System.IO.File]::ReadAllText($page)
@@ -267,11 +327,15 @@ function Invoke-StaticVerification {
 
     $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
     Assert-Contains $provider '#if\s+defined\(_DEBUG\)' 'Debug-only synthetic provider guard'
-    Assert-Contains $provider 'if\s*\(!diagnosticFlag\.has_value\(\)\)\s*\{\s*return SyntheticSnapshot\(\);' 'Debug synthetic mode independent of local data-root resolution'
+    Assert-Contains $provider 'if\s*\(!diagnosticFlag\.has_value\(\)\)[\s\S]*return SyntheticSnapshot\(' 'Debug synthetic mode independent of local data-root resolution'
     Assert-Contains $provider 'PASTRAL_MANAGER_DIAGNOSTIC' 'diagnostic live-mode gate'
     Assert-Contains $provider 'std::thread\s+m_worker' 'single persistent provider worker'
     Assert-Contains $provider 'm_pending\s*=\s*PendingRequest' 'latest pending request replacement'
     Assert-Contains $provider 'request\.generation\s*==\s*m_generation' 'provider stale-result rejection'
+    Assert-Contains $provider 'ManagerIpcBridge::QueryHistory\(' 'provider History IPC boundary'
+    Assert-Contains $provider 'ManagerIpcBridge::QuerySearch\(' 'provider Search IPC boundary'
+    Assert-Contains $provider 'hasMore' 'provider partial-page state'
+    Assert-NotContains $provider 'Storage::open|sqlite3_|rusqlite' 'direct manager storage access'
     Assert-Contains $provider 'synthetic-clip-' 'bounded synthetic IDs'
     Assert-Contains $provider 'ConnectionState::Disconnected' 'live disconnected state'
     Assert-Contains $provider 'snapshot\.synthetic\s*=\s*false' 'live synthetic exclusion'
@@ -313,25 +377,27 @@ function Invoke-BuildVerification {
     $lockFile = Join-Path $managerRoot 'packages.lock.json'
     $locked = if (Test-Path -LiteralPath $lockFile -PathType Leaf) { 'true' } else { 'false' }
 
-    foreach ($configuration in @('Debug', 'Release')) {
-        $outputDirectory = if ($configuration -eq 'Debug') { $debugOutput } else { $releaseOutput }
-        $intermediateDirectory = if ($configuration -eq 'Debug') { $debugIntermediate } else { $releaseIntermediate }
-        New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-        New-Item -ItemType Directory -Path $intermediateDirectory -Force | Out-Null
-        $output = $outputDirectory.TrimEnd('\') + '\'
-        $intermediate = $intermediateDirectory.TrimEnd('\') + '\'
+    Invoke-WithNativeBuildLock {
+        foreach ($configuration in @('Debug', 'Release')) {
+            $outputDirectory = if ($configuration -eq 'Debug') { $debugOutput } else { $releaseOutput }
+            $intermediateDirectory = if ($configuration -eq 'Debug') { $debugIntermediate } else { $releaseIntermediate }
+            New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+            New-Item -ItemType Directory -Path $intermediateDirectory -Force | Out-Null
+            $output = $outputDirectory.TrimEnd('\') + '\'
+            $intermediate = $intermediateDirectory.TrimEnd('\') + '\'
 
-        Write-Host "Building manager $configuration|x64"
-        & $msbuild $projectPath '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
-            "/p:Configuration=$configuration" '/p:Platform=x64' `
-            "/p:RestoreLockedMode=$locked" "/p:OutDir=$output" "/p:IntDir=$intermediate"
-        if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-        }
+            Write-Host "Building manager $configuration|x64"
+            & $msbuild $projectPath '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
+                "/p:Configuration=$configuration" '/p:Platform=x64' `
+                "/p:RestoreLockedMode=$locked" "/p:OutDir=$output" "/p:IntDir=$intermediate"
+            if ($LASTEXITCODE -ne 0) {
+                throw "Manager $configuration build failed with exit code $LASTEXITCODE"
+            }
 
-        $executable = Join-Path $outputDirectory 'pastral-manager.exe'
-        if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
-            Fail "Manager $configuration executable was not produced at $executable"
+            $executable = Join-Path $outputDirectory 'pastral-manager.exe'
+            if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+                Fail "Manager $configuration executable was not produced at $executable"
+            }
         }
     }
 
@@ -339,6 +405,13 @@ function Invoke-BuildVerification {
 }
 
 function Resolve-DebugExecutable {
+    if (-not [string]::IsNullOrWhiteSpace($SmokeExecutable)) {
+        if (Test-Path -LiteralPath $SmokeExecutable -PathType Leaf) {
+            return $SmokeExecutable
+        }
+        Fail "Requested smoke executable was not found at $SmokeExecutable"
+    }
+
     $candidates = @(
         (Join-Path $debugOutput 'pastral-manager.exe'),
         (Join-Path $managerRoot 'x64\Debug\pastral-manager.exe'),

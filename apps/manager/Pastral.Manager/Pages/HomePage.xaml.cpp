@@ -19,17 +19,17 @@ namespace winrt::Pastral::Manager::implementation
         winrt::Windows::Foundation::IInspectable const&,
         winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
-        LoadSnapshot();
+        LoadSnapshot(true);
     }
 
-    void HomePage::LoadSnapshot()
+    void HomePage::LoadSnapshot(bool refresh)
     {
         auto const generation = ++m_loadGeneration;
         ApplySnapshot(::Pastral::Manager::Presentation::CreateLoadingSnapshot());
 
         auto const weakThis = get_weak();
         auto const dispatcher = DispatcherQueue();
-        m_provider->LoadSnapshotAsync(
+        auto completion =
             [weakThis, dispatcher, generation](
                 ::Pastral::Manager::Presentation::ManagerSnapshot snapshot) mutable {
                 dispatcher.TryEnqueue(
@@ -42,7 +42,15 @@ namespace winrt::Pastral::Manager::implementation
                             }
                         }
                     });
-            });
+            };
+        if (refresh)
+        {
+            m_provider->RefreshAsync(std::move(completion));
+        }
+        else
+        {
+            m_provider->LoadSnapshotAsync(std::move(completion));
+        }
     }
 
     void HomePage::ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot const& snapshot)
@@ -71,7 +79,9 @@ namespace winrt::Pastral::Manager::implementation
             break;
         }
         HomeConnectionStatus().Severity(severity);
-        auto const showConnectionBanner = snapshot.connection != ConnectionState::Connected;
+        auto const showConnectionBanner =
+            snapshot.connection != ConnectionState::Loading &&
+            snapshot.connection != ConnectionState::Connected;
         HomeConnectionStatus().IsOpen(showConnectionBanner);
         HomeConnectionStatus().Visibility(
             showConnectionBanner ? Visibility::Visible : Visibility::Collapsed);
@@ -89,19 +99,19 @@ namespace winrt::Pastral::Manager::implementation
         switch (snapshot.connection)
         {
         case ConnectionState::Loading:
-            HomeCaptureValue().Text(L"Checking agent");
-            HomeEmptyStateTitle().Text(L"Connecting to Pastral agent");
+            HomeCaptureValue().Text(L"Connecting securely");
+            HomeEmptyStateTitle().Text(L"Connecting to local agent");
             HomeEmptyStateDetail().Text(
-                L"Recent clips will appear after the local Health check completes.");
+                L"Recent clips will appear after the secure local connection is ready.");
             break;
         case ConnectionState::Connected:
             HomeCaptureValue().Text(snapshot.synthetic ? L"Preview mode" : L"Connected");
             HomeEmptyStateTitle().Text(
-                snapshot.synthetic ? L"No synthetic previews are available" : L"Recent history is not available yet");
+                snapshot.synthetic ? L"No synthetic previews are available" : L"No clipboard history yet");
             HomeEmptyStateDetail().Text(
                 snapshot.synthetic
                     ? L"The Debug presentation provider returned no bounded preview records."
-                    : L"The authenticated Health connection is active. Paged history IPC is not implemented in this build.");
+                    : L"New safe clipboard previews will appear after the local agent captures them.");
             break;
         case ConnectionState::Disconnected:
             HomeCaptureValue().Text(L"Unavailable");
@@ -136,11 +146,10 @@ namespace winrt::Pastral::Manager::implementation
             snapshot.connection == ConnectionState::ProtocolMismatch ||
             snapshot.connection == ConnectionState::Error;
         auto const canRefresh = snapshot.connection == ConnectionState::Connected && !snapshot.synthetic;
-        RetryConnectionButton().Content(winrt::box_value(
-            canRetry ? L"Retry" : isLoading ? L"Checking…" : L"Refresh"));
-        RetryConnectionButton().IsEnabled(!isLoading && (canRetry || canRefresh));
+        RetryConnectionButton().Content(winrt::box_value(canRetry ? L"Retry" : L"Refresh"));
+        RetryConnectionButton().IsEnabled(canRetry || canRefresh);
         RetryConnectionButton().Visibility(
-            (isLoading || canRetry || canRefresh) ? Visibility::Visible : Visibility::Collapsed);
+            (canRetry || canRefresh) ? Visibility::Visible : Visibility::Collapsed);
 
         m_recentClips.Clear();
         for (auto const& clip : snapshot.clips)
