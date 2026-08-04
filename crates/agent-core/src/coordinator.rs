@@ -4,8 +4,8 @@ use std::time::Duration;
 use pastral_domain::{CaptureOrder, ClipEventId, ProfileId, ProtectionDomain};
 
 use crate::{
-    AgentError, CaptureSequence, CaptureSink, CaptureSource, CaptureSourceError, Clock, Sleeper,
-    TextCaptureRequest,
+    AgentError, CaptureSequence, CaptureSink, CaptureSinkOutcome, CaptureSource,
+    CaptureSourceError, Clock, Sleeper, TextCaptureRequest,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,6 +71,9 @@ pub enum CaptureOutcome {
     },
     DuplicateNotification,
     NoSupportedRepresentation,
+    HardDenied,
+    PolicyDenied,
+    SensitiveSkipped,
     RetryExhausted {
         attempts: usize,
     },
@@ -130,12 +133,16 @@ impl CaptureCoordinator {
                         captured_text,
                     );
                     return match sink.store_text(request) {
-                        Ok(stored) => {
+                        Ok(CaptureSinkOutcome::Stored(stored)) => {
                             self.last_handled_sequence = Some(sequence);
                             CaptureOutcome::Stored {
                                 clip_event_id: stored.clip_event_id(),
                                 capture_order: stored.capture_order(),
                             }
+                        }
+                        Ok(CaptureSinkOutcome::SensitiveSkipped) => {
+                            self.last_handled_sequence = Some(sequence);
+                            CaptureOutcome::SensitiveSkipped
                         }
                         Err(_) => CaptureOutcome::StorageFailed,
                     };
@@ -151,6 +158,14 @@ impl CaptureCoordinator {
                             attempts: self.config.retry_delays.len(),
                         };
                     }
+                }
+                Err(CaptureSourceError::HardDenied) => {
+                    self.last_handled_sequence = Some(sequence);
+                    return CaptureOutcome::HardDenied;
+                }
+                Err(CaptureSourceError::PolicyDenied) => {
+                    self.last_handled_sequence = Some(sequence);
+                    return CaptureOutcome::PolicyDenied;
                 }
                 Err(CaptureSourceError::InvalidData) => {
                     self.last_handled_sequence = Some(sequence);

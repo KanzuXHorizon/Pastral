@@ -2,8 +2,8 @@ use std::{collections::VecDeque, num::NonZeroUsize, time::Duration};
 
 use pastral_agent_core::{
     CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence, CaptureSink,
-    CaptureSinkError, CaptureSource, CaptureSourceError, CapturedText, Clock, Sleeper,
-    StoredCapture, TextCaptureRequest,
+    CaptureSinkError, CaptureSinkOutcome, CaptureSource, CaptureSourceError, CapturedText, Clock,
+    Sleeper, StoredCapture, TextCaptureRequest,
 };
 use pastral_domain::{
     CaptureOrder, ClipEventId, ProfileId, ProtectionDomain, ProtectionDomainId, UtcUnixMicros,
@@ -64,12 +64,12 @@ impl CaptureSource for FakeSource {
 #[derive(Default)]
 struct FakeSink {
     requests: Vec<TextCaptureRequest>,
-    results: VecDeque<Result<StoredCapture, CaptureSinkError>>,
+    results: VecDeque<Result<CaptureSinkOutcome, CaptureSinkError>>,
 }
 
 impl FakeSink {
     fn with_results(
-        results: impl IntoIterator<Item = Result<StoredCapture, CaptureSinkError>>,
+        results: impl IntoIterator<Item = Result<CaptureSinkOutcome, CaptureSinkError>>,
     ) -> Self {
         Self {
             requests: Vec::new(),
@@ -82,7 +82,7 @@ impl CaptureSink for FakeSink {
     fn store_text(
         &mut self,
         request: TextCaptureRequest,
-    ) -> Result<StoredCapture, CaptureSinkError> {
+    ) -> Result<CaptureSinkOutcome, CaptureSinkError> {
         self.requests.push(request);
         self.results
             .pop_front()
@@ -113,6 +113,10 @@ fn stored(order: u64) -> StoredCapture {
     StoredCapture::new(ClipEventId::new_v4(), CaptureOrder::new(order).unwrap())
 }
 
+fn stored_outcome(order: u64) -> CaptureSinkOutcome {
+    CaptureSinkOutcome::Stored(stored(order))
+}
+
 fn clock() -> FixedClock {
     FixedClock(UtcUnixMicros::new(1_700_000_000_000_000).unwrap())
 }
@@ -122,7 +126,7 @@ fn immediate_success_attempts_once_and_commits_once() {
     let captured = CapturedText::new("plain".to_owned(), encoded("plain")).unwrap();
     let mut source = FakeSource::with_results([Ok(Some(captured))]);
     let expected = stored(1);
-    let mut sink = FakeSink::with_results([Ok(expected)]);
+    let mut sink = FakeSink::with_results([Ok(CaptureSinkOutcome::Stored(expected))]);
     let mut clock = clock();
     let mut sleeper = RecordingSleeper::default();
     let mut coordinator = CaptureCoordinator::new(config()).unwrap();
@@ -151,7 +155,7 @@ fn immediate_success_attempts_once_and_commits_once() {
 fn successful_sequence_is_suppressed_on_repeat() {
     let captured = CapturedText::new("plain".to_owned(), encoded("plain")).unwrap();
     let mut source = FakeSource::with_results([Ok(Some(captured))]);
-    let mut sink = FakeSink::with_results([Ok(stored(1))]);
+    let mut sink = FakeSink::with_results([Ok(stored_outcome(1))]);
     let mut clock = clock();
     let mut sleeper = RecordingSleeper::default();
     let mut coordinator = CaptureCoordinator::new(config()).unwrap();
@@ -179,7 +183,7 @@ fn transient_failures_follow_exact_retry_schedule() {
         Err(CaptureSourceError::Busy),
         Ok(Some(captured)),
     ]);
-    let mut sink = FakeSink::with_results([Ok(stored(1))]);
+    let mut sink = FakeSink::with_results([Ok(stored_outcome(1))]);
     let mut clock = clock();
     let mut sleeper = RecordingSleeper::default();
     let mut coordinator = CaptureCoordinator::new(config()).unwrap();
@@ -265,7 +269,10 @@ fn sink_failure_leaves_sequence_retryable() {
     let second = first.clone();
     let mut source = FakeSource::with_results([Ok(Some(first)), Ok(Some(second))]);
     let expected = stored(1);
-    let mut sink = FakeSink::with_results([Err(CaptureSinkError::StorageFailure), Ok(expected)]);
+    let mut sink = FakeSink::with_results([
+        Err(CaptureSinkError::StorageFailure),
+        Ok(CaptureSinkOutcome::Stored(expected)),
+    ]);
     let mut clock = clock();
     let mut sleeper = RecordingSleeper::default();
     let mut coordinator = CaptureCoordinator::new(config()).unwrap();
@@ -293,7 +300,7 @@ fn empty_text_remains_valid_and_reaches_the_sink_exactly() {
     let raw = encoded("");
     let captured = CapturedText::new(String::new(), raw.clone()).unwrap();
     let mut source = FakeSource::with_results([Ok(Some(captured))]);
-    let mut sink = FakeSink::with_results([Ok(stored(1))]);
+    let mut sink = FakeSink::with_results([Ok(stored_outcome(1))]);
     let mut clock = clock();
     let mut sleeper = RecordingSleeper::default();
     let config = config();
@@ -325,4 +332,73 @@ fn text_and_exact_utf16_bytes_are_not_normalized() {
 
     assert_ne!(precomposed.text(), decomposed.text());
     assert_ne!(precomposed.raw_utf16le(), decomposed.raw_utf16le());
+}
+
+#[test]
+fn hard_denied_source_performs_no_sink_work() {
+    let mut source = FakeSource::with_results([Err(CaptureSourceError::HardDenied)]);
+    let mut sink = FakeSink::default();
+    let mut clock = clock();
+    let mut sleeper = RecordingSleeper::default();
+    let mut coordinator = CaptureCoordinator::new(config()).unwrap();
+
+    assert_eq!(
+        coordinator.handle_notification(
+            CaptureSequence::new(20).unwrap(),
+            &mut source,
+            &mut sink,
+            &mut clock,
+            &mut sleeper,
+        ),
+        CaptureOutcome::HardDenied
+    );
+    assert_eq!(source.attempts, 1);
+    assert!(sink.requests.is_empty());
+    assert!(sleeper.durations.is_empty());
+}
+
+#[test]
+fn policy_denied_source_performs_no_sink_work() {
+    let mut source = FakeSource::with_results([Err(CaptureSourceError::PolicyDenied)]);
+    let mut sink = FakeSink::default();
+    let mut clock = clock();
+    let mut sleeper = RecordingSleeper::default();
+    let mut coordinator = CaptureCoordinator::new(config()).unwrap();
+
+    assert_eq!(
+        coordinator.handle_notification(
+            CaptureSequence::new(21).unwrap(),
+            &mut source,
+            &mut sink,
+            &mut clock,
+            &mut sleeper,
+        ),
+        CaptureOutcome::PolicyDenied
+    );
+    assert_eq!(source.attempts, 1);
+    assert!(sink.requests.is_empty());
+}
+
+#[test]
+fn sensitive_sink_result_marks_sequence_handled() {
+    let marker = concat!("-----BEGIN ", "PRIVATE KEY-----");
+    let first = CapturedText::new(marker.to_owned(), encoded(marker)).unwrap();
+    let mut source = FakeSource::with_results([Ok(Some(first))]);
+    let mut sink = FakeSink::with_results([Ok(CaptureSinkOutcome::SensitiveSkipped)]);
+    let mut clock = clock();
+    let mut sleeper = RecordingSleeper::default();
+    let mut coordinator = CaptureCoordinator::new(config()).unwrap();
+    let sequence = CaptureSequence::new(22).unwrap();
+
+    assert_eq!(
+        coordinator
+            .handle_notification(sequence, &mut source, &mut sink, &mut clock, &mut sleeper,),
+        CaptureOutcome::SensitiveSkipped
+    );
+    assert_eq!(
+        coordinator
+            .handle_notification(sequence, &mut source, &mut sink, &mut clock, &mut sleeper,),
+        CaptureOutcome::DuplicateNotification
+    );
+    assert_eq!(sink.requests.len(), 1);
 }

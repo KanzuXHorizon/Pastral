@@ -8,6 +8,8 @@ use crate::{AgentError, CapturedText, StoredCapture, TextCaptureRequest};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureSourceError {
     Busy,
+    HardDenied,
+    PolicyDenied,
     InvalidData,
     PlatformFailure,
 }
@@ -15,6 +17,12 @@ pub enum CaptureSourceError {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureSinkError {
     StorageFailure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureSinkOutcome {
+    Stored(StoredCapture),
+    SensitiveSkipped,
 }
 
 pub trait CaptureSource {
@@ -28,7 +36,7 @@ pub trait CaptureSink {
     fn store_text(
         &mut self,
         request: TextCaptureRequest,
-    ) -> Result<StoredCapture, CaptureSinkError>;
+    ) -> Result<CaptureSinkOutcome, CaptureSinkError>;
 }
 
 pub trait Clock {

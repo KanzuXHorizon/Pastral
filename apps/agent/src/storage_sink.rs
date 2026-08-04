@@ -1,4 +1,6 @@
-use pastral_agent_core::{CaptureSink, CaptureSinkError, StoredCapture, TextCaptureRequest};
+use pastral_agent_core::{
+    CaptureSink, CaptureSinkError, CaptureSinkOutcome, StoredCapture, TextCaptureRequest,
+};
 use pastral_domain::{
     ClipEventId, ClipRepresentation, ClipRepresentationId, ClipboardFormatIdentity, Fidelity,
     RawDigest, StandardFormatId,
@@ -70,7 +72,7 @@ impl<P: BlobPlacementPolicy> CaptureSink for StorageCaptureSink<P> {
     fn store_text(
         &mut self,
         request: TextCaptureRequest,
-    ) -> Result<StoredCapture, CaptureSinkError> {
+    ) -> Result<CaptureSinkOutcome, CaptureSinkError> {
         let event_id = ClipEventId::new_v4();
         let representation_id = ClipRepresentationId::new_v4();
         let protection_domain = request.protection_domain();
@@ -118,9 +120,9 @@ impl<P: BlobPlacementPolicy> CaptureSink for StorageCaptureSink<P> {
             .storage
             .commit_new_clip(commit)
             .map_err(|_| CaptureSinkError::StorageFailure)?;
-        Ok(StoredCapture::new(
+        Ok(CaptureSinkOutcome::Stored(StoredCapture::new(
             receipt.clip_event_id(),
             receipt.capture_order(),
-        ))
+        )))
     }
 }

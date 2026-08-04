@@ -6,6 +6,7 @@ pub enum AgentError {
     InvalidCapturedText(&'static str),
     InvalidRetrySchedule(&'static str),
     NonOrdinaryProtectionDomain,
+    InvalidExecutableName,
     ClockFailure,
 }
 
@@ -24,6 +25,9 @@ impl fmt::Display for AgentError {
                     f,
                     "capture foundation accepts only ordinary protection domains"
                 )
+            }
+            Self::InvalidExecutableName => {
+                write!(f, "source executable name must be a bounded basename")
             }
             Self::ClockFailure => write!(f, "UTC capture clock is unavailable"),
         }

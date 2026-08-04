@@ -207,6 +207,9 @@ fn write_outcome<W: Write>(
         CaptureOutcome::NoSupportedRepresentation => {
             write_line(output, "capture-outcome=no-supported-representation")
         }
+        CaptureOutcome::HardDenied => write_line(output, "capture-outcome=hard-denied"),
+        CaptureOutcome::PolicyDenied => write_line(output, "capture-outcome=policy-denied"),
+        CaptureOutcome::SensitiveSkipped => write_line(output, "capture-outcome=sensitive-skipped"),
         CaptureOutcome::RetryExhausted { attempts } => write_line(
             output,
             &format!("capture-outcome=retry-exhausted attempts={attempts}"),

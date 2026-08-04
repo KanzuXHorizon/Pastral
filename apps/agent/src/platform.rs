@@ -27,6 +27,7 @@ impl CaptureSource for WindowsClipboardSource {
 fn map_clipboard_error(error: ClipboardError) -> CaptureSourceError {
     match error {
         ClipboardError::ClipboardUnavailable => CaptureSourceError::Busy,
+        ClipboardError::HistoryControlInvalid => CaptureSourceError::HardDenied,
         ClipboardError::DataHandleUnavailable
         | ClipboardError::GlobalAllocationEmpty
         | ClipboardError::GlobalAllocationTooLarge { .. }

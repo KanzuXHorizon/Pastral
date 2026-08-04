@@ -5,9 +5,18 @@ use std::{fs, path::PathBuf};
 use pastral_agent::{
     AgentIdentity, DiagnosticStoragePolicy, StorageCaptureSink, diagnostic_storage_limits,
 };
-use pastral_agent_core::{CaptureSink, CapturedText, TextCaptureRequest};
+use pastral_agent_core::{
+    CaptureSink, CaptureSinkOutcome, CapturedText, StoredCapture, TextCaptureRequest,
+};
 use pastral_domain::{ClipEventId, ClipboardFormatIdentity, StandardFormatId, UtcUnixMicros};
 use pastral_storage::Storage;
+
+fn stored_capture(outcome: CaptureSinkOutcome) -> StoredCapture {
+    match outcome {
+        CaptureSinkOutcome::Stored(value) => value,
+        CaptureSinkOutcome::SensitiveSkipped => panic!("ordinary fixture must be stored"),
+    }
+}
 
 fn encoded(value: &str) -> Vec<u8> {
     value
@@ -96,15 +105,16 @@ fn storage_sink_persists_exact_text_and_assigns_order() {
         CapturedText::new("alpha e\u{301}".to_owned(), raw.clone()).unwrap(),
     );
 
-    let first = sink.store_text(request).unwrap();
-    let empty = sink
-        .store_text(TextCaptureRequest::new(
+    let first = stored_capture(sink.store_text(request).unwrap());
+    let empty = stored_capture(
+        sink.store_text(TextCaptureRequest::new(
             UtcUnixMicros::new(1_700_000_000_000_001).unwrap(),
             identity.profile_id(),
             identity.protection_domain(),
             CapturedText::new(String::new(), encoded("")).unwrap(),
         ))
-        .unwrap();
+        .unwrap(),
+    );
 
     assert_eq!(first.capture_order().get(), 1);
     assert_eq!(empty.capture_order().get(), 2);
