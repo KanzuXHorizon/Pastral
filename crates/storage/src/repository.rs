@@ -9,16 +9,16 @@ use pastral_domain::{
     BlobObjectId, CaptureAuditEvent, CaptureOrder, ClipEvent, ClipEventId, ClipRepresentation,
     ClipRepresentationId, RawDigest, UtcUnixMicros, aggregate_fidelity_v1,
 };
-use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 
 use crate::{
-    BlobPlacement, BlobPlacementContext, BlobPlacementPolicy, ClipCommit, StorageError,
-    StorageLimits, StorageRuntimeInfo,
+    BlobPlacement, BlobPlacementContext, BlobPlacementPolicy, ClipCommit, NewClipCommit,
+    StorageError, StorageLimits, StoragePolicyVersion, StorageRuntimeInfo,
     blob::{
         BlobPlacementSummary, PreparedExternal, find_ordinary_blob, increment_reference,
         insert_new_blob, placement_summary, prepare_external, read_blob, verify_blob_reference,
     },
-    commit::{ValidatedRepresentation, validate_commit},
+    commit::{ValidatedCommit, ValidatedRepresentation, validate_commit},
     encoding::{
         FIDELITY_VERSION_V1, decode_digest_suite, decode_fidelity, decode_format,
         decode_protection, encode_audit_kind, encode_audit_result, encode_digest_suite,
@@ -50,6 +50,34 @@ impl CommitReceipt {
     #[must_use]
     pub const fn blob_objects_reused(&self) -> usize {
         self.blob_objects_reused
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AssignedCommitReceipt {
+    receipt: CommitReceipt,
+    capture_order: CaptureOrder,
+}
+
+impl AssignedCommitReceipt {
+    #[must_use]
+    pub const fn clip_event_id(&self) -> ClipEventId {
+        self.receipt.clip_event_id()
+    }
+
+    #[must_use]
+    pub const fn capture_order(&self) -> CaptureOrder {
+        self.capture_order
+    }
+
+    #[must_use]
+    pub const fn blob_objects_created(&self) -> usize {
+        self.receipt.blob_objects_created()
+    }
+
+    #[must_use]
+    pub const fn blob_objects_reused(&self) -> usize {
+        self.receipt.blob_objects_reused()
     }
 }
 
@@ -95,10 +123,192 @@ impl StoredClip {
     }
 }
 
-struct PendingRepresentation<'a> {
-    validated: &'a ValidatedRepresentation<'a>,
+struct PendingRepresentation<'validated, 'commit> {
+    validated: &'validated ValidatedRepresentation<'commit>,
     placement: BlobPlacement,
     external: Option<PreparedExternal>,
+}
+
+fn prepare_pending<'validated, 'commit, P: BlobPlacementPolicy>(
+    root: &Path,
+    policy: &P,
+    validated: &'validated ValidatedCommit<'commit>,
+) -> Result<Vec<PendingRepresentation<'validated, 'commit>>, StorageError> {
+    let mut pending = Vec::with_capacity(validated.representations.len());
+    for representation in &validated.representations {
+        let context = BlobPlacementContext::new(
+            representation.representation.raw_logical_length(),
+            representation.representation.protection_domain(),
+            representation.representation.format().clone(),
+        );
+        let placement = policy.select(&context);
+        let external = if placement == BlobPlacement::ExternalFile {
+            match prepare_external(
+                root,
+                representation.representation.protection_domain(),
+                &representation.digest,
+                representation.bytes,
+            ) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    cleanup_pending_external(&pending);
+                    return Err(error);
+                }
+            }
+        } else {
+            None
+        };
+        pending.push(PendingRepresentation {
+            validated: representation,
+            placement,
+            external,
+        });
+    }
+    Ok(pending)
+}
+
+fn next_capture_order(transaction: &Transaction<'_>) -> Result<CaptureOrder, StorageError> {
+    let current: i64 = transaction.query_row(
+        "SELECT COALESCE(MAX(capture_order), 0)
+         FROM (
+             SELECT capture_order FROM clip_events
+             UNION ALL
+             SELECT capture_order FROM capture_audit_events WHERE capture_order IS NOT NULL
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    let current =
+        u64::try_from(current).map_err(|_| StorageError::IntegerOutOfRange("capture order"))?;
+    let next = current
+        .checked_add(1)
+        .ok_or(StorageError::IntegerOutOfRange("capture order"))?;
+    CaptureOrder::new(next).map_err(|error| StorageError::Domain(error.to_string()))
+}
+
+fn write_validated_commit(
+    transaction: &Transaction<'_>,
+    root: &Path,
+    limits: StorageLimits,
+    policy_version: StoragePolicyVersion,
+    validated: &ValidatedCommit<'_>,
+    pending: &mut [PendingRepresentation<'_, '_>],
+) -> Result<CommitReceipt, StorageError> {
+    reject_duplicate_keys(transaction, validated.event)?;
+
+    let (protection_kind, protection_domain_id) =
+        encode_protection(validated.event.captured_protection_domain());
+    let capture_order = i64::try_from(validated.event.capture_order().get())
+        .map_err(|_| StorageError::IntegerOutOfRange("capture order"))?;
+    transaction.execute(
+        "INSERT INTO clip_events (
+            clip_event_id, observed_at_utc_us, capture_order, captured_profile_id,
+            protection_kind, protection_domain_id, aggregate_fidelity, fidelity_version
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            validated.event.id().as_uuid().as_bytes().as_slice(),
+            validated.event.observed_at().get(),
+            capture_order,
+            validated
+                .event
+                .captured_profile_id()
+                .as_uuid()
+                .as_bytes()
+                .as_slice(),
+            protection_kind,
+            protection_domain_id.as_slice(),
+            encode_fidelity(validated.aggregate_fidelity),
+            FIDELITY_VERSION_V1,
+        ],
+    )?;
+
+    let mut created = 0usize;
+    let mut reused = 0usize;
+    for item in pending {
+        let representation = item.validated.representation;
+        let blob = if let Some(existing) = find_ordinary_blob(
+            transaction,
+            representation.protection_domain(),
+            &item.validated.digest,
+            representation.raw_logical_length(),
+        )? {
+            let existing_bytes = read_blob(
+                transaction,
+                root,
+                existing.id,
+                representation.protection_domain(),
+                &item.validated.digest,
+                representation.raw_logical_length(),
+                limits.max_payload_bytes(),
+            )?;
+            if existing_bytes.as_slice() != item.validated.bytes {
+                return Err(StorageError::BlobIntegrityMismatch);
+            }
+            increment_reference(transaction, existing.id)?;
+            if let Some(external) = &item.external {
+                external.cleanup_after_failure();
+            }
+            reused += 1;
+            existing
+        } else {
+            if let Some(external) = &mut item.external {
+                external.finalize(
+                    representation.protection_domain(),
+                    &item.validated.digest,
+                    representation.raw_logical_length(),
+                )?;
+            }
+            let blob = insert_new_blob(
+                transaction,
+                item.placement,
+                policy_version,
+                representation.protection_domain(),
+                &item.validated.digest,
+                item.validated.bytes,
+                item.external.as_ref(),
+            )?;
+            created += 1;
+            blob
+        };
+
+        let encoded_format = encode_format(representation.format());
+        let (representation_protection_kind, representation_domain_id) =
+            encode_protection(representation.protection_domain());
+        let raw_length = i64::try_from(representation.raw_logical_length())
+            .map_err(|_| StorageError::IntegerOutOfRange("representation raw length"))?;
+        transaction.execute(
+            "INSERT INTO clip_representations (
+                clip_representation_id, clip_event_id, format_kind,
+                standard_format_id, registered_format_name,
+                protection_kind, protection_domain_id, raw_length,
+                digest_suite, digest, fidelity, blob_object_id
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                representation.id().as_uuid().as_bytes().as_slice(),
+                validated.event.id().as_uuid().as_bytes().as_slice(),
+                encoded_format.kind,
+                encoded_format.standard_id,
+                encoded_format.registered_name,
+                representation_protection_kind,
+                representation_domain_id.as_slice(),
+                raw_length,
+                encode_digest_suite(item.validated.digest.suite()),
+                item.validated.digest.bytes().as_slice(),
+                encode_fidelity(representation.fidelity()),
+                blob.id.as_uuid().as_bytes().as_slice(),
+            ],
+        )?;
+    }
+
+    if let Some(projection) = validated.search_projection {
+        insert_projection(transaction, validated.event.id(), projection.as_str())?;
+    }
+
+    Ok(CommitReceipt {
+        clip_event_id: validated.event.id(),
+        blob_objects_created: created,
+        blob_objects_reused: reused,
+    })
 }
 
 pub struct Storage<P: BlobPlacementPolicy> {
@@ -150,165 +360,64 @@ impl<P: BlobPlacementPolicy> Storage<P> {
 
     pub fn commit_clip(&mut self, commit: ClipCommit) -> Result<CommitReceipt, StorageError> {
         let validated = validate_commit(&commit, self.limits)?;
-        let mut pending: Vec<PendingRepresentation<'_>> =
-            Vec::with_capacity(validated.representations.len());
-        for representation in &validated.representations {
-            let context = BlobPlacementContext::new(
-                representation.representation.raw_logical_length(),
-                representation.representation.protection_domain(),
-                representation.representation.format().clone(),
-            );
-            let placement = self.policy.select(&context);
-            let external = if placement == BlobPlacement::ExternalFile {
-                match prepare_external(
-                    &self.root,
-                    representation.representation.protection_domain(),
-                    &representation.digest,
-                    representation.bytes,
-                ) {
-                    Ok(value) => Some(value),
-                    Err(error) => {
-                        cleanup_pending_external(&pending);
-                        return Err(error);
-                    }
-                }
-            } else {
-                None
-            };
-            pending.push(PendingRepresentation {
-                validated: representation,
-                placement,
-                external,
-            });
-        }
-
+        let mut pending = prepare_pending(&self.root, &self.policy, &validated)?;
         let policy_version = self.policy.version();
         let outcome = (|| -> Result<CommitReceipt, StorageError> {
             let transaction = self
                 .connection
                 .transaction_with_behavior(TransactionBehavior::Immediate)?;
-            reject_duplicate_keys(&transaction, validated.event)?;
-
-            let (protection_kind, protection_domain_id) =
-                encode_protection(validated.event.captured_protection_domain());
-            let capture_order = i64::try_from(validated.event.capture_order().get())
-                .map_err(|_| StorageError::IntegerOutOfRange("capture order"))?;
-            transaction.execute(
-                "INSERT INTO clip_events (
-                    clip_event_id, observed_at_utc_us, capture_order, captured_profile_id,
-                    protection_kind, protection_domain_id, aggregate_fidelity, fidelity_version
-                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    validated.event.id().as_uuid().as_bytes().as_slice(),
-                    validated.event.observed_at().get(),
-                    capture_order,
-                    validated
-                        .event
-                        .captured_profile_id()
-                        .as_uuid()
-                        .as_bytes()
-                        .as_slice(),
-                    protection_kind,
-                    protection_domain_id.as_slice(),
-                    encode_fidelity(validated.aggregate_fidelity),
-                    FIDELITY_VERSION_V1,
-                ],
+            let receipt = write_validated_commit(
+                &transaction,
+                &self.root,
+                self.limits,
+                policy_version,
+                &validated,
+                &mut pending,
             )?;
-
-            let mut created = 0usize;
-            let mut reused = 0usize;
-            for item in &mut pending {
-                let representation = item.validated.representation;
-                let blob = if let Some(existing) = find_ordinary_blob(
-                    &transaction,
-                    representation.protection_domain(),
-                    &item.validated.digest,
-                    representation.raw_logical_length(),
-                )? {
-                    let existing_bytes = read_blob(
-                        &transaction,
-                        &self.root,
-                        existing.id,
-                        representation.protection_domain(),
-                        &item.validated.digest,
-                        representation.raw_logical_length(),
-                        self.limits.max_payload_bytes(),
-                    )?;
-                    if existing_bytes.as_slice() != item.validated.bytes {
-                        return Err(StorageError::BlobIntegrityMismatch);
-                    }
-                    increment_reference(&transaction, existing.id)?;
-                    if let Some(external) = &item.external {
-                        external.cleanup_after_failure();
-                    }
-                    reused += 1;
-                    existing
-                } else {
-                    if let Some(external) = &mut item.external {
-                        external.finalize(
-                            representation.protection_domain(),
-                            &item.validated.digest,
-                            representation.raw_logical_length(),
-                        )?;
-                    }
-                    let blob = insert_new_blob(
-                        &transaction,
-                        item.placement,
-                        policy_version,
-                        representation.protection_domain(),
-                        &item.validated.digest,
-                        item.validated.bytes,
-                        item.external.as_ref(),
-                    )?;
-                    created += 1;
-                    blob
-                };
-
-                let encoded_format = encode_format(representation.format());
-                let (representation_protection_kind, representation_domain_id) =
-                    encode_protection(representation.protection_domain());
-                let raw_length = i64::try_from(representation.raw_logical_length())
-                    .map_err(|_| StorageError::IntegerOutOfRange("representation raw length"))?;
-                transaction.execute(
-                    "INSERT INTO clip_representations (
-                        clip_representation_id, clip_event_id, format_kind,
-                        standard_format_id, registered_format_name,
-                        protection_kind, protection_domain_id, raw_length,
-                        digest_suite, digest, fidelity, blob_object_id
-                     ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
-                    params![
-                        representation.id().as_uuid().as_bytes().as_slice(),
-                        validated.event.id().as_uuid().as_bytes().as_slice(),
-                        encoded_format.kind,
-                        encoded_format.standard_id,
-                        encoded_format.registered_name,
-                        representation_protection_kind,
-                        representation_domain_id.as_slice(),
-                        raw_length,
-                        encode_digest_suite(item.validated.digest.suite()),
-                        item.validated.digest.bytes().as_slice(),
-                        encode_fidelity(representation.fidelity()),
-                        blob.id.as_uuid().as_bytes().as_slice(),
-                    ],
-                )?;
-            }
-
-            if let Some(projection) = validated.search_projection {
-                insert_projection(&transaction, validated.event.id(), projection.as_str())?;
-            }
-
             transaction.commit()?;
-            Ok(CommitReceipt {
-                clip_event_id: validated.event.id(),
-                blob_objects_created: created,
-                blob_objects_reused: reused,
-            })
+            Ok(receipt)
         })();
 
         if outcome.is_err() {
             cleanup_pending_external(&pending);
         }
         outcome
+    }
+
+    pub fn commit_new_clip(
+        &mut self,
+        commit: NewClipCommit,
+    ) -> Result<AssignedCommitReceipt, StorageError> {
+        let policy_version = self.policy.version();
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let capture_order = next_capture_order(&transaction)?;
+        let assigned = commit.assign_capture_order(capture_order)?;
+        let validated = validate_commit(&assigned, self.limits)?;
+        let mut pending = prepare_pending(&self.root, &self.policy, &validated)?;
+        let receipt = match write_validated_commit(
+            &transaction,
+            &self.root,
+            self.limits,
+            policy_version,
+            &validated,
+            &mut pending,
+        ) {
+            Ok(value) => value,
+            Err(error) => {
+                cleanup_pending_external(&pending);
+                return Err(error);
+            }
+        };
+        if let Err(error) = transaction.commit() {
+            cleanup_pending_external(&pending);
+            return Err(error.into());
+        }
+        Ok(AssignedCommitReceipt {
+            receipt,
+            capture_order,
+        })
     }
 
     pub fn load_clip(&self, id: ClipEventId) -> Result<Option<StoredClip>, StorageError> {
@@ -546,7 +655,7 @@ impl<P: BlobPlacementPolicy> Storage<P> {
     }
 }
 
-fn cleanup_pending_external(pending: &[PendingRepresentation<'_>]) {
+fn cleanup_pending_external(pending: &[PendingRepresentation<'_, '_>]) {
     for item in pending {
         if let Some(external) = &item.external {
             external.cleanup_after_failure();
@@ -600,7 +709,8 @@ pub(crate) mod tests {
 
     use super::*;
     use crate::{
-        RepresentationPayload, SearchProjection, StoragePolicyVersion, test_support::TestRoot,
+        NewClipCommit, RepresentationPayload, SearchProjection, StoragePolicyVersion,
+        test_support::TestRoot,
     };
 
     #[derive(Debug, Clone, Copy)]
@@ -642,6 +752,122 @@ pub(crate) mod tests {
         )
         .unwrap();
         ClipCommit::new(event, vec![payload], None)
+    }
+
+    fn new_clip(domain: ProtectionDomain, bytes: &[u8]) -> NewClipCommit {
+        let digest = RawDigest::sha256_raw_v1(domain, bytes).unwrap();
+        let representation = ClipRepresentation::new(
+            ClipRepresentationId::new_v4(),
+            ClipboardFormatIdentity::Standard(StandardFormatId::new(13)),
+            domain,
+            bytes.len() as u64,
+            Some(digest),
+            Fidelity::FullFidelity,
+        )
+        .unwrap();
+        let payload = RepresentationPayload::new(representation.id(), bytes.to_vec());
+        NewClipCommit::new(
+            ClipEventId::new_v4(),
+            UtcUnixMicros::new(1_700_000_000_000_000).unwrap(),
+            ProfileId::new_v4(),
+            domain,
+            vec![representation],
+            vec![payload],
+            None,
+        )
+    }
+
+    #[test]
+    fn new_capture_order_is_assigned_and_survives_reopen() {
+        let root = TestRoot::new();
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let first_id;
+        {
+            let mut storage = Storage::open(
+                root.path(),
+                limits(),
+                FixedPolicy(BlobPlacement::InternalSqlite),
+            )
+            .unwrap();
+            let first = storage.commit_new_clip(new_clip(domain, b"first")).unwrap();
+            let second = storage
+                .commit_new_clip(new_clip(domain, b"second"))
+                .unwrap();
+            assert_eq!(first.capture_order().get(), 1);
+            assert_eq!(second.capture_order().get(), 2);
+            first_id = first.clip_event_id();
+        }
+
+        let storage = Storage::open(
+            root.path(),
+            limits(),
+            FixedPolicy(BlobPlacement::InternalSqlite),
+        )
+        .unwrap();
+        assert_eq!(
+            storage
+                .load_clip(first_id)
+                .unwrap()
+                .unwrap()
+                .event()
+                .capture_order()
+                .get(),
+            1
+        );
+    }
+
+    #[test]
+    fn failed_new_capture_does_not_consume_order() {
+        let root = TestRoot::new();
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let invalid_bytes = b"invalid";
+        let invalid_digest = RawDigest::sha256_raw_v1(domain, invalid_bytes).unwrap();
+        let invalid_representation = ClipRepresentation::new(
+            ClipRepresentationId::new_v4(),
+            ClipboardFormatIdentity::Standard(StandardFormatId::new(13)),
+            domain,
+            invalid_bytes.len() as u64,
+            Some(invalid_digest),
+            Fidelity::FullFidelity,
+        )
+        .unwrap();
+        let invalid = NewClipCommit::new(
+            ClipEventId::new_v4(),
+            UtcUnixMicros::new(1_700_000_000_000_000).unwrap(),
+            ProfileId::new_v4(),
+            domain,
+            vec![invalid_representation],
+            vec![],
+            None,
+        );
+        let mut storage = Storage::open(
+            root.path(),
+            limits(),
+            FixedPolicy(BlobPlacement::InternalSqlite),
+        )
+        .unwrap();
+
+        assert!(storage.commit_new_clip(invalid).is_err());
+        let receipt = storage.commit_new_clip(new_clip(domain, b"valid")).unwrap();
+        assert_eq!(receipt.capture_order().get(), 1);
+    }
+
+    #[test]
+    fn explicit_order_collision_is_not_silently_reassigned() {
+        let root = TestRoot::new();
+        let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+        let mut storage = Storage::open(
+            root.path(),
+            limits(),
+            FixedPolicy(BlobPlacement::InternalSqlite),
+        )
+        .unwrap();
+
+        storage.commit_clip(clip(1, domain, b"imported")).unwrap();
+        let receipt = storage
+            .commit_new_clip(new_clip(domain, b"captured"))
+            .unwrap();
+        assert_eq!(receipt.capture_order().get(), 2);
     }
 
     #[test]

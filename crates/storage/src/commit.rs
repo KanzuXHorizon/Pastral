@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use pastral_domain::{
-    ClipEvent, ClipRepresentation, ClipRepresentationId, Fidelity, ProtectionDomain, RawDigest,
-    aggregate_fidelity_v1,
+    CaptureOrder, ClipEvent, ClipEventId, ClipRepresentation, ClipRepresentationId, Fidelity,
+    ProfileId, ProtectionDomain, RawDigest, UtcUnixMicros, aggregate_fidelity_v1,
 };
 
 use crate::{StorageError, StorageLimits};
@@ -85,6 +85,60 @@ impl ClipCommit {
     #[must_use]
     pub const fn search_projection(&self) -> Option<&SearchProjection> {
         self.search_projection.as_ref()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NewClipCommit {
+    event_id: ClipEventId,
+    observed_at: UtcUnixMicros,
+    captured_profile_id: ProfileId,
+    captured_protection_domain: ProtectionDomain,
+    representations: Vec<ClipRepresentation>,
+    payloads: Vec<RepresentationPayload>,
+    search_projection: Option<SearchProjection>,
+}
+
+impl NewClipCommit {
+    #[must_use]
+    pub fn new(
+        event_id: ClipEventId,
+        observed_at: UtcUnixMicros,
+        captured_profile_id: ProfileId,
+        captured_protection_domain: ProtectionDomain,
+        representations: Vec<ClipRepresentation>,
+        payloads: Vec<RepresentationPayload>,
+        search_projection: Option<SearchProjection>,
+    ) -> Self {
+        Self {
+            event_id,
+            observed_at,
+            captured_profile_id,
+            captured_protection_domain,
+            representations,
+            payloads,
+            search_projection,
+        }
+    }
+
+    pub(crate) fn assign_capture_order(
+        self,
+        capture_order: CaptureOrder,
+    ) -> Result<ClipCommit, StorageError> {
+        let event = ClipEvent::new(
+            self.event_id,
+            self.observed_at,
+            capture_order,
+            self.captured_profile_id,
+            self.captured_protection_domain,
+            self.representations,
+        )
+        .map_err(|error| StorageError::Domain(error.to_string()))?;
+        Ok(ClipCommit::new(
+            event,
+            self.payloads,
+            self.search_projection,
+        ))
     }
 }
 

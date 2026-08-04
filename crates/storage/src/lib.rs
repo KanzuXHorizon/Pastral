@@ -15,12 +15,14 @@ mod search;
 mod test_support;
 
 pub use blob::BlobPlacementSummary;
-pub use commit::{ClipCommit, RepresentationPayload, SearchProjection};
+pub use commit::{ClipCommit, NewClipCommit, RepresentationPayload, SearchProjection};
 pub use config::{
     BlobPlacement, BlobPlacementContext, BlobPlacementPolicy, StorageLimits, StoragePolicyVersion,
 };
 pub use error::StorageError;
 pub use maintenance::{DeleteReceipt, IntegrityReport, ReconciliationReport};
-pub use repository::{CommitReceipt, Storage, StoredClip, StoredRepresentation};
+pub use repository::{
+    AssignedCommitReceipt, CommitReceipt, Storage, StoredClip, StoredRepresentation,
+};
 pub use schema::StorageRuntimeInfo;
 pub use search::SearchHit;
