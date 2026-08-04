@@ -52,7 +52,9 @@ try {
         '(?m)\bCommand::new\s*\(',
         '(?m)\bload_extension\b',
         '(?m)\bATTACH\s+DATABASE\b',
-        '(?m)journal_mode\s*=\s*WAL\b',
+        '(?m)journal_mode\s*=\s*WAL\b'
+    )
+    $namedPipePatterns = @(
         '(?m)\bCreateNamedPipe[AW]?\b',
         '(?m)\bConnectNamedPipe\b',
         '(?m)\bWaitNamedPipe[AW]?\b'
@@ -79,15 +81,15 @@ try {
             $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase)
         if ($isRustProductSource) {
+            $isIpcWinSys = $relativePath.Equals(
+                'crates/ipc-win/src/sys.rs',
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
             $isReviewedUnsafeBoundary =
                 $relativePath.Equals(
                     'crates/clipboard-win/src/sys.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
-                ) -or
-                $relativePath.Equals(
-                    'crates/ipc-win/src/sys.rs',
-                    [System.StringComparison]::OrdinalIgnoreCase
-                )
+                ) -or $isIpcWinSys
             $unsafeMatch = [System.Text.RegularExpressions.Regex]::IsMatch(
                 $content,
                 $unsafePattern,
@@ -103,6 +105,17 @@ try {
                     [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
                 )) {
                     $violations.Add("forbidden product-source pattern in $relativePath")
+                }
+            }
+            if (-not $isIpcWinSys) {
+                foreach ($pattern in $namedPipePatterns) {
+                    if ([System.Text.RegularExpressions.Regex]::IsMatch(
+                        $content,
+                        $pattern,
+                        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+                    )) {
+                        $violations.Add("named-pipe API outside ipc-win sys boundary in $relativePath")
+                    }
                 }
             }
         }
