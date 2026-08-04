@@ -26,6 +26,7 @@ pub enum IpcError {
     TooManyFrames,
     InvalidConnectionState,
     DuplicateCorrelation,
+    UnknownCorrelation,
     InFlightLimitExceeded,
     BulkNotAuthorized,
     BulkSequenceMismatch {
@@ -70,6 +71,7 @@ impl fmt::Display for IpcError {
             Self::TooManyFrames => write!(f, "IPC input batch contains too many frames"),
             Self::InvalidConnectionState => write!(f, "IPC frame is invalid for connection state"),
             Self::DuplicateCorrelation => write!(f, "IPC correlation is already in flight"),
+            Self::UnknownCorrelation => write!(f, "IPC correlation is not in flight"),
             Self::InFlightLimitExceeded => write!(f, "IPC in-flight request limit exceeded"),
             Self::BulkNotAuthorized => write!(f, "IPC bulk transfer is not authorized"),
             Self::BulkSequenceMismatch { expected, actual } => write!(
