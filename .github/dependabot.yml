@@ -11,6 +11,16 @@ updates:
     labels:
       - dependencies
       - rust
+    ignore:
+      # These dependencies are coupled to explicit protocol, crypto, storage,
+      # footprint, or Windows-boundary evidence and are upgraded manually.
+      - dependency-name: hmac
+      - dependency-name: protobuf
+      - dependency-name: protobuf-codegen
+      - dependency-name: rusqlite
+      - dependency-name: sha2
+      - dependency-name: windows-sys
+      - dependency-name: zeroize
     commit-message:
       prefix: build
 

@@ -21,7 +21,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.97.1"
 authors = ["Pastral contributors"]
-repository = "https://github.com/pastral/pastral"
+repository = "https://github.com/KanzuXHorizon/Pastral"
 
 [workspace.dependencies]
 hmac = { version = "=0.12.1", default-features = false }
