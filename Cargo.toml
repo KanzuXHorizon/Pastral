@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "apps/agent",
     "crates/agent-core",
     "crates/clipboard-win",
     "crates/domain",

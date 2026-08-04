@@ -1,0 +1,17 @@
+[package]
+name = "pastral-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+pastral-agent-core = { path = "../../crates/agent-core" }
+pastral-clipboard-win = { path = "../../crates/clipboard-win" }
+pastral-domain = { path = "../../crates/domain" }
+pastral-storage = { path = "../../crates/storage" }

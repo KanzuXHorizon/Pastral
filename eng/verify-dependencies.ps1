@@ -88,27 +88,29 @@ foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-storage'
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $nonWindowsForbidden
 }
 
-$clipboardTree = Invoke-CargoTree -Arguments @('-p', 'pastral-clipboard-win')
-$clipboardWindowsLines = @(
-    $clipboardTree | Where-Object {
-        $_ -match '^(windows-sys|windows-link|windows-targets|windows_[A-Za-z0-9_]+)\s+v'
+foreach ($package in @('pastral-clipboard-win', 'pastral-agent')) {
+    $tree = Invoke-CargoTree -Arguments @('-p', $package)
+    $windowsLines = @(
+        $tree | Where-Object {
+            $_ -match '^(windows-sys|windows-link|windows-targets|windows_[A-Za-z0-9_]+)\s+v'
+        }
+    )
+    $unexpectedWindowsBinding = @(
+        $windowsLines | Where-Object {
+            ($_ -notmatch '^windows-sys\s+v0\.61\.2$') -and
+            ($_ -notmatch '^windows-link\s+v0\.2\.1$')
+        }
+    )
+    if ($unexpectedWindowsBinding.Count -gt 0) {
+        Write-Error ("Unexpected Windows binding packages in ${package}: " + ($unexpectedWindowsBinding -join ', '))
+        exit 1
     }
-)
-$unexpectedWindowsBinding = @(
-    $clipboardWindowsLines | Where-Object {
-        ($_ -notmatch '^windows-sys\s+v0\.61\.2$') -and
-        ($_ -notmatch '^windows-link\s+v0\.2\.1$')
+    if (-not ($windowsLines -contains 'windows-sys v0.61.2')) {
+        Write-Error "${package} is missing pinned windows-sys v0.61.2"
+        exit 1
     }
-)
-if ($unexpectedWindowsBinding.Count -gt 0) {
-    Write-Error ('Unexpected clipboard Windows binding packages: ' + ($unexpectedWindowsBinding -join ', '))
-    exit 1
-}
-if (-not ($clipboardWindowsLines -contains 'windows-sys v0.61.2')) {
-    Write-Error 'pastral-clipboard-win is missing pinned windows-sys v0.61.2'
-    exit 1
 }
 
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Agent-core/domain/storage remain Windows-binding free; clipboard-win uses only pinned windows-sys/windows-link bindings.'
+Write-Host 'Agent-core/domain/storage remain Windows-binding free; agent/clipboard-win use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'
