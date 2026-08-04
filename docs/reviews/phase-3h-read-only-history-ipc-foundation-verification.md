@@ -35,6 +35,8 @@ af4dcc0 feat: add bounded storage history pages
 9d7f2d2 feat: authenticate read-only IPC capabilities
 c5d5ddd feat: serve read-only history over IPC
 b48fe3b fix: bound read IPC responses to frame limits
+54780b7 test: verify read IPC binary cross-process
+7f85188 test: move read IPC process evidence to probe
 ```
 
 The final documentation/evidence commit follows this report.
@@ -157,11 +159,13 @@ The regression test proves that a 100-row response with long multi-byte previews
 
 ## 8. End-to-end evidence
 
-`apps/agent/tests/ipc_read.rs` now covers three real authenticated server scenarios:
+`apps/agent/tests/ipc_read.rs` covers three real authenticated server scenarios:
 
 1. Health, paged History, unavailable projection, literal Search, deterministic newest-first ordering, and content-free process output.
 2. Malformed authenticated request body returning a content-free `InvalidRequest` response with the original correlation ID.
 3. Worst-case 100-row long-preview response remaining inside the 256 KiB control-frame budget without dropping rows.
+
+`apps/agent-ipc-probe/tests/cross_process.rs` adds a fourth scenario through the repository's reviewed process-spawn boundary. The probe starts a distinct read-server child, negotiates the exact Health/HistoryPage/Search capability set, serves three authenticated requests, verifies empty bounded History/Search results on a disposable root, emits content-free markers only, and exits at the configured connection bound. The public `serve-read` CLI shape remains covered separately by strict agent CLI tests.
 
 The tests use:
 
@@ -177,13 +181,13 @@ No automated test reads or writes the user's clipboard.
 
 ## 9. Aggregate verification
 
-Fresh `.\eng\build.ps1 -Task All` result after `b48fe3b`:
+Fresh `.\eng\build.ps1 -Task All` result after `7f85188`:
 
 ```text
 Rust 1.97.1 / x86_64-pc-windows-msvc: PASS
 rustfmt: PASS
 cargo check --locked --workspace --all-targets: PASS
-cargo test --locked --workspace --all-targets: 236 PASS
+cargo test --locked --workspace --all-targets: 238 PASS
 Clippy --all-features -D warnings: PASS
 cargo doc --no-deps: PASS
 dependency policy: PASS
@@ -196,7 +200,7 @@ Test breakdown:
 |---|---:|
 | Agent, including Health/read IPC | 24 |
 | Agent core | 18 |
-| Agent IPC admission | 11 |
+| Agent IPC admission | 12 |
 | Clipboard Win32 | 22 |
 | Domain | 26 |
 | IPC authentication | 8 |
@@ -205,11 +209,11 @@ Test breakdown:
 | IPC schema | 11 |
 | IPC transport probe | 3 |
 | IPC Win32 transport/process evidence | 29 |
-| Manager IPC bridge | 14 |
+| Manager IPC bridge | 15 |
 | Storage | 37 |
-| **Total** | **236** |
+| **Total** | **238** |
 
-The agent total increased from 21 in Phase 3G to 24 through the positive read, malformed-request, and aggregate frame-budget tests. IPC Win32 increased from 28 to 29 through exact read-capability negotiation. Storage increased from 33 to 37 through the bounded read-model tests.
+The agent total increased from 21 in Phase 3G to 24 through the positive read, malformed-request, and aggregate frame-budget tests. Agent IPC admission increased from 11 to 12 through the reviewed cross-process read probe. IPC Win32 increased from 28 to 29 through exact read-capability negotiation. Storage increased from 33 to 37 through the bounded read-model tests. The manager bridge total is 15 because the adjacent committed read-ABI layout test is included in this fresh aggregate run; live manager History/Search integration remains outside this foundation report.
 
 ## 10. Dependency and source policy
 
