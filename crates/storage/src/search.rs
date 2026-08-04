@@ -103,7 +103,7 @@ impl<P: BlobPlacementPolicy> Storage<P> {
     }
 }
 
-fn literal_query(
+pub(crate) fn literal_query(
     query: &str,
     max_query_bytes: usize,
     max_terms: usize,

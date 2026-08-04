@@ -7,6 +7,7 @@ mod encoding;
 mod error;
 mod ids;
 mod maintenance;
+mod read_model;
 mod repository;
 mod schema;
 mod search;
@@ -21,6 +22,7 @@ pub use config::{
 };
 pub use error::StorageError;
 pub use maintenance::{DeleteReceipt, IntegrityReport, ReconciliationReport};
+pub use read_model::{ClipListItem, ClipPage};
 pub use repository::{
     AssignedCommitReceipt, CommitReceipt, Storage, StoredClip, StoredRepresentation,
 };
