@@ -65,6 +65,19 @@ function Require-Metric {
     return $Metrics[$Name]
 }
 
+function Assert-ContentFreeOutput {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Lines,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+    $text = ($Lines -join "`n").ToLowerInvariant()
+    foreach ($forbidden in @('\\.\pipe\', 'secret=', 'nonce=', 'proof=', 'root=', 'sid=', 'clipboard', 'preview=', 'query=')) {
+        if ($text.Contains($forbidden)) {
+            Fail "$Description emitted forbidden marker: $forbidden"
+        }
+    }
+}
+
 function Invoke-StaticVerification {
     Write-Host 'Pastral agent IPC admission static verification'
     foreach ($path in @(
@@ -120,8 +133,11 @@ function Invoke-StaticVerification {
 
     $cli = Join-Path $probeRoot 'src\cli.rs'
     Assert-Contains $cli 'AdmissionMode::Parent' 'parent admission mode'
+    Assert-Contains $cli 'AdmissionMode::ReadParent' 'read parent admission mode'
+    Assert-Contains $cli '"--read-probe"' 'read parent probe mode'
     Assert-Contains $cli '"--baseline-child"' 'baseline child mode'
     Assert-Contains $cli '"--server-child"' 'server child mode'
+    Assert-Contains $cli '"--read-server-child"' 'read server child mode'
     Assert-Contains $cli '"--data-root"' 'required child data root'
 
     $child = Join-Path $probeRoot 'src\child.rs'
@@ -130,11 +146,14 @@ function Invoke-StaticVerification {
 
     $server = Join-Path $probeRoot 'src\server.rs'
     Assert-Contains $server 'serve_health' 'shared agent Health server delegation'
+    Assert-Contains $server 'serve_read' 'shared agent read server delegation'
 
     $sharedServer = Join-Path $repositoryRoot 'apps\agent\src\ipc_health.rs'
     Assert-Contains $sharedServer 'agent-ipc-ready=1' 'server readiness marker'
     Assert-Contains $sharedServer 'server_handshake' 'authenticated server handshake'
-    Assert-Contains $sharedServer 'RequestDto::Health' 'Health-only request authorization'
+    Assert-Contains $sharedServer 'RequestDto::Health' 'Health request authorization'
+    Assert-Contains $sharedServer 'RequestDto::HistoryPage' 'HistoryPage request authorization'
+    Assert-Contains $sharedServer 'RequestDto::Search' 'Search request authorization'
     Assert-Contains $sharedServer 'load_health_snapshot\(data_root\)' 'per-request Health reload'
 
     $metrics = Join-Path $probeRoot 'src\metrics.rs'
@@ -151,7 +170,10 @@ function Invoke-StaticVerification {
         'default-agent-binary-bytes=',
         'baseline-private-bytes=',
         'server-private-bytes=',
-        'private-delta-bytes='
+        'private-delta-bytes=',
+        'agent-ipc-read=ok',
+        'history=ok',
+        'search=ok'
     )) {
         Assert-Contains $parent ([System.Text.RegularExpressions.Regex]::Escape($marker)) "output marker $marker"
     }
@@ -231,12 +253,30 @@ function Invoke-SmokeVerification {
         }
     }
 
-    $text = ($output -join "`n").ToLowerInvariant()
-    foreach ($forbidden in @('\\.\pipe\', 'secret=', 'nonce=', 'proof=', 'root=', 'sid=', 'clipboard', 'preview=', 'query=')) {
-        if ($text.Contains($forbidden)) {
-            Fail "Admission emitted forbidden marker: $forbidden"
-        }
+    Assert-ContentFreeOutput -Lines $output -Description 'Health admission'
+
+    $readOutput = @(& $executable '--read-probe' 2>&1)
+    $readExitCode = $LASTEXITCODE
+    if ($readExitCode -ne 0) {
+        Fail "Agent read IPC probe exited with code ${readExitCode}: $($readOutput -join ' ')"
     }
+    $readMetrics = Parse-Metrics -Lines $readOutput
+    if ((Require-Metric $readMetrics 'agent-ipc-read') -ne 'ok') { Fail 'Read admission did not report success' }
+    if ((Require-Metric $readMetrics 'cross-process') -ne 'true') { Fail 'Read admission was not cross-process' }
+    if ((Require-Metric $readMetrics 'health') -ne 'ok') { Fail 'Read admission Health failed' }
+    if ((Require-Metric $readMetrics 'history') -ne 'ok') { Fail 'Read admission History failed' }
+    if ((Require-Metric $readMetrics 'search') -ne 'ok') { Fail 'Read admission Search failed' }
+
+    $readClientPid = [uint32](Require-Metric $readMetrics 'client-pid')
+    $readServerPid = [uint32](Require-Metric $readMetrics 'server-pid')
+    $readSessionId = [uint32](Require-Metric $readMetrics 'session-id')
+    if ($readClientPid -eq 0 -or $readServerPid -eq 0 -or $readClientPid -eq $readServerPid) {
+        Fail 'Read admission PID evidence is invalid'
+    }
+    if ($readSessionId -ne [uint32](Require-Metric $metrics 'session-id')) {
+        Fail 'Read admission session evidence does not match Health admission'
+    }
+    Assert-ContentFreeOutput -Lines $readOutput -Description 'Read admission'
 
     $previousPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -253,6 +293,7 @@ function Invoke-SmokeVerification {
     }
 
     $output | ForEach-Object { Write-Host $_ }
+    $readOutput | ForEach-Object { Write-Host $_ }
     $global:LASTEXITCODE = 0
     Write-Host 'Agent IPC admission Release smoke: PASS'
 }
