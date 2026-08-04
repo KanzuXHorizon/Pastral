@@ -13,12 +13,31 @@ fn parent_runs_distinct_authenticated_agent_health_server() {
     assert!(stdout.contains("agent-ipc-admission=ok\n"));
     assert!(stdout.contains("cross-process=true\n"));
     assert!(stdout.contains("health=ok\n"));
+    assert!(stdout.contains("admission-ceilings=debug-not-enforced\n"));
     let client = metric(&stdout, "client-pid");
     let server = metric(&stdout, "server-pid");
     assert_ne!(client, server);
     assert!(metric(&stdout, "session-id") <= u128::from(u32::MAX));
-    for key in ["connect-us", "handshake-us", "health-us", "total-us"] {
+    for key in [
+        "default-agent-binary-bytes",
+        "admission-binary-bytes",
+        "baseline-working-set-bytes",
+        "baseline-private-bytes",
+        "server-working-set-bytes",
+        "server-private-bytes",
+        "connect-us",
+        "handshake-us",
+        "health-us",
+        "total-us",
+    ] {
         assert!(metric(&stdout, key) > 0);
+    }
+    for key in [
+        "binary-delta-bytes",
+        "working-set-delta-bytes",
+        "private-delta-bytes",
+    ] {
+        assert!(signed_metric(&stdout, key).is_some());
     }
     let lower = stdout.to_ascii_lowercase();
     for forbidden in [
@@ -55,4 +74,11 @@ fn metric(output: &str, key: &str) -> u128 {
         .unwrap_or_else(|| panic!("missing metric {key}"))
         .parse::<u128>()
         .unwrap()
+}
+
+fn signed_metric(output: &str, key: &str) -> Option<i128> {
+    output
+        .lines()
+        .find_map(|line| line.strip_prefix(&format!("{key}=")))
+        .map(|value| value.parse::<i128>().unwrap())
 }
