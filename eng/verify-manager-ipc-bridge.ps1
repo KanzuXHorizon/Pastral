@@ -14,6 +14,7 @@ $probeProject = Join-Path $managerRoot 'Tests\Pastral.Manager.IpcProbe.vcxproj'
 $bridgeManifest = Join-Path $repositoryRoot 'crates\manager-ipc-bridge\Cargo.toml'
 $bridgeDllSource = Join-Path $repositoryRoot 'target\release\pastral_manager_ipc_bridge.dll'
 $bridgeDllName = 'pastral-manager-ipc-bridge.dll'
+$nativeBuildMutexName = 'Local\Pastral.NativeManager.Build'
 
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
@@ -43,6 +44,31 @@ function Assert-Contains {
             [System.Text.RegularExpressions.RegexOptions]::Multiline
     )) {
         Fail "$Description is missing from $Path"
+    }
+}
+
+function Invoke-WithNativeBuildLock {
+    param([Parameter(Mandatory = $true)][scriptblock]$Action)
+
+    $mutex = [System.Threading.Mutex]::new($false, $nativeBuildMutexName)
+    $acquired = $false
+    try {
+        try {
+            $acquired = $mutex.WaitOne([TimeSpan]::FromMinutes(10))
+        }
+        catch [System.Threading.AbandonedMutexException] {
+            $acquired = $true
+        }
+        if (-not $acquired) {
+            Fail "Timed out waiting for native manager build lock: $nativeBuildMutexName"
+        }
+        & $Action
+    }
+    finally {
+        if ($acquired) {
+            [void]$mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
     }
 }
 
@@ -95,8 +121,13 @@ function Assert-ExactBridgeExports {
     $expected = @(
         '__Disallow_Upb_And_Cpp_In_Same_Binary',
         'pastral_manager_ipc_abi_version',
+        'pastral_manager_ipc_clip_item_size',
         'pastral_manager_ipc_health_w',
-        'pastral_manager_ipc_result_size'
+        'pastral_manager_ipc_history_w',
+        'pastral_manager_ipc_read_abi_version',
+        'pastral_manager_ipc_read_result_size',
+        'pastral_manager_ipc_result_size',
+        'pastral_manager_ipc_search_w'
     ) | Sort-Object
 
     $difference = @(Compare-Object -ReferenceObject $expected -DifferenceObject $actual)
@@ -119,10 +150,14 @@ function Invoke-MSBuildProject {
     $intermediate = $IntermediateDirectory.TrimEnd('\') + '\'
 
     $msbuild = Resolve-MSBuild
-    & $msbuild $Project '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
-        "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RestoreLockedMode=false' `
-        "/p:OutDir=$output" "/p:IntDir=$intermediate"
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Invoke-WithNativeBuildLock {
+        & $msbuild $Project '/restore' '/m:1' '/nr:false' '/nologo' '/verbosity:quiet' `
+            "/p:Configuration=$Configuration" '/p:Platform=x64' '/p:RestoreLockedMode=false' `
+            "/p:OutDir=$output" "/p:IntDir=$intermediate"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Native project build failed with exit code $LASTEXITCODE"
+        }
+    }
 }
 
 function Read-SharedText {
@@ -176,8 +211,9 @@ function Wait-ForFileText {
     Fail "Timed out waiting for '$Text'. Observed: $observed"
 }
 
-function Start-AgentHealthServer {
+function Start-AgentServer {
     param(
+        [Parameter(Mandatory = $true)][ValidateSet('serve-health', 'serve-read')][string]$Command,
         [Parameter(Mandatory = $true)][string]$DataRoot,
         [Parameter(Mandatory = $true)][int]$MaxConnections,
         [Parameter(Mandatory = $true)][string]$OutputPath,
@@ -187,12 +223,12 @@ function Start-AgentHealthServer {
     $agent = Join-Path $repositoryRoot 'target\release\pastral-agent-ipc.exe'
     Assert-File $agent
     $process = Start-Process -FilePath $agent -ArgumentList @(
-        'serve-health', '--data-root', $DataRoot, '--max-connections', $MaxConnections
+        $Command, '--data-root', $DataRoot, '--max-connections', $MaxConnections
     ) -RedirectStandardOutput $OutputPath -RedirectStandardError $ErrorPath -PassThru
     Wait-ForFileText -Path $OutputPath -Text 'agent-ipc-ready=1' -TimeoutSeconds 15
     if ($process.HasExited) {
         $errorText = if (Test-Path -LiteralPath $ErrorPath) { Read-SharedText -Path $ErrorPath } else { '' }
-        Fail "Agent Health server exited before serving a client: $errorText"
+        Fail "Agent IPC server '$Command' exited before serving a client: $errorText"
     }
     return $process
 }
@@ -241,10 +277,16 @@ function Invoke-StaticVerification {
     Assert-Contains $loader 'LoadLibraryExW' 'secure DLL loading'
     Assert-Contains $loader 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR' 'DLL-local dependency search restriction'
     Assert-Contains $loader 'pastral-manager-ipc-bridge\.dll' 'exact deployed bridge name'
+    Assert-Contains $loader 'IsReadAvailable' 'independent read bridge availability'
+    Assert-Contains $loader 'pastral_manager_ipc_history_w' 'History bridge export loading'
+    Assert-Contains $loader 'pastral_manager_ipc_search_w' 'Search bridge export loading'
+    Assert-Contains $loader 'MaxReadItems\s*=\s*100' 'bounded read item capacity'
+    Assert-Contains $loader 'MaxTextBytes\s*=\s*256\s*\*\s*1024' 'bounded read text capacity'
 
     $provider = Join-Path $managerRoot 'Services\IManagerDataProvider.h'
     Assert-Contains $provider 'LoadSnapshotAsync\(' 'asynchronous provider contract'
 
+    Assert-Contains $PSCommandPath 'Local\\Pastral\.NativeManager\.Build' 'shared native XAML build mutex'
     Assert-Contains $PSCommandPath '/p:OutDir=' 'isolated native output override'
     Assert-Contains $PSCommandPath '/p:IntDir=' 'isolated native intermediate override'
     Assert-Contains $PSCommandPath 'target\\verification\\pastral-manager-(ipc|live)-' 'per-run native verification root'
@@ -303,6 +345,8 @@ function Invoke-ProbeVerification {
     $dataRoot = Join-Path $temporary 'data'
     $stdout = Join-Path $temporary 'agent.out'
     $stderr = Join-Path $temporary 'agent.err'
+    $readStdout = Join-Path $temporary 'agent-read.out'
+    $readStderr = Join-Path $temporary 'agent-read.err'
     New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 
     $agent = $null
@@ -323,11 +367,14 @@ function Invoke-ProbeVerification {
         Copy-Item -LiteralPath $bridgeDllSource -Destination (Join-Path $probeOutput $bridgeDllName) -Force
 
         $abiOutput = @(& $probe --abi 2>&1)
-        if ($LASTEXITCODE -ne 0 -or ($abiOutput -join "`n") -notmatch 'manager-ipc-abi=ok') {
+        $abiText = $abiOutput -join "`n"
+        if ($LASTEXITCODE -ne 0 -or
+            -not $abiText.Contains('manager-ipc-abi=ok') -or
+            -not $abiText.Contains('manager-ipc-read-abi=ok')) {
             Fail "Native bridge ABI probe failed: $($abiOutput -join ' ')"
         }
 
-        $agent = Start-AgentHealthServer -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
+        $agent = Start-AgentServer -Command serve-health -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
         $healthOutput = @(& $probe --health --data-root $dataRoot 2>&1)
         $healthExit = $LASTEXITCODE
         if ($healthExit -ne 0) {
@@ -352,6 +399,37 @@ function Invoke-ProbeVerification {
         }
         if (-not $agent.WaitForExit(10000)) {
             Fail 'Agent Health server did not exit after the bounded probe connection'
+        }
+        $agent.Dispose()
+        $agent = $null
+
+        $agent = Start-AgentServer -Command serve-read -DataRoot $dataRoot -MaxConnections 2 -OutputPath $readStdout -ErrorPath $readStderr
+        $readOutput = @(& $probe --read --data-root $dataRoot 2>&1)
+        $readExit = $LASTEXITCODE
+        if ($readExit -ne 0) {
+            Fail "Native read probe failed with code ${readExit}: $($readOutput -join ' ')"
+        }
+        $readText = $readOutput -join "`n"
+        foreach ($marker in @(
+            'manager-ipc-read-probe=ok',
+            'history-status=0',
+            'history-count=0',
+            'history-has-more=0',
+            'search-status=0',
+            'search-count=0',
+            'search-has-more=0'
+        )) {
+            if (-not $readText.Contains($marker)) {
+                Fail "Native read probe output is missing: $marker"
+            }
+        }
+        foreach ($forbidden in @('secret=', 'nonce=', 'proof=', '\\.\pipe\', $dataRoot.ToLowerInvariant())) {
+            if ($readText.ToLowerInvariant().Contains($forbidden.ToLowerInvariant())) {
+                Fail "Native read probe emitted forbidden content: $forbidden"
+            }
+        }
+        if (-not $agent.WaitForExit(10000)) {
+            Fail 'Agent read server did not exit after the bounded probe connections'
         }
     }
     finally {
@@ -398,7 +476,7 @@ function Invoke-LiveVerification {
         Assert-File $manager
         Assert-File (Join-Path $managerOutput $bridgeDllName)
 
-        $agent = Start-AgentHealthServer -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
+        $agent = Start-AgentServer -Command serve-health -DataRoot $dataRoot -MaxConnections 1 -OutputPath $stdout -ErrorPath $stderr
         $env:PASTRAL_MANAGER_DIAGNOSTIC = '1'
         $env:PASTRAL_MANAGER_DATA_ROOT = $dataRoot
         $managerProcess = Start-Process -FilePath $manager -PassThru
