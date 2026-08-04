@@ -121,12 +121,28 @@ namespace winrt::Pastral::Manager::implementation
 
         HistoryConnectionStatus().Title(winrt::hstring(snapshot.statusTitle));
         HistoryConnectionStatus().Message(winrt::hstring(snapshot.statusDetail));
-        HistoryConnectionStatus().Severity(
-            m_connection == ConnectionState::Error ||
-            m_connection == ConnectionState::ProtocolMismatch
-                ? InfoBarSeverity::Error
-                : InfoBarSeverity::Informational);
-        HistoryConnectionStatus().IsOpen(true);
+        InfoBarSeverity severity = InfoBarSeverity::Informational;
+        switch (m_connection)
+        {
+        case ConnectionState::Connected:
+            severity = InfoBarSeverity::Success;
+            break;
+        case ConnectionState::Disconnected:
+        case ConnectionState::CapturePaused:
+            severity = InfoBarSeverity::Warning;
+            break;
+        case ConnectionState::ProtocolMismatch:
+        case ConnectionState::Error:
+            severity = InfoBarSeverity::Error;
+            break;
+        case ConnectionState::Loading:
+            break;
+        }
+        HistoryConnectionStatus().Severity(severity);
+        auto const showConnectionBanner = m_connection != ConnectionState::Connected;
+        HistoryConnectionStatus().IsOpen(showConnectionBanner);
+        HistoryConnectionStatus().Visibility(
+            showConnectionBanner ? Visibility::Visible : Visibility::Collapsed);
 
         HistorySyntheticNotice().IsOpen(m_synthetic);
         HistorySyntheticNotice().Visibility(m_synthetic ? Visibility::Visible : Visibility::Collapsed);
@@ -137,7 +153,13 @@ namespace winrt::Pastral::Manager::implementation
             m_connection == ConnectionState::Disconnected ||
             m_connection == ConnectionState::ProtocolMismatch ||
             m_connection == ConnectionState::Error;
+        HistoryRetryButton().IsEnabled(canRetry);
         HistoryRetryButton().Visibility(canRetry ? Visibility::Visible : Visibility::Collapsed);
+
+        auto const isLoading = m_connection == ConnectionState::Loading;
+        HistoryLoadingIndicator().IsActive(isLoading);
+        HistoryLoadingIndicator().Visibility(isLoading ? Visibility::Visible : Visibility::Collapsed);
+        HistoryEmptyIcon().Visibility(isLoading ? Visibility::Collapsed : Visibility::Visible);
 
         RefreshResults();
     }

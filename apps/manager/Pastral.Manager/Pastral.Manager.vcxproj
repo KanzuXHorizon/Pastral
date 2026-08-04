@@ -79,6 +79,12 @@
     <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\obj\</IntDir>
     <GeneratedFilesDir>$(IntDir)Generated Files\</GeneratedFilesDir>
     <UseMultiToolTask>false</UseMultiToolTask>
+    <PastralRepositoryRoot>$(MSBuildProjectDirectory)\..\..\..</PastralRepositoryRoot>
+    <PastralManagerBridgeProfile Condition="'$(Configuration)'=='Release'">release</PastralManagerBridgeProfile>
+    <PastralManagerBridgeProfile Condition="'$(Configuration)'!='Release'">debug</PastralManagerBridgeProfile>
+    <PastralManagerBridgeCargoArguments Condition="'$(Configuration)'=='Release'">--release</PastralManagerBridgeCargoArguments>
+    <PastralManagerBridgeSource>$(PastralRepositoryRoot)\target\$(PastralManagerBridgeProfile)\pastral_manager_ipc_bridge.dll</PastralManagerBridgeSource>
+    <PastralManagerBridgeDestination>$(OutDir)pastral-manager-ipc-bridge.dll</PastralManagerBridgeDestination>
   </PropertyGroup>
 
   <ItemDefinitionGroup>
@@ -212,5 +218,19 @@
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+
+  <Target Name="BuildPastralManagerIpcBridge"
+          BeforeTargets="Link"
+          Condition="'$(DesignTimeBuild)'!='true'">
+    <Exec WorkingDirectory="$(PastralRepositoryRoot)"
+          Command="cargo build --locked -p pastral-manager-ipc-bridge $(PastralManagerBridgeCargoArguments)" />
+    <Error Condition="!Exists('$(PastralManagerBridgeSource)')"
+           Text="The Pastral manager IPC bridge DLL was not produced at $(PastralManagerBridgeSource)." />
+    <MakeDir Directories="$(OutDir)" Condition="!Exists('$(OutDir)')" />
+    <Copy SourceFiles="$(PastralManagerBridgeSource)"
+          DestinationFiles="$(PastralManagerBridgeDestination)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
   <ImportGroup Label="ExtensionTargets" />
 </Project>

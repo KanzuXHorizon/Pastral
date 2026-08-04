@@ -44,11 +44,15 @@ namespace winrt::Pastral::Manager::implementation
     {
         if (tag == L"home")
         {
+            GlobalStatusBar().IsOpen(false);
+            GlobalStatusBar().Visibility(Visibility::Collapsed);
             ContentFrame().Navigate(xaml_typename<Pastral::Manager::HomePage>());
             return;
         }
         if (tag == L"history")
         {
+            GlobalStatusBar().IsOpen(false);
+            GlobalStatusBar().Visibility(Visibility::Collapsed);
             ContentFrame().Navigate(xaml_typename<Pastral::Manager::HistoryPage>());
             return;
         }
@@ -60,6 +64,7 @@ namespace winrt::Pastral::Manager::implementation
         GlobalStatusBar().Severity(InfoBarSeverity::Error);
         GlobalStatusBar().Title(L"Navigation unavailable");
         GlobalStatusBar().Message(L"The requested manager page is not part of this verified build.");
+        GlobalStatusBar().Visibility(Visibility::Visible);
         GlobalStatusBar().IsOpen(true);
     }
 }

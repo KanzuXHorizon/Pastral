@@ -57,10 +57,10 @@
                     Margin="16,12,16,0"
                     AutomationProperties.Name="Global manager operational status"
                     IsClosable="False"
-                    IsOpen="True"
+                    IsOpen="False"
                     Severity="Informational"
-                    Title="Manager foundation"
-                    Message="The native manager is running. Live clipboard history remains disconnected until local IPC is implemented." />
+                    Title="Manager status"
+                    Visibility="Collapsed" />
 
                 <Frame
                     x:Name="ContentFrame"

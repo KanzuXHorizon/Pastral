@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'IpcTransport', 'AgentIpcAdmission', 'Agent', 'AgentPolicy', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'IpcTransport', 'AgentIpcAdmission', 'Agent', 'AgentPolicy', 'ManagerIpcBridge', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
     [string]$Task = 'All'
 )
 
@@ -38,6 +38,7 @@ function Invoke-IpcTransport { Invoke-Step 'Verify authenticated IPC transport' 
 function Invoke-AgentIpcAdmission { Invoke-Step 'Verify agent IPC admission' { & "$PSScriptRoot\verify-agent-ipc-admission.ps1" -Mode All } }
 function Invoke-Agent { Invoke-Step 'Verify diagnostic resident agent' { & "$PSScriptRoot\verify-agent.ps1" -Mode All } }
 function Invoke-AgentPolicy { Invoke-Step 'Verify diagnostic resident agent policy' { & "$PSScriptRoot\verify-agent.ps1" -Mode Static } }
+function Invoke-ManagerIpcBridge { Invoke-Step 'Verify manager live Health bridge' { & "$PSScriptRoot\verify-manager-ipc-bridge.ps1" -Mode All } }
 function Invoke-Manager { Invoke-Step 'Verify native manager including runtime smoke' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode All } }
 function Invoke-ManagerBuild { Invoke-Step 'Build native manager Debug and Release' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Build } }
 function Invoke-NativePolicy { Invoke-Step 'Verify native manager policy' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Static } }
@@ -58,6 +59,7 @@ switch ($Task) {
     'AgentIpcAdmission' { Invoke-AgentIpcAdmission }
     'Agent' { Invoke-Agent }
     'AgentPolicy' { Invoke-AgentPolicy }
+    'ManagerIpcBridge' { Invoke-ManagerIpcBridge }
     'Manager' { Invoke-Manager }
     'ManagerBuild' { Invoke-ManagerBuild }
     'NativePolicy' { Invoke-NativePolicy }
@@ -88,6 +90,7 @@ switch ($Task) {
         Invoke-IpcTransport
         Invoke-AgentIpcAdmission
         Invoke-Agent
+        Invoke-ManagerIpcBridge
         Invoke-NativePolicy
         Invoke-ManagerBuild
     }

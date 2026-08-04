@@ -53,37 +53,79 @@ namespace winrt::Pastral::Manager::implementation
 
         HomeConnectionStatus().Title(winrt::hstring(snapshot.statusTitle));
         HomeConnectionStatus().Message(winrt::hstring(snapshot.statusDetail));
-        HomeConnectionStatus().Severity(
-            snapshot.connection == ConnectionState::Error ||
-            snapshot.connection == ConnectionState::ProtocolMismatch
-                ? InfoBarSeverity::Error
-                : InfoBarSeverity::Informational);
-        HomeConnectionStatus().IsOpen(true);
+        InfoBarSeverity severity = InfoBarSeverity::Informational;
+        switch (snapshot.connection)
+        {
+        case ConnectionState::Connected:
+            severity = InfoBarSeverity::Success;
+            break;
+        case ConnectionState::Disconnected:
+        case ConnectionState::CapturePaused:
+            severity = InfoBarSeverity::Warning;
+            break;
+        case ConnectionState::ProtocolMismatch:
+        case ConnectionState::Error:
+            severity = InfoBarSeverity::Error;
+            break;
+        case ConnectionState::Loading:
+            break;
+        }
+        HomeConnectionStatus().Severity(severity);
+        auto const showConnectionBanner = snapshot.connection != ConnectionState::Connected;
+        HomeConnectionStatus().IsOpen(showConnectionBanner);
+        HomeConnectionStatus().Visibility(
+            showConnectionBanner ? Visibility::Visible : Visibility::Collapsed);
 
         HomeStatusTitle().Text(winrt::hstring(snapshot.statusTitle));
         HomeStatusDetail().Text(winrt::hstring(snapshot.statusDetail));
         HomeProfileValue().Text(winrt::hstring(snapshot.activeProfile));
         HomeStorageValue().Text(winrt::hstring(snapshot.storageSummary));
 
+        auto const isLoading = snapshot.connection == ConnectionState::Loading;
+        HomeLoadingIndicator().IsActive(isLoading);
+        HomeLoadingIndicator().Visibility(isLoading ? Visibility::Visible : Visibility::Collapsed);
+        HomeStatusIcon().Visibility(isLoading ? Visibility::Collapsed : Visibility::Visible);
+
         switch (snapshot.connection)
         {
         case ConnectionState::Loading:
-            HomeCaptureValue().Text(L"Loading");
+            HomeCaptureValue().Text(L"Checking agent");
+            HomeEmptyStateTitle().Text(L"Connecting to Pastral agent");
+            HomeEmptyStateDetail().Text(
+                L"Recent clips will appear after the local Health check completes.");
             break;
         case ConnectionState::Connected:
             HomeCaptureValue().Text(snapshot.synthetic ? L"Preview mode" : L"Connected");
+            HomeEmptyStateTitle().Text(
+                snapshot.synthetic ? L"No synthetic previews are available" : L"Recent history is not available yet");
+            HomeEmptyStateDetail().Text(
+                snapshot.synthetic
+                    ? L"The Debug presentation provider returned no bounded preview records."
+                    : L"The authenticated Health connection is active. Paged history IPC is not implemented in this build.");
             break;
         case ConnectionState::Disconnected:
             HomeCaptureValue().Text(L"Unavailable");
+            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
+            HomeEmptyStateDetail().Text(
+                L"Start the local agent, then retry the authenticated connection.");
             break;
         case ConnectionState::CapturePaused:
             HomeCaptureValue().Text(L"Paused");
+            HomeEmptyStateTitle().Text(L"Capture is paused");
+            HomeEmptyStateDetail().Text(
+                L"Resume capture from the agent before expecting new clipboard activity.");
             break;
         case ConnectionState::ProtocolMismatch:
             HomeCaptureValue().Text(L"Version mismatch");
+            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
+            HomeEmptyStateDetail().Text(
+                L"Update the manager and agent to compatible versions, then retry.");
             break;
         case ConnectionState::Error:
-            HomeCaptureValue().Text(L"Error");
+            HomeCaptureValue().Text(L"Needs attention");
+            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
+            HomeEmptyStateDetail().Text(
+                L"Resolve the manager status above before requesting clipboard history.");
             break;
         }
 
@@ -93,8 +135,12 @@ namespace winrt::Pastral::Manager::implementation
             snapshot.connection == ConnectionState::Disconnected ||
             snapshot.connection == ConnectionState::ProtocolMismatch ||
             snapshot.connection == ConnectionState::Error;
+        auto const canRefresh = snapshot.connection == ConnectionState::Connected && !snapshot.synthetic;
+        RetryConnectionButton().Content(winrt::box_value(
+            canRetry ? L"Retry" : isLoading ? L"Checking…" : L"Refresh"));
+        RetryConnectionButton().IsEnabled(!isLoading && (canRetry || canRefresh));
         RetryConnectionButton().Visibility(
-            canRetry ? Visibility::Visible : Visibility::Collapsed);
+            (isLoading || canRetry || canRefresh) ? Visibility::Visible : Visibility::Collapsed);
 
         m_recentClips.Clear();
         for (auto const& clip : snapshot.clips)

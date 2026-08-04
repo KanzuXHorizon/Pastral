@@ -10,6 +10,7 @@ on:
       - "apps/agent-ipc-probe/**"
       - "apps/ipc-probe/**"
       - "apps/ipc-transport-probe/**"
+      - "apps/manager/Pastral.Manager/**"
       - "crates/agent-core/**"
       - "crates/clipboard-win/**"
       - "crates/domain/**"
@@ -17,6 +18,7 @@ on:
       - "crates/ipc-core/**"
       - "crates/ipc-schema/**"
       - "crates/ipc-win/**"
+      - "crates/manager-ipc-bridge/**"
       - "crates/storage/**"
       - "protocols/ipc-schema/**"
       - "eng/**"
@@ -30,6 +32,7 @@ on:
       - "apps/agent-ipc-probe/**"
       - "apps/ipc-probe/**"
       - "apps/ipc-transport-probe/**"
+      - "apps/manager/Pastral.Manager/**"
       - "crates/agent-core/**"
       - "crates/clipboard-win/**"
       - "crates/domain/**"
@@ -37,6 +40,7 @@ on:
       - "crates/ipc-core/**"
       - "crates/ipc-schema/**"
       - "crates/ipc-win/**"
+      - "crates/manager-ipc-bridge/**"
       - "crates/storage/**"
       - "protocols/ipc-schema/**"
       - "eng/**"
@@ -92,6 +96,12 @@ jobs:
       - name: Verify agent IPC admission
         shell: powershell
         run: ./eng/verify-agent-ipc-admission.ps1 -Mode All
+      - name: Verify manager IPC bridge policy
+        shell: powershell
+        run: ./eng/verify-manager-ipc-bridge.ps1 -Mode Static
+      - name: Test manager IPC bridge
+        shell: powershell
+        run: ./eng/verify-manager-ipc-bridge.ps1 -Mode Test
       - name: Test storage foundation
         shell: powershell
         run: cargo test --locked -p pastral-storage --all-targets

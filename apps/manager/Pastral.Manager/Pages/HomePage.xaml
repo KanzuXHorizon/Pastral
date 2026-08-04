@@ -31,7 +31,7 @@
                     MaxWidth="720"
                     HorizontalAlignment="Left"
                     Style="{StaticResource BodyTextBlockStyle}"
-                    Text="A calm operational overview of capture, privacy, and local history." />
+                    Text="Agent health, privacy state, and recent clipboard activity." />
             </StackPanel>
 
             <StackPanel
@@ -39,6 +39,7 @@
                 Spacing="12">
                 <InfoBar
                     x:Name="HomeConnectionStatus"
+                    AutomationProperties.LiveSetting="Polite"
                     AutomationProperties.Name="Manager connection status"
                     IsClosable="False"
                     IsOpen="True"
@@ -60,19 +61,38 @@
                 AutomationProperties.Name="Operational state"
                 Style="{StaticResource PastralCardStyle}">
                 <Grid
-                    ColumnSpacing="20"
-                    RowSpacing="16">
+                    ColumnSpacing="16"
+                    RowSpacing="12">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Spacing="6">
+                    <ProgressRing
+                        x:Name="HomeLoadingIndicator"
+                        Width="24"
+                        Height="24"
+                        AutomationProperties.Name="Connecting to local agent"
+                        IsActive="False"
+                        VerticalAlignment="Top"
+                        Visibility="Collapsed" />
+                    <FontIcon
+                        x:Name="HomeStatusIcon"
+                        Width="24"
+                        AutomationProperties.Name="Manager status"
+                        FontSize="20"
+                        Glyph="&#xE946;"
+                        VerticalAlignment="Top" />
+                    <StackPanel
+                        Grid.Column="1"
+                        Spacing="5">
                         <TextBlock
                             AutomationProperties.HeadingLevel="Level2"
                             Style="{StaticResource SubtitleTextBlockStyle}"
                             Text="Manager status" />
                         <TextBlock
                             x:Name="HomeStatusTitle"
+                            AutomationProperties.LiveSetting="Polite"
                             Style="{StaticResource BodyStrongTextBlockStyle}"
                             Text="Loading local status" />
                         <TextBlock
@@ -83,92 +103,123 @@
                     </StackPanel>
                     <Button
                         x:Name="RetryConnectionButton"
-                        Grid.Column="1"
-                        AutomationProperties.Name="Retry local agent connection"
+                        Grid.Column="2"
+                        AutomationProperties.Name="Refresh local agent connection"
                         Click="RetryConnection_Click"
-                        Content="Retry"
-                        VerticalAlignment="Center" />
+                        Content="Refresh"
+                        VerticalAlignment="Center"
+                        Visibility="Collapsed" />
                 </Grid>
             </Border>
 
-            <ItemsControl
+            <Border
+                x:Name="HomeOverviewRegion"
                 Grid.Row="3"
-                AutomationProperties.Name="Manager summary">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <ItemsWrapGrid
-                            ItemWidth="328"
-                            MaximumRowsOrColumns="3"
-                            Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
+                AutomationProperties.Name="System overview"
+                Style="{StaticResource PastralCardStyle}">
+                <StackPanel Spacing="16">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            AutomationProperties.HeadingLevel="Level2"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="System overview" />
+                        <TextBlock
+                            Style="{StaticResource PastralMetadataTextStyle}"
+                            Text="Operational facts supplied through the verified manager boundary." />
+                    </StackPanel>
 
-                <Border
-                    Margin="0,0,16,16"
-                    AutomationProperties.Name="Capture state"
-                    Style="{StaticResource PastralCardStyle}">
-                    <StackPanel Spacing="10">
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <FontIcon
                             AutomationProperties.Name="Capture state"
-                            FontSize="20"
-                            Glyph="&#xE7C8;" />
-                        <TextBlock
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Capture state" />
-                        <TextBlock
-                            x:Name="HomeCaptureValue"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Unavailable" />
-                        <TextBlock
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="The manager shows only state supplied through its provider boundary." />
-                    </StackPanel>
-                </Border>
+                            FontSize="18"
+                            Glyph="&#xE7C8;"
+                            VerticalAlignment="Top" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Spacing="3">
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Capture state" />
+                            <TextBlock
+                                x:Name="HomeCaptureValue"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Unavailable"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="The manager shows only state supplied through its provider boundary." />
+                        </StackPanel>
+                    </Grid>
 
-                <Border
-                    Margin="0,0,16,16"
-                    AutomationProperties.Name="Active profile"
-                    Style="{StaticResource PastralCardStyle}">
-                    <StackPanel Spacing="10">
+                    <Border
+                        Height="1"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        IsHitTestVisible="False" />
+
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <FontIcon
-                            AutomationProperties.Name="Profile"
-                            FontSize="20"
-                            Glyph="&#xE77B;" />
-                        <TextBlock
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Profile" />
-                        <TextBlock
-                            x:Name="HomeProfileValue"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Ordinary" />
-                        <TextBlock
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Private remains unavailable until encryption, lock, and recovery gates pass." />
-                    </StackPanel>
-                </Border>
+                            AutomationProperties.Name="Active profile"
+                            FontSize="18"
+                            Glyph="&#xE77B;"
+                            VerticalAlignment="Top" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Spacing="3">
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Active profile" />
+                            <TextBlock
+                                x:Name="HomeProfileValue"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Ordinary"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Private remains unavailable until encryption, lock, and recovery gates pass." />
+                        </StackPanel>
+                    </Grid>
 
-                <Border
-                    Margin="0,0,0,16"
-                    AutomationProperties.Name="Local storage summary"
-                    Style="{StaticResource PastralCardStyle}">
-                    <StackPanel Spacing="10">
+                    <Border
+                        Height="1"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        IsHitTestVisible="False" />
+
+                    <Grid ColumnSpacing="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
                         <FontIcon
                             AutomationProperties.Name="Local data"
-                            FontSize="20"
-                            Glyph="&#xEDA2;" />
-                        <TextBlock
-                            Style="{StaticResource SubtitleTextBlockStyle}"
-                            Text="Local data" />
-                        <TextBlock
-                            x:Name="HomeStorageValue"
-                            Style="{StaticResource BodyStrongTextBlockStyle}"
-                            Text="Unavailable" />
-                        <TextBlock
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="The manager never opens SQLite or blob storage directly." />
-                    </StackPanel>
-                </Border>
-            </ItemsControl>
+                            FontSize="18"
+                            Glyph="&#xEDA2;"
+                            VerticalAlignment="Top" />
+                        <StackPanel
+                            Grid.Column="1"
+                            Spacing="3">
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Local data" />
+                            <TextBlock
+                                x:Name="HomeStorageValue"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                Text="Unavailable"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="The manager never opens SQLite or blob storage directly." />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
 
             <Grid
                 Grid.Row="4"
@@ -232,24 +283,16 @@
                                         Text="{Binding SafePreview}"
                                         TextTrimming="CharacterEllipsis"
                                         TextWrapping="Wrap" />
-                                    <StackPanel
-                                        Orientation="Horizontal"
-                                        Spacing="6">
-                                        <TextBlock
-                                            Style="{StaticResource PastralMetadataTextStyle}"
-                                            Text="{Binding Source}" />
-                                        <TextBlock
-                                            Style="{StaticResource PastralMetadataTextStyle}"
-                                            Text="·" />
-                                        <TextBlock
-                                            Style="{StaticResource PastralMetadataTextStyle}"
-                                            Text="{Binding RelativeTime}" />
-                                    </StackPanel>
+                                    <TextBlock
+                                        MaxLines="1"
+                                        Style="{StaticResource PastralMetadataTextStyle}"
+                                        Text="{Binding Source}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                                 <StackPanel
                                     Grid.Column="1"
                                     HorizontalAlignment="Right"
-                                    Spacing="4">
+                                    Spacing="3">
                                     <TextBlock
                                         HorizontalAlignment="Right"
                                         Style="{StaticResource BodyTextBlockStyle}"
@@ -257,11 +300,13 @@
                                     <TextBlock
                                         HorizontalAlignment="Right"
                                         Style="{StaticResource PastralMetadataTextStyle}"
-                                        Text="{Binding RepresentationSummary}" />
+                                        Text="{Binding RelativeTime}" />
                                     <TextBlock
                                         HorizontalAlignment="Right"
+                                        MaxWidth="240"
                                         Style="{StaticResource PastralMetadataTextStyle}"
-                                        Text="{Binding Profile}" />
+                                        Text="{Binding RepresentationSummary}"
+                                        TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </Grid>
                         </DataTemplate>
@@ -295,9 +340,11 @@
                             VerticalAlignment="Center"
                             Spacing="4">
                             <TextBlock
+                                x:Name="HomeEmptyStateTitle"
                                 Style="{StaticResource SubtitleTextBlockStyle}"
                                 Text="No recent clips are available" />
                             <TextBlock
+                                x:Name="HomeEmptyStateDetail"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Connect the local agent to receive privacy-safe history. Release builds never invent sample data." />
                         </StackPanel>

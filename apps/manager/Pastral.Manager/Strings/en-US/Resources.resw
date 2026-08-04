@@ -39,11 +39,11 @@
   <data name="HomeNavigationItem.Content" xml:space="preserve"><value>Home</value></data>
   <data name="HistoryNavigationItem.Content" xml:space="preserve"><value>History</value></data>
   <data name="HomePageTitle.Text" xml:space="preserve"><value>Home</value></data>
-  <data name="HomePageSubtitle.Text" xml:space="preserve"><value>A calm operational overview of capture, privacy, and local history.</value></data>
+  <data name="HomePageSubtitle.Text" xml:space="preserve"><value>Agent health, privacy state, and recent clipboard activity.</value></data>
   <data name="HomeConnectionStatus.Title" xml:space="preserve"><value>Agent not connected</value></data>
-  <data name="HomeConnectionStatus.Message" xml:space="preserve"><value>Start the resident agent after its verified IPC slice is available. This manager does not read the clipboard database directly.</value></data>
+  <data name="HomeConnectionStatus.Message" xml:space="preserve"><value>Start the local agent, then retry the authenticated connection. The manager never reads clipboard storage directly.</value></data>
   <data name="HistoryPageTitle.Text" xml:space="preserve"><value>History</value></data>
-  <data name="HistoryPageSubtitle.Text" xml:space="preserve"><value>Find copied content by preview, source, type, profile, and time.</value></data>
+  <data name="HistoryPageSubtitle.Text" xml:space="preserve"><value>Search privacy-safe previews by content, source, type, or profile.</value></data>
   <data name="HistoryConnectionStatus.Title" xml:space="preserve"><value>History is not connected</value></data>
   <data name="HistoryConnectionStatus.Message" xml:space="preserve"><value>Search and privacy-safe previews become available after a verified connection to the local agent.</value></data>
   <data name="HistorySearchBox.PlaceholderText" xml:space="preserve"><value>Search history</value></data>

@@ -34,6 +34,23 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+
+    $content = [System.IO.File]::ReadAllText($Path)
+    if ([System.Text.RegularExpressions.Regex]::IsMatch(
+        $content,
+        $Pattern,
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    )) {
+        Fail "$Description was found in $Path"
+    }
+}
+
 function Invoke-StaticVerification {
     Write-Host 'Pastral native manager static verification'
 
@@ -148,11 +165,18 @@ function Invoke-StaticVerification {
     Assert-Contains $mainWindow '<InfoBar' 'global InfoBar'
     Assert-Contains $mainWindow '<Frame' 'content Frame'
     Assert-Contains $mainWindow 'AutomationProperties\.Name=' 'shell accessibility names'
+    Assert-Contains $mainWindow 'x:Name="GlobalStatusBar"[\s\S]*Visibility="Collapsed"' 'non-duplicative global status default'
+    Assert-NotContains $mainWindow 'Live clipboard history remains disconnected until local IPC is implemented' 'obsolete disconnected shell copy'
 
     $homePage = Join-Path $managerRoot 'Pages\HomePage.xaml'
     Assert-Contains $homePage 'HeadingLevel="Level1"' 'Home Level1 heading'
     Assert-Contains $homePage 'AutomationProperties\.Name=' 'Home accessibility names'
     Assert-Contains $homePage 'x:Name="HomeOperationalStateRegion"' 'Home operational state region'
+    Assert-Contains $homePage 'x:Name="HomeLoadingIndicator"' 'Home loading indicator'
+    Assert-Contains $homePage 'x:Name="HomeOverviewRegion"' 'Home consolidated overview region'
+    Assert-Contains $homePage 'x:Name="HomeEmptyStateTitle"' 'Home contextual empty-state title'
+    Assert-Contains $homePage 'x:Name="HomeEmptyStateDetail"' 'Home contextual empty-state detail'
+    Assert-NotContains $homePage '<ItemsWrapGrid' 'fixed-width Home card grid'
     Assert-Contains $homePage 'x:Name="RetryConnectionButton"' 'Home recovery action'
     Assert-Contains $homePage 'x:Name="HomeRecentClipsList"' 'Home recent clips list'
     Assert-Contains $homePage 'x:Name="HomeEmptyStatePanel"' 'Home empty state panel'
@@ -172,6 +196,8 @@ function Invoke-StaticVerification {
     Assert-Contains $homeCode 'DispatcherQueue\(\)' 'Home UI-thread dispatcher capture'
     Assert-Contains $homeCode 'm_loadGeneration\s*==\s*generation' 'Home stale-result rejection'
     Assert-Contains $homeCode 'RetryConnection_Click' 'Home retry handler'
+    Assert-Contains $homeCode 'HomeLoadingIndicator\(\)\.IsActive' 'Home loading progress state'
+    Assert-Contains $homeCode 'HomeEmptyStateTitle\(\)\.Text' 'Home contextual empty-state copy'
 
     $historyPage = Join-Path $managerRoot 'Pages\HistoryPage.xaml'
     Assert-Contains $historyPage 'HeadingLevel="Level1"' 'History Level1 heading'
@@ -183,6 +209,9 @@ function Invoke-StaticVerification {
     Assert-Contains $historyPage 'x:Name="HistoryResultCount"' 'History result-count live region'
     Assert-Contains $historyPage 'x:Name="HistoryDetailsRegion"' 'History details region'
     Assert-Contains $historyPage 'x:Name="HistoryNoResultsPanel"' 'History no-results panel'
+    Assert-Contains $historyPage 'x:Name="HistoryLoadingIndicator"' 'History loading indicator'
+    Assert-Contains $historyPage 'x:Name="HistoryCommandBar"' 'History responsive command region'
+    Assert-Contains $historyPage 'MinWindowWidth="640"' 'History command-layout trigger'
     Assert-Contains $historyPage 'x:Name="HistorySyntheticNotice"' 'History synthetic-data disclosure'
     Assert-Contains $historyPage 'x:Name="HistoryPasteButton"' 'History paste action'
     Assert-Contains $historyPage 'x:Name="HistoryCopyButton"' 'History copy action'
@@ -202,6 +231,7 @@ function Invoke-StaticVerification {
     Assert-Contains $historyCode 'ResultsList_SelectionChanged' 'History selection handler'
     Assert-Contains $historyCode 'ClearFilters_Click' 'History clear-filter handler'
     Assert-Contains $historyCode 'Retry_Click' 'History retry handler'
+    Assert-Contains $historyCode 'HistoryLoadingIndicator\(\)\.IsActive' 'History loading progress state'
 
     foreach ($page in @($homePage, $historyPage)) {
         $content = [System.IO.File]::ReadAllText($page)
@@ -364,10 +394,11 @@ function Invoke-SmokeVerification {
 
         $historyDeadline = [DateTime]::UtcNow.AddSeconds(10)
         $requiredHistoryElements = @(
+            'History page content',
             'Search clipboard history',
             'History results list',
             'Selected clip details',
-            'History availability status'
+            'Synthetic history disclosure'
         )
         foreach ($name in $requiredHistoryElements) {
             $condition = New-Object System.Windows.Automation.PropertyCondition(
