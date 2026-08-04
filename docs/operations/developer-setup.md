@@ -7,9 +7,11 @@ These commands build and test the implemented foundation:
 - `pastral-domain` — platform-independent immutable domain types and invariants;
 - `pastral-storage` — synchronous single-owner SQLite/FTS5 metadata, ordinary internal/external blob persistence, literal lexical search, content-free capture audit storage, deletion, integrity checks, and bounded reconciliation;
 - `pastral-clipboard-win` — Windows-only listener/session/format/HGLOBAL/Unicode-text platform boundary that never writes to the user's clipboard in automated tests;
+- `pastral-agent-core` — Windows-binding-free capture coordinator with bounded retry, transient-sequence duplicate suppression, exact text/byte preservation, and explicit terminal outcomes;
+- `pastral-agent.exe` — diagnostic resident-agent executable with explicit health-check, one-shot current capture, and event-driven listen commands for ordinary `CF_UNICODETEXT`;
 - `pastral-manager.exe` — unpackaged C++20/C++/WinRT WinUI 3 manager with Home and History UI, adaptive layout, localization, accessibility landmarks, Debug-only synthetic preview data, and an empty disconnected Release provider.
 
-The repository still does not contain the resident capture agent, COM/OLE capture/replay, versioned IPC, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The manager never opens SQLite or blob storage directly.
+The repository still does not contain COM/OLE capture/replay, versioned IPC, manager live data, source/private-context exclusion, secret classification, encrypted profiles, Quick Paste, passive overlay, packaging, installer, telemetry runtime, OCR, semantic search, or AI product code. The agent is not auto-started, and the manager never opens SQLite or blob storage directly.
 
 ## Required environment
 
@@ -86,7 +88,13 @@ Run the Rust foundation quality gate without requiring WinUI tooling:
 .\eng\build.ps1 -Task All
 ```
 
-Run Rust plus native manager static/build gates:
+Build and smoke the diagnostic agent without reading the clipboard:
+
+```powershell
+.\eng\build.ps1 -Task Agent
+```
+
+Run Rust, agent health-check smoke, and native manager static/build gates:
 
 ```powershell
 .\eng\build.ps1 -Task Full
@@ -107,6 +115,8 @@ Individual tasks:
 .\eng\build.ps1 -Task Test
 .\eng\build.ps1 -Task Storage
 .\eng\build.ps1 -Task Clipboard
+.\eng\build.ps1 -Task AgentPolicy
+.\eng\build.ps1 -Task Agent
 .\eng\build.ps1 -Task NativePolicy
 .\eng\build.ps1 -Task ManagerBuild
 .\eng\build.ps1 -Task Manager
@@ -116,7 +126,7 @@ Individual tasks:
 .\eng\build.ps1 -Task SourcePolicy
 ```
 
-The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` already covers every Rust workspace crate. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
+The script stops at the first failure and preserves the failing command's exit code. `Storage` and `Clipboard` are focused crate tasks; `Test` covers every Rust workspace crate. `AgentPolicy` is static-only. `Agent` compiles Debug/Release and runs only a disposable `health-check`; it never invokes `capture-current` or `listen`. `ManagerBuild` compiles Debug and Release without launching UI. `Manager` additionally verifies window creation, History navigation, filtering, selection details, no-results state, and clean close through UI Automation.
 
 ## Direct CI-equivalent commands
 
@@ -131,12 +141,46 @@ cargo doc --locked --workspace --no-deps
 .\eng\verify-source-policy.ps1
 cargo tree --locked --workspace
 
+.\eng\verify-agent.ps1 -Mode Static
+.\eng\verify-agent.ps1 -Mode Build
+.\eng\verify-agent.ps1 -Mode Smoke
+
 .\eng\verify-native-manager.ps1 -Mode Static
 .\eng\verify-native-manager.ps1 -Mode Build
 .\eng\verify-native-manager.ps1 -Mode Smoke
 ```
 
 Native restore is locked by `apps/manager/Pastral.Manager/packages.lock.json`. The project pins Windows App SDK `2.3.1` and Microsoft.Windows.CppWinRT `3.0.260715.1` through `Directory.Packages.props`. The current toolchain requires single-tool MSBuild execution for reliable C++/WinRT/XAML generation (`UseMultiToolTask=false`, `MultiProcessorCompilation=false`); the verifier uses `/m:1 /nr:false`.
+
+## Diagnostic agent commands and safety boundary
+
+Build the agent first:
+
+```powershell
+cargo build --locked -p pastral-agent
+```
+
+A safe storage/integrity check that does not open the clipboard:
+
+```powershell
+.\target\debug\pastral-agent.exe health-check --data-root "$env:LOCALAPPDATA\PastralDiagnostic"
+```
+
+The following commands **explicitly read the current user's clipboard** and are therefore never run by automated tests, CI, `-Task All`, or the health-check smoke:
+
+```powershell
+.\target\debug\pastral-agent.exe capture-current --data-root "$env:LOCALAPPDATA\PastralDiagnostic"
+.\target\debug\pastral-agent.exe listen --data-root "$env:LOCALAPPDATA\PastralDiagnostic" --max-events 10
+```
+
+Running the executable without a command fails closed and prints usage. `capture-current` performs one bounded attempt. `listen` uses `AddClipboardFormatListener` notifications and bounded retry rather than polling. Diagnostic output reports only outcome classes, event IDs, and capture order; it never prints clipboard text or a content hash.
+
+The chosen data root contains:
+
+- `agent-identity.txt` with exactly `version`, a UUIDv4 profile ID, and an ordinary protection-domain UUIDv4;
+- `storage/metadata.sqlite3` plus controlled object/staging directories owned by `pastral-storage`.
+
+Malformed existing identity content fails closed and is not silently replaced. The current policy stores only ordinary `CF_UNICODETEXT`, uses internal SQLite BLOB placement, and does not provide password-manager/private-browser exclusion, secret classification, encryption, auto-start registration, or IPC.
 
 ## SQLite runtime policy for Phase 2A
 
@@ -170,11 +214,12 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - Paste and Copy actions remain disabled with accessible explanations until versioned local IPC, destination validation, and replay are implemented.
 - Home and History consume immutable privacy-safe presentation metadata only. No payload bytes, SQLite handles, blob paths, network clients, or storage APIs enter the manager.
 
-## Current storage and manager limitations
+## Current storage, agent, and manager limitations
 
 - Only ordinary protection-domain payloads are accepted. Sensitive and Private plaintext is rejected before any payload or search projection is persisted.
 - Blob placement is selected by a caller-supplied versioned policy. No benchmark-selected production threshold exists yet.
-- Inputs are bounded owned byte buffers; Win32/OLE streaming acquisition is not implemented.
+- Inputs are bounded owned byte buffers; the agent currently captures only `CF_UNICODETEXT`, while Win32/OLE streaming acquisition and other clipboard formats are not implemented.
+- The agent has no source attribution, hard-deny source policy enforcement, secret classifier, auto-start registration, process supervision, IPC server, replay suppression marker, or graceful Ctrl+C control channel yet.
 - No encryption, backup/restore, import/export, backend migration, retention/quota engine, multi-process ownership, or background maintenance exists.
 - FTS search is bounded literal lexical matching with deterministic ordering; no snippets, typo correction, semantic ranking, or sensitive indexing is provided.
 - The manager's Debug filtering is bounded presentation-only matching over synthetic safe metadata; it is not the production typed query/FTS pipeline.

@@ -20,6 +20,10 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 - Immutable manager presentation-state/provider boundary: six clearly labeled Debug-only synthetic preview records and an empty disconnected Release provider that never opens SQLite or blob storage directly.
 - Professional Home operational, disconnected, synthetic, recent-item, and empty states plus adaptive History search, list, selection details, unavailable-item warnings, disabled-action explanations, and no-results recovery.
 - Native static policy, Debug/Release builds, runtime window lifecycle checks, and UI Automation coverage for History navigation, search filtering, selection details, no-results state, and clean shutdown.
+- Storage-owned transactional capture-order assignment for new resident captures, while preserving the explicit-order import/test path.
+- Windows-binding-free `pastral-agent-core` coordinator with deterministic duplicate suppression, bounded `[0, 5, 15, 35]` millisecond retry, terminal outcome modeling, exact UTF-16 preservation, and retryable storage failures.
+- Diagnostic `pastral-agent.exe` with explicit `health-check`, `capture-current`, and `listen` commands, content-free identity persistence, ordinary `CF_UNICODETEXT` storage/FTS mapping, and Debug/Release plus health-check smoke verification.
+- Agent static/dependency/source policies and Windows CI coverage that never invoke clipboard-reading commands automatically.
 - Phase 0 product vision, scope, personas, and glossary.
 - Official-source research and competitor/gap analysis.
 - Foundation architecture and clipboard/paste lifecycle designs.
@@ -48,7 +52,7 @@ The format follows the intent of Keep a Changelog. Releases will use semantic ve
 
 ### Known limitations
 
-- The native manager executable and Home/History UI foundation exist, but the resident clipboard capture coordinator, COM/OLE pipeline, versioned IPC, encryption, Quick Paste, passive overlay, and packaging implementation do not yet exist.
+- The native manager and diagnostic resident-agent ordinary Unicode-text capture path exist, but the agent is not auto-started and the manager remains disconnected until versioned IPC exists. COM/OLE formats, source/private-context exclusion, secret classification, encryption, Quick Paste, passive overlay, and packaging do not yet exist.
 - Storage accepts ordinary payloads only; Sensitive and Private plaintext is rejected until authenticated encryption exists.
 - SQLite currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and the production internal/external placement threshold remain benchmark and crash-evidence gated.
 - The current manager is unpackaged and requires Windows App Runtime `2.3.1` x64 for local launch; no installer, package identity, signing pipeline, or public update channel exists.

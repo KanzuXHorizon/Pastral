@@ -8,11 +8,13 @@ Pastral is a provisional Windows 11-native clipboard intelligence and history pl
 
 ## Project status
 
-**Phase 3A — Rust foundations plus a native WinUI manager UI foundation.**
+**Phase 3B — native manager UI plus a bounded diagnostic resident-agent capture foundation.**
 
-The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, the pure `pastral-domain` crate, synchronous `pastral-storage`, the Windows-only `pastral-clipboard-win` boundary, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`. The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit disconnected/empty states, and a provider boundary that prevents direct SQLite or blob access.
+The repository now contains a reproducible Rust `1.97.1`/Edition 2024 workspace, the pure `pastral-domain` and `pastral-agent-core` crates, synchronous `pastral-storage`, the Windows-only `pastral-clipboard-win` boundary, a diagnostic `pastral-agent.exe`, and an unpackaged C++20/C++/WinRT WinUI 3 manager built with Windows App SDK `2.3.1`.
 
-Debug builds expose six bounded, clearly labeled synthetic preview records for layout and accessibility verification. Release builds contain no synthetic history and remain honestly disconnected until versioned local IPC and the resident agent are implemented. A resident capture agent and end-to-end clipboard history flow have intentionally not started.
+The agent can perform an explicit storage health check, one explicit current-clipboard capture, or event-driven listening for bounded ordinary `CF_UNICODETEXT` capture. Storage assigns durable capture order inside an immediate transaction, and the coordinator provides deterministic duplicate suppression and bounded retry without an async runtime. Automated tests and aggregate smoke gates run `health-check` only; they never invoke clipboard-reading commands.
+
+The manager provides a native Mica/NavigationView shell, localized Home and History surfaces, adaptive layout, accessible landmarks, explicit disconnected/empty states, and a provider boundary that prevents direct SQLite or blob access. Debug builds expose six bounded, clearly labeled synthetic preview records. Release builds contain no synthetic history and remain honestly disconnected until versioned local IPC is implemented.
 
 ADR 0018 remains Proposed and must pass its own runtime evidence gates before the later IPC implementation slice.
 
@@ -63,19 +65,20 @@ See [`docs/security/privacy-model.md`](docs/security/privacy-model.md) and [`doc
 
 ## Development state
 
-The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
+The implemented foundation includes `crates/domain`, `crates/storage`, `crates/clipboard-win`, `crates/agent-core`, the diagnostic resident agent under `apps/agent`, the native manager under `apps/manager/Pastral.Manager`, pinned Cargo/NuGet inputs, Windows CI, and PowerShell toolchain/build/dependency/source-policy verification.
 
 From Windows PowerShell:
 
 - `.\eng\build.ps1 -Task All` runs the Rust foundation gates only.
-- `.\eng\build.ps1 -Task Full` runs Rust gates plus native static policy and Debug/Release manager builds.
+- `.\eng\build.ps1 -Task Agent` builds Debug/Release agent binaries and runs a disposable, content-free `health-check` smoke.
+- `.\eng\build.ps1 -Task Full` runs Rust gates, the agent build/smoke gate, plus native static policy and Debug/Release manager builds.
 - `.\eng\build.ps1 -Task Manager` additionally launches the Debug manager, navigates to History through UI Automation, exercises filtering/selection/no-results states, and verifies clean shutdown.
 
 Exact setup and current limitations are in [`docs/operations/developer-setup.md`](docs/operations/developer-setup.md).
 
 Only ordinary payload storage is enabled. Sensitive and Private plaintext is rejected before persistence or indexing because authenticated encryption has not been implemented. The SQLite foundation currently uses rollback journal `DELETE` with `synchronous=FULL`; WAL and a production internal/external placement threshold remain evidence-gated.
 
-The WinUI manager project and native UI foundation now exist and use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. Packaging, signing, installer, resident capture agent, COM/OLE pipeline, IPC, encryption, Quick Paste, passive overlay, and live history/search/paste remain unimplemented. Automated clipboard tests do not write to the user's clipboard, and the manager does not open storage directly.
+The WinUI manager project and native UI foundation use the supported `.vcxproj`/MSBuild/XAML path rather than experimental Windows App SDK CMake integration. The diagnostic resident agent and ordinary Unicode-text persistence path now exist, but they are not registered for auto-start and are not connected to the manager. Packaging, signing, installer, COM/OLE formats, source/private-context exclusion, secret classification, IPC, encryption, Quick Paste, passive overlay, and live manager history/search/paste remain unimplemented. Automated clipboard tests do not write to or read from the user's clipboard, and the manager does not open storage directly.
 
 ## Contributing
 
