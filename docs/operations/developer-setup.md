@@ -196,6 +196,7 @@ cargo fmt --all -- --check
 cargo check --locked --workspace --all-targets
 cargo test --locked --workspace --all-targets
 cargo test --locked -p pastral-storage --all-targets
+cargo test --locked -p pastral-agent --features ipc-health --test ipc_read
 cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 cargo doc --locked --workspace --no-deps
 .\eng\verify-dependencies.ps1
@@ -261,7 +262,7 @@ coalesced-average-ns=858
 max-body-capacity=7869
 ```
 
-These are prototype measurements, not release SLAs. The default Release agent remains protobuf-free. Authenticated named-pipe transport, logon-SID DACLs, kernel peer/session validation, DPAPI material, replay defense, timeout/cancel-drain, and a cross-process Health exchange pass dedicated gates. Phase 3F also measures real agent Health admission: representative Release evidence reports a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta, all below the explicit ceilings. Phase 3G connects the feature-gated real Health server to the native manager through a 414,208-byte Release bridge DLL; one representative native run measured connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. Generated C++ Protobuf parity, fuzzing, adjacent-version fixtures, bulk staging, and production default-agent lifecycle integration remain separate gates.
+These are prototype measurements, not release SLAs. The default Release agent remains protobuf-free. Authenticated named-pipe transport, logon-SID DACLs, kernel peer/session validation, DPAPI material, replay defense, timeout/cancel-drain, and a cross-process Health exchange pass dedicated gates. Phase 3F also measures real agent Health admission: representative Release evidence reports a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 606,208-byte working-set delta, and 53,248-byte private-memory delta, all below the explicit ceilings. Phase 3G connects the feature-gated real Health server to the native manager through a 414,208-byte Release bridge DLL; one representative native run measured connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. The Phase 3H foundation adds a separate feature-gated `serve-read` mode that negotiates exactly Health, HistoryPage, and Search, returns at most 100 metadata previews per response, truncates each preview to at most 4,096 UTF-8 bytes, and keeps `serve-health` Health-only. Generated C++ Protobuf parity, manager page-buffer mapping, fuzzing, adjacent-version fixtures, bulk staging, and production default-agent lifecycle integration remain separate gates.
 
 ## Diagnostic agent commands and safety boundary
 
@@ -276,6 +277,16 @@ A safe storage/integrity check that does not open the clipboard:
 ```powershell
 .\target\debug\pastral-agent.exe health-check --data-root "$env:LOCALAPPDATA\PastralDiagnostic"
 ```
+
+The feature-gated IPC binary can expose a bounded diagnostic read boundary without opening the clipboard:
+
+```powershell
+cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc
+.\target\debug\pastral-agent-ipc.exe serve-health --data-root "$env:LOCALAPPDATA\PastralDiagnostic" --max-connections 1
+.\target\debug\pastral-agent-ipc.exe serve-read --data-root "$env:LOCALAPPDATA\PastralDiagnostic" --max-connections 3
+```
+
+`serve-health` negotiates and authorizes only Health. `serve-read` negotiates exactly Health, HistoryPage, and Search, accepts one request per authenticated connection, and exits after the configured `1..=16` connection bound. It returns metadata and bounded search projections only; it does not load raw representation/blob payloads. These commands are diagnostic candidates, not auto-started resident services.
 
 The following commands **explicitly read the current user's clipboard** and are therefore never run by automated tests, CI, `-Task All`, or the health-check smoke:
 

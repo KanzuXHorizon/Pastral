@@ -11,13 +11,13 @@
 
 Pastral is a Windows 11-native clipboard intelligence and history platform designed around local ownership, source awareness, high-fidelity capture, deterministic behavior, and explicit privacy boundaries.
 
-The project is currently an engineering preview. The core storage, clipboard, privacy, authenticated IPC, diagnostic agent, and native manager foundations are implemented and verified. Production packaging, live History/Search/Paste, encryption, Quick Paste, and the complete resident lifecycle remain in development.
+The project is currently an engineering preview. The core storage, clipboard, privacy, authenticated IPC, diagnostic agent, and native manager foundations are implemented and verified. A feature-gated authenticated agent backend now serves bounded read-only History and literal Search previews; manager integration, production packaging, Paste, encryption, Quick Paste, and the complete resident lifecycle remain in development.
 
 > “Paste perfectly” is a product ambition, not a claim that every application-private clipboard format can be captured or replayed losslessly.
 
 ## Current milestone
 
-**Phase 3G — native manager with a live authenticated Health bridge.**
+**Phase 3H foundation — bounded read-only History and literal Search over authenticated agent IPC.**
 
 The current repository includes:
 
@@ -26,6 +26,7 @@ The current repository includes:
 - a diagnostic clipboard agent with bounded ordinary `CF_UNICODETEXT` capture;
 - SQLite + FTS5 storage with internal and external blob placement support;
 - authenticated same-user/session named-pipe transport using DPAPI-protected installation material;
+- a feature-gated `serve-read` agent boundary for authenticated Health, paged History, and literal Search using bounded preview metadata only;
 - a versioned Rust C ABI bridge for content-free manager Health state;
 - an unpackaged C++20/C++/WinRT WinUI 3 manager using Windows App SDK `2.3.1`;
 - English and Vietnamese manager resources;
@@ -43,7 +44,7 @@ The current repository includes:
 | Authenticated local IPC | Implemented foundation | Bounded framing, peer/session evidence, HMAC authentication, replay defense |
 | Manager Health connection | Implemented | Live content-free Health through a versioned Rust bridge |
 | Native Manager UI | Implemented foundation | Home and History shell, adaptive states, accessibility, English/Vietnamese resources |
-| Live History/Search | Planned next | Manager intentionally does not open SQLite or blob storage directly |
+| Live History/Search | Backend foundation implemented | Authenticated agent serves bounded previews; manager C ABI/UI integration remains unavailable |
 | Paste/replay engine | Not implemented | Format fidelity and focus-safe confirmation remain separate milestones |
 | Encryption and Private profile | Not implemented | Private profile remains unavailable until encryption/recovery gates pass |
 | Installer, signing, updates | Not implemented | Current manager is unpackaged |
@@ -70,7 +71,7 @@ pastral-manager-ipc-bridge.dll
 Pastral.Manager.exe (C++/WinRT + WinUI 3)
 ```
 
-The manager never opens SQLite, FTS, clipboard APIs, or blob storage directly. All live state crosses an explicit provider boundary. The current bridge exposes content-free Health only; future History/Search/Paste operations require separate authorization, paging, lifecycle, and privacy review.
+The manager never opens SQLite, FTS, clipboard APIs, or blob storage directly. All live state crosses an explicit provider boundary. The current manager bridge exposes content-free Health only. Separately, the feature-gated agent `serve-read` command authorizes bounded Health, HistoryPage, and Search operations; mapping those pages through a caller-owned C ABI into WinUI remains a separate reviewed slice. Paste still requires separate authorization, lifecycle, and privacy review.
 
 ## Privacy and security posture
 
@@ -177,7 +178,7 @@ protocols/                  Versioned IPC schema sources
 The next major engineering slices are:
 
 1. production lifecycle integration for the clipboard-owning resident agent and authenticated IPC server;
-2. paged read-only History and literal Search over the verified manager bridge;
+2. caller-owned bounded manager C ABI and WinUI mapping for the authenticated read-only History/Search backend;
 3. reconnect, cancellation, adjacent-version fixtures, and parser/schema fuzzing;
 4. richer Win32/OLE clipboard format acquisition and representation policy;
 5. focus-safe paste/replay and Quick Paste interaction;
