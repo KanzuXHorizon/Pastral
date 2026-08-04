@@ -357,9 +357,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "4.35.0-release"
+version = "4.36.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d05968b8b2df70d7d65ec6bbdb9c9403441d3155c22af783d9eb3c20142313fd"
+checksum = "d919cfc00c05b4d7a4ad5797ff1bee8fdc5d91c648d4f269e650c2e2c2b4a394"
 dependencies = [
  "cc",
  "linkme",
@@ -375,9 +375,9 @@ checksum = "5ccd419b3785dd1692b50c9a9b81b1dbff75ec75a9f5b103224f669d7cc164af"
 
 [[package]]
 name = "protobuf-macros"
-version = "4.35.0-release"
+version = "4.36.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1cfbd93f1e3dd18db139a79c002c9e33eff8749e5ebf4e24250957fd98689be1"
+checksum = "655afcf9cdfaafa78e1f9ad617e1af88dd2e946bfe1c6292dc67d6df1ada5ac3"
 dependencies = [
  "quote",
  "syn 2.0.119",
