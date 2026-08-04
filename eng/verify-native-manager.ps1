@@ -53,7 +53,11 @@ function Invoke-StaticVerification {
         'apps/manager/Pastral.Manager/ViewModels/ManagerState.h',
         'apps/manager/Pastral.Manager/Services/IManagerDataProvider.h',
         'apps/manager/Pastral.Manager/Services/ManagerDataProvider.h',
-        'apps/manager/Pastral.Manager/Services/ManagerDataProvider.cpp'
+        'apps/manager/Pastral.Manager/Services/ManagerDataProvider.cpp',
+        'apps/manager/Pastral.Manager/Services/ManagerIpcBridge.h',
+        'apps/manager/Pastral.Manager/Services/ManagerIpcBridge.cpp',
+        'apps/manager/Pastral.Manager/Tests/ManagerIpcBridgeProbe.cpp',
+        'apps/manager/Pastral.Manager/Tests/Pastral.Manager.IpcProbe.vcxproj'
     )
 
     $missing = @(
@@ -117,6 +121,21 @@ function Invoke-StaticVerification {
     Assert-Contains $projectPath 'Release\|x64' 'Release x64 configuration'
     Assert-Contains $projectPath 'Microsoft\.WindowsAppSDK' 'Windows App SDK PackageReference'
     Assert-Contains $projectPath 'Microsoft\.Windows\.CppWinRT' 'C++/WinRT PackageReference'
+    Assert-Contains $projectPath 'Services\\ManagerIpcBridge\.cpp' 'manager IPC bridge source'
+    Assert-Contains $projectPath 'manager-ipc-bridge\\include' 'manager IPC bridge header path'
+
+    $bridgeCode = Join-Path $managerRoot 'Services\ManagerIpcBridge.cpp'
+    Assert-Contains $bridgeCode 'GetModuleFileNameW' 'executable-directory bridge resolution'
+    Assert-Contains $bridgeCode 'pastral-manager-ipc-bridge\.dll' 'exact bridge filename'
+    Assert-Contains $bridgeCode 'LoadLibraryExW' 'explicit bridge load API'
+    Assert-Contains $bridgeCode 'LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR\s*\|\s*LOAD_LIBRARY_SEARCH_SYSTEM32' 'restricted DLL dependency search'
+    foreach ($symbol in @(
+        'pastral_manager_ipc_abi_version',
+        'pastral_manager_ipc_result_size',
+        'pastral_manager_ipc_health_w'
+    )) {
+        Assert-Contains $bridgeCode $symbol 'exact bridge symbol resolution'
+    }
 
     $packagesPath = Join-Path $repositoryRoot 'Directory.Packages.props'
     Assert-Contains $packagesPath 'Microsoft\.WindowsAppSDK"\s+Version="2\.3\.1"' 'Windows App SDK 2.3.1 pin'

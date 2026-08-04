@@ -22,6 +22,7 @@
     <ClCompile Include="Pages\HistoryPage.xaml.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="ViewModels\ClipPreviewViewModel.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="Services\ManagerDataProvider.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="Services\ManagerIpcBridge.cpp"><Filter>Source Files</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h"><Filter>Header Files</Filter></ClInclude>
@@ -33,6 +34,7 @@
     <ClInclude Include="ViewModels\ClipPreviewViewModel.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="Services\IManagerDataProvider.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="Services\ManagerDataProvider.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="Services\ManagerIpcBridge.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml"><Filter>XAML Files</Filter></ApplicationDefinition>

@@ -86,7 +86,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
-      <AdditionalIncludeDirectories>$(GeneratedFilesDir)Pages;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(GeneratedFilesDir)Pages;$(MSBuildProjectDirectory)\..\..\..\crates\manager-ipc-bridge\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
@@ -150,6 +150,7 @@
     <ClInclude Include="ViewModels\ClipPreviewViewModel.h" />
     <ClInclude Include="Services\IManagerDataProvider.h" />
     <ClInclude Include="Services\ManagerDataProvider.h" />
+    <ClInclude Include="Services\ManagerIpcBridge.h" />
   </ItemGroup>
 
   <ItemGroup>
@@ -182,6 +183,9 @@
     </ClCompile>
     <ClCompile Include="ViewModels\ClipPreviewViewModel.cpp" />
     <ClCompile Include="Services\ManagerDataProvider.cpp" />
+    <ClCompile Include="Services\ManagerIpcBridge.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
   </ItemGroup>
 
