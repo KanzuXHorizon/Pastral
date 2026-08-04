@@ -27,6 +27,37 @@ pub mod generated {
 
 #[must_use]
 pub fn schema_sha256() -> [u8; 32] {
-    let bytes = include_bytes!("../../../protocols/ipc-schema/pastral_ipc_v1.proto");
-    Sha256::digest(bytes).into()
+    canonical_schema_sha256(include_bytes!(
+        "../../../protocols/ipc-schema/pastral_ipc_v1.proto"
+    ))
+}
+
+fn canonical_schema_sha256(bytes: &[u8]) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    let mut segment_start = 0usize;
+    let mut index = 0usize;
+    while index < bytes.len() {
+        if bytes[index] == b'\r' && bytes.get(index + 1) == Some(&b'\n') {
+            digest.update(&bytes[segment_start..index]);
+            digest.update(b"\n");
+            index += 2;
+            segment_start = index;
+        } else {
+            index += 1;
+        }
+    }
+    digest.update(&bytes[segment_start..]);
+    digest.finalize().into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::canonical_schema_sha256;
+
+    #[test]
+    fn schema_digest_is_independent_of_git_line_endings() {
+        let lf = b"edition = \"2024\";\nmessage Example {}\n";
+        let crlf = b"edition = \"2024\";\r\nmessage Example {}\r\n";
+        assert_eq!(canonical_schema_sha256(lf), canonical_schema_sha256(crlf));
+    }
 }
