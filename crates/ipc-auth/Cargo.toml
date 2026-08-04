@@ -1,5 +1,5 @@
 [package]
-name = "pastral-ipc-core"
+name = "pastral-ipc-auth"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -7,6 +7,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-pastral-domain = { path = "../domain" }
-uuid.workspace = true
+hmac.workspace = true
+pastral-ipc-core = { path = "../ipc-core" }
+sha2.workspace = true
 zeroize.workspace = true

@@ -1,14 +1,15 @@
 use pastral_domain::{CaptureOrder, ClipEventId, UtcUnixMicros};
 use pastral_ipc_core::{
-    BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind, CorrelationId,
-    HealthRequestDto, HealthResponseDto, HistoryPageRequestDto, HistoryPageResponseDto,
-    ProtocolErrorCode, ProtocolErrorDto, RequestDto, ResponseDto, SearchRequestDto,
-    SearchResponseDto, ServerHelloDto,
+    AUTH_PROOF_BYTES, BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind,
+    CorrelationId, HealthRequestDto, HealthResponseDto, HistoryPageRequestDto,
+    HistoryPageResponseDto, ProtocolErrorCode, ProtocolErrorDto, RequestDto, ResponseDto,
+    SearchRequestDto, SearchResponseDto, ServerAcceptedDto, ServerHelloDto,
 };
 use pastral_ipc_schema::{
     PROTOBUF_RELEASE, decode_bulk_end, decode_client_hello, decode_protocol_error, decode_request,
-    decode_response, decode_server_hello, encode_bulk_end, encode_client_hello,
-    encode_protocol_error, encode_request, encode_response, encode_server_hello, schema_sha256,
+    decode_response, decode_server_accepted, decode_server_hello, encode_bulk_end,
+    encode_client_hello, encode_protocol_error, encode_request, encode_response,
+    encode_server_accepted, encode_server_hello, schema_sha256,
 };
 
 fn preview(index: u64, kind: ClipPreviewKind) -> ClipPreviewDto {
@@ -63,10 +64,21 @@ fn server_and_client_hello_round_trip_through_generated_wire_types() {
         [0x22; 32],
         [0x11; 32],
         [Capability::Health, Capability::Search],
+        [0x33; AUTH_PROOF_BYTES],
     )
     .unwrap();
     let decoded_client = decode_client_hello(&encode_client_hello(&client).unwrap()).unwrap();
     assert!(decoded_client == client);
+
+    let accepted = ServerAcceptedDto::new(
+        1,
+        [Capability::Search, Capability::Health],
+        [0x44; AUTH_PROOF_BYTES],
+    )
+    .unwrap();
+    let decoded_accepted =
+        decode_server_accepted(&encode_server_accepted(&accepted).unwrap()).unwrap();
+    assert!(decoded_accepted == accepted);
 }
 
 #[test]

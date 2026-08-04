@@ -2,7 +2,7 @@ use pastral_domain::{ClipEventId, UtcUnixMicros};
 use pastral_ipc_core::{FrameLimits, MAX_PREVIEWS, MAX_QUERY_BYTES, MAX_QUERY_TERMS};
 use pastral_ipc_schema::{
     decode_bulk_end, decode_client_hello, decode_protocol_error, decode_request, decode_response,
-    decode_server_hello, generated,
+    decode_server_accepted, decode_server_hello, generated,
 };
 fn serialize<M: protobuf::Message>(message: &M) -> Vec<u8> {
     message.serialize().unwrap()
@@ -31,6 +31,17 @@ fn valid_client_hello() -> generated::ClientHello {
     message
         .capabilities_mut()
         .push(generated::Capability::Health);
+    message.set_authentication_proof([0x33; 32].as_slice());
+    message
+}
+
+fn valid_server_accepted() -> generated::ServerAccepted {
+    let mut message = generated::ServerAccepted::new();
+    message.set_selected_minor(1);
+    message
+        .accepted_capabilities_mut()
+        .push(generated::Capability::Health);
+    message.set_authentication_proof([0x44; 32].as_slice());
     message
 }
 
@@ -87,6 +98,35 @@ fn hello_presence_nonce_uuid_and_capability_values_are_rejected_fail_closed() {
     let mut client = valid_client_hello();
     client.clear_echoed_server_nonce();
     assert!(decode_client_hello(&serialize(&client)).is_err());
+
+    let mut missing_client_proof = valid_client_hello();
+    missing_client_proof.clear_authentication_proof();
+    assert!(decode_client_hello(&serialize(&missing_client_proof)).is_err());
+
+    let mut short_client_proof = valid_client_hello();
+    short_client_proof.set_authentication_proof([0x33; 31].as_slice());
+    assert!(decode_client_hello(&serialize(&short_client_proof)).is_err());
+
+    let mut zero_client_proof = valid_client_hello();
+    zero_client_proof.set_authentication_proof([0; 32].as_slice());
+    assert!(decode_client_hello(&serialize(&zero_client_proof)).is_err());
+
+    let missing_accepted = generated::ServerAccepted::new();
+    assert!(decode_server_accepted(&serialize(&missing_accepted)).is_err());
+
+    let mut zero_capability = valid_server_accepted();
+    zero_capability
+        .accepted_capabilities_mut()
+        .push(generated::Capability::Unspecified);
+    assert!(decode_server_accepted(&serialize(&zero_capability)).is_err());
+
+    let mut short_server_proof = valid_server_accepted();
+    short_server_proof.set_authentication_proof([0x44; 31].as_slice());
+    assert!(decode_server_accepted(&serialize(&short_server_proof)).is_err());
+
+    let mut zero_server_proof = valid_server_accepted();
+    zero_server_proof.set_authentication_proof([0; 32].as_slice());
+    assert!(decode_server_accepted(&serialize(&zero_server_proof)).is_err());
 }
 
 #[test]

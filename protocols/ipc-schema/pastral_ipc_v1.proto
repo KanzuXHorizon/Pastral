@@ -47,6 +47,13 @@ message ClientHello {
   bytes client_nonce = 4;
   bytes echoed_server_nonce = 5;
   repeated Capability capabilities = 6;
+  bytes authentication_proof = 7;
+}
+
+message ServerAccepted {
+  uint32 selected_minor = 1;
+  repeated Capability accepted_capabilities = 2;
+  bytes authentication_proof = 3;
 }
 
 message HealthRequest {}

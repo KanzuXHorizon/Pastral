@@ -109,6 +109,7 @@ foreach ($package in @(
     'pastral-agent-core',
     'pastral-clipboard-win',
     'pastral-domain',
+    'pastral-ipc-auth',
     'pastral-ipc-core',
     'pastral-storage'
 )) {
@@ -163,7 +164,7 @@ $nonWindowsForbidden = @(
     'windows_x86_64_gnullvm',
     'windows_x86_64_msvc'
 )
-foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-ipc-core', 'pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-storage')) {
+foreach ($package in @('pastral-agent-core', 'pastral-domain', 'pastral-ipc-auth', 'pastral-ipc-core', 'pastral-ipc-schema', 'pastral-ipc-probe', 'pastral-storage')) {
     $tree = Invoke-CargoTree -Arguments @('-p', $package)
     Assert-NoPackages -Scope $package -Names (Get-PackageNames -Tree $tree) -Forbidden $nonWindowsForbidden
 }
@@ -191,7 +192,11 @@ foreach ($package in @('pastral-clipboard-win', 'pastral-agent')) {
     }
 }
 
+$authTree = Invoke-CargoTree -Arguments @('-p', 'pastral-ipc-auth', '--edges', 'all')
+Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'hmac' -ExpectedLine 'hmac v0.12.1'
+Assert-ExactPackageVersion -Scope 'pastral-ipc-auth' -Tree $authTree -Package 'zeroize' -ExpectedLine 'zeroize v1.8.2'
+
 Write-Host 'Dependency policy: PASS'
-Write-Host 'Official protobuf 4.35.0-release is isolated to ipc-schema/ipc-probe; agent/domain/storage/clipboard/ipc-core remain protobuf-free.'
-Write-Host 'Agent-core/domain/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/clipboard-win use only pinned windows-sys/windows-link bindings.'
+Write-Host 'Official protobuf 4.35.0-release is isolated to ipc-schema/ipc-probe; agent/domain/storage/clipboard/ipc-auth/ipc-core remain protobuf-free.'
+Write-Host 'Agent-core/domain/ipc-auth/ipc-core/ipc-schema/ipc-probe/storage remain Windows-binding free; agent/clipboard-win use only pinned windows-sys/windows-link bindings.'
 Write-Host 'Note: libsqlite3-sys may include build-helper crates such as cc, pkg-config, and vcpkg; no external vcpkg installation or manifest is required by the bundled SQLite build.'

@@ -1,10 +1,12 @@
 use std::collections::BTreeSet;
 
 use pastral_domain::{CaptureOrder, ClipEventId, UtcUnixMicros};
+use zeroize::Zeroizing;
 
 use crate::{CorrelationId, IpcError};
 
 pub const NONCE_BYTES: usize = 32;
+pub const AUTH_PROOF_BYTES: usize = 32;
 pub const MAX_PAGE_LIMIT: u32 = 100;
 pub const MAX_QUERY_BYTES: usize = 1024;
 pub const MAX_QUERY_TERMS: usize = 32;
@@ -101,7 +103,7 @@ impl ServerHelloDto {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ClientHelloDto {
     protocol_major: u32,
     min_minor: u32,
@@ -109,6 +111,7 @@ pub struct ClientHelloDto {
     client_nonce: [u8; NONCE_BYTES],
     echoed_server_nonce: [u8; NONCE_BYTES],
     capabilities: Vec<Capability>,
+    authentication_proof: Zeroizing<[u8; AUTH_PROOF_BYTES]>,
 }
 
 impl ClientHelloDto {
@@ -119,11 +122,13 @@ impl ClientHelloDto {
         client_nonce: [u8; NONCE_BYTES],
         echoed_server_nonce: [u8; NONCE_BYTES],
         capabilities: impl IntoIterator<Item = Capability>,
+        authentication_proof: [u8; AUTH_PROOF_BYTES],
     ) -> Result<Self, IpcError> {
         validate_protocol(protocol_major, min_minor, max_minor)?;
         validate_nonce(&client_nonce)?;
         validate_nonce(&echoed_server_nonce)?;
         let capabilities = validate_capabilities(capabilities)?;
+        validate_authentication_proof(&authentication_proof)?;
         Ok(Self {
             protocol_major,
             min_minor,
@@ -131,6 +136,7 @@ impl ClientHelloDto {
             client_nonce,
             echoed_server_nonce,
             capabilities,
+            authentication_proof: Zeroizing::new(authentication_proof),
         })
     }
 
@@ -157,6 +163,49 @@ impl ClientHelloDto {
     #[must_use]
     pub fn capabilities(&self) -> &[Capability] {
         &self.capabilities
+    }
+
+    #[must_use]
+    pub fn authentication_proof(&self) -> &[u8; AUTH_PROOF_BYTES] {
+        &self.authentication_proof
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct ServerAcceptedDto {
+    selected_minor: u32,
+    accepted_capabilities: Vec<Capability>,
+    authentication_proof: Zeroizing<[u8; AUTH_PROOF_BYTES]>,
+}
+
+impl ServerAcceptedDto {
+    pub fn new(
+        selected_minor: u32,
+        accepted_capabilities: impl IntoIterator<Item = Capability>,
+        authentication_proof: [u8; AUTH_PROOF_BYTES],
+    ) -> Result<Self, IpcError> {
+        let accepted_capabilities = validate_capabilities(accepted_capabilities)?;
+        validate_authentication_proof(&authentication_proof)?;
+        Ok(Self {
+            selected_minor,
+            accepted_capabilities,
+            authentication_proof: Zeroizing::new(authentication_proof),
+        })
+    }
+
+    #[must_use]
+    pub const fn selected_minor(&self) -> u32 {
+        self.selected_minor
+    }
+
+    #[must_use]
+    pub fn accepted_capabilities(&self) -> &[Capability] {
+        &self.accepted_capabilities
+    }
+
+    #[must_use]
+    pub fn authentication_proof(&self) -> &[u8; AUTH_PROOF_BYTES] {
+        &self.authentication_proof
     }
 }
 
@@ -507,21 +556,28 @@ fn validate_nonce(nonce: &[u8; NONCE_BYTES]) -> Result<(), IpcError> {
     Ok(())
 }
 
+fn validate_authentication_proof(proof: &[u8; AUTH_PROOF_BYTES]) -> Result<(), IpcError> {
+    if proof.iter().all(|byte| *byte == 0) {
+        return Err(IpcError::InvalidDto(
+            "authentication proof must not be all zero",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_capabilities(
     capabilities: impl IntoIterator<Item = Capability>,
 ) -> Result<Vec<Capability>, IpcError> {
     let mut unique = BTreeSet::new();
-    let mut values = Vec::new();
     for capability in capabilities {
         if !unique.insert(capability) {
             return Err(IpcError::InvalidDto("capability is duplicated"));
         }
-        values.push(capability);
     }
-    if values.is_empty() {
+    if unique.is_empty() {
         return Err(IpcError::InvalidDto("capabilities must not be empty"));
     }
-    Ok(values)
+    Ok(unique.into_iter().collect())
 }
 
 const fn validate_page_limit(limit: u32) -> Result<(), IpcError> {

@@ -1,9 +1,9 @@
 use pastral_domain::{CaptureOrder, ClipEventId, UtcUnixMicros};
 use pastral_ipc_core::{
-    BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind, CorrelationId,
-    FrameLimits, HealthRequestDto, HealthResponseDto, HistoryPageRequestDto,
+    AUTH_PROOF_BYTES, BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind,
+    CorrelationId, FrameLimits, HealthRequestDto, HealthResponseDto, HistoryPageRequestDto,
     HistoryPageResponseDto, IpcError, ProtocolErrorCode, ProtocolErrorDto, RequestDto, ResponseDto,
-    SearchRequestDto, SearchResponseDto, ServerHelloDto,
+    SearchRequestDto, SearchResponseDto, ServerAcceptedDto, ServerHelloDto,
 };
 use protobuf::prelude::*;
 use uuid::Uuid;
@@ -64,6 +64,7 @@ pub fn encode_client_hello(value: &ClientHelloDto) -> Result<Vec<u8>, IpcError> 
     message.set_client_nonce(value.client_nonce().as_slice());
     message.set_echoed_server_nonce(value.echoed_server_nonce().as_slice());
     push_capabilities(message.capabilities_mut(), value.capabilities());
+    message.set_authentication_proof(value.authentication_proof().as_slice());
     serialize(&message)
 }
 
@@ -87,12 +88,20 @@ pub fn decode_client_hello(bytes: &[u8]) -> Result<ClientHelloDto, IpcError> {
         message.has_echoed_server_nonce(),
         "client hello echoed server nonce is missing",
     )?;
+    require(
+        message.has_authentication_proof(),
+        "client hello authentication proof is missing",
+    )?;
     let client_nonce = fixed_bytes::<32>(message.client_nonce(), "client hello nonce length")?;
     let echoed_server_nonce = fixed_bytes::<32>(
         message.echoed_server_nonce(),
         "client hello echoed server nonce length",
     )?;
     let capabilities = decode_capabilities(message.capabilities())?;
+    let authentication_proof = fixed_bytes::<AUTH_PROOF_BYTES>(
+        message.authentication_proof(),
+        "client hello authentication proof length",
+    )?;
     ClientHelloDto::new(
         message.protocol_major(),
         message.min_minor(),
@@ -100,6 +109,41 @@ pub fn decode_client_hello(bytes: &[u8]) -> Result<ClientHelloDto, IpcError> {
         client_nonce,
         echoed_server_nonce,
         capabilities,
+        authentication_proof,
+    )
+}
+
+pub fn encode_server_accepted(value: &ServerAcceptedDto) -> Result<Vec<u8>, IpcError> {
+    let mut message = generated::ServerAccepted::new();
+    message.set_selected_minor(value.selected_minor());
+    push_capabilities(
+        message.accepted_capabilities_mut(),
+        value.accepted_capabilities(),
+    );
+    message.set_authentication_proof(value.authentication_proof().as_slice());
+    serialize(&message)
+}
+
+pub fn decode_server_accepted(bytes: &[u8]) -> Result<ServerAcceptedDto, IpcError> {
+    ensure_control_body_bound(bytes)?;
+    let message = generated::ServerAccepted::parse(bytes).map_err(schema_error)?;
+    require(
+        message.has_selected_minor(),
+        "server accepted selected minor is missing",
+    )?;
+    require(
+        message.has_authentication_proof(),
+        "server accepted authentication proof is missing",
+    )?;
+    let accepted_capabilities = decode_capabilities(message.accepted_capabilities())?;
+    let authentication_proof = fixed_bytes::<AUTH_PROOF_BYTES>(
+        message.authentication_proof(),
+        "server accepted authentication proof length",
+    )?;
+    ServerAcceptedDto::new(
+        message.selected_minor(),
+        accepted_capabilities,
+        authentication_proof,
     )
 }
 

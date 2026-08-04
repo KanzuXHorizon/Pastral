@@ -6,8 +6,9 @@ use sha2::{Digest, Sha256};
 
 pub use convert::{
     decode_bulk_end, decode_client_hello, decode_protocol_error, decode_request, decode_response,
-    decode_server_hello, encode_bulk_end, encode_client_hello, encode_protocol_error,
-    encode_request, encode_response, encode_server_hello,
+    decode_server_accepted, decode_server_hello, encode_bulk_end, encode_client_hello,
+    encode_protocol_error, encode_request, encode_response, encode_server_accepted,
+    encode_server_hello,
 };
 
 pub const PROTOBUF_RELEASE: &str = "4.35.0-release";

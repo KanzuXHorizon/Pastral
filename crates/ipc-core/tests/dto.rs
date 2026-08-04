@@ -1,10 +1,10 @@
 use pastral_domain::{CaptureOrder, ClipEventId, UtcUnixMicros};
 use pastral_ipc_core::{
-    BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind, CorrelationId,
-    HealthResponseDto, HistoryPageRequestDto, HistoryPageResponseDto, IpcError,
+    AUTH_PROOF_BYTES, BulkEndDto, Capability, ClientHelloDto, ClipPreviewDto, ClipPreviewKind,
+    CorrelationId, HealthResponseDto, HistoryPageRequestDto, HistoryPageResponseDto, IpcError,
     MAX_ERROR_DETAIL_BYTES, MAX_PAGE_LIMIT, MAX_PREVIEW_BYTES, MAX_PREVIEWS, MAX_QUERY_BYTES,
     MAX_QUERY_TERMS, MAX_SOURCE_LABEL_BYTES, ProtocolErrorCode, ProtocolErrorDto, SearchRequestDto,
-    SearchResponseDto, ServerHelloDto,
+    SearchResponseDto, ServerAcceptedDto, ServerHelloDto,
 };
 
 fn nonce(seed: u8) -> [u8; 32] {
@@ -83,10 +83,55 @@ fn hello_versions_nonce_instance_and_capabilities_are_validated() {
         Some(IpcError::InvalidDto("capability is duplicated"))
     );
 
-    let client = ClientHelloDto::new(1, 0, 1, nonce(2), nonce(1), [Capability::Health]).unwrap();
+    let client = ClientHelloDto::new(
+        1,
+        0,
+        1,
+        nonce(2),
+        nonce(1),
+        [Capability::Health],
+        [0x33; AUTH_PROOF_BYTES],
+    )
+    .unwrap();
     assert_eq!(client.protocol_major(), 1);
     assert_eq!(client.client_nonce(), &nonce(2));
     assert_eq!(client.echoed_server_nonce(), &nonce(1));
+    assert_eq!(client.authentication_proof(), &[0x33; AUTH_PROOF_BYTES]);
+
+    assert_eq!(
+        ClientHelloDto::new(
+            1,
+            0,
+            1,
+            nonce(2),
+            nonce(1),
+            [Capability::Health],
+            [0; AUTH_PROOF_BYTES],
+        )
+        .err(),
+        Some(IpcError::InvalidDto(
+            "authentication proof must not be all zero"
+        ))
+    );
+
+    let accepted = ServerAcceptedDto::new(
+        1,
+        [Capability::Search, Capability::Health],
+        [0x44; AUTH_PROOF_BYTES],
+    )
+    .unwrap();
+    assert_eq!(accepted.selected_minor(), 1);
+    assert_eq!(
+        accepted.accepted_capabilities(),
+        &[Capability::Health, Capability::Search]
+    );
+    assert_eq!(accepted.authentication_proof(), &[0x44; AUTH_PROOF_BYTES]);
+    assert_eq!(
+        ServerAcceptedDto::new(1, [Capability::Health], [0; AUTH_PROOF_BYTES]).err(),
+        Some(IpcError::InvalidDto(
+            "authentication proof must not be all zero"
+        ))
+    );
 }
 
 #[test]

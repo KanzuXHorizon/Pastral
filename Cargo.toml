@@ -5,6 +5,7 @@ members = [
     "crates/agent-core",
     "crates/clipboard-win",
     "crates/domain",
+    "crates/ipc-auth",
     "crates/ipc-core",
     "crates/ipc-schema",
     "crates/storage",
@@ -19,11 +20,13 @@ authors = ["Pastral contributors"]
 repository = "https://github.com/pastral/pastral"
 
 [workspace.dependencies]
+hmac = { version = "=0.12.1", default-features = false }
 protobuf = { version = "=4.35.0-release", default-features = false }
 protobuf-codegen = { version = "=4.35.0-release", default-features = false }
 rusqlite = { version = "=0.40.1", default-features = false, features = ["bundled", "blob"] }
 sha2 = { version = "=0.10.9", default-features = false }
 uuid = { version = "=1.18.1", default-features = false, features = ["std", "v4"] }
+zeroize = { version = "=1.8.2", default-features = false }
 windows-sys = { version = "=0.61.2", default-features = false, features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
