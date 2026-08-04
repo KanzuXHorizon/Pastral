@@ -9,8 +9,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-use pastral_agent::{HealthServerConfig, serve_health};
-use pastral_domain::ClipEventId;
+use pastral_agent::{
+    DiagnosticStoragePolicy, HealthServerConfig, diagnostic_storage_limits, serve_health,
+    serve_read,
+};
+use pastral_domain::{
+    CaptureOrder, ClipEvent, ClipEventId, ClipRepresentation, ClipRepresentationId,
+    ClipboardFormatIdentity, Fidelity, ProfileId, ProtectionDomain, ProtectionDomainId, RawDigest,
+    StandardFormatId, UtcUnixMicros,
+};
 use pastral_ipc_auth::{InstallationSecret, NonceReplayCache};
 use pastral_ipc_core::{
     Frame, FrameHeader, FrameKind, FrameLimits, HealthResponseDto, ProtocolErrorCode,
@@ -22,7 +29,10 @@ use pastral_ipc_win::{
     current_token_identity, derive_pipe_name, load_or_create_transport_material,
     load_transport_material, protect_installation_secret, server_handshake,
 };
-use pastral_manager_ipc_bridge::{ManagerHealthStatus, query_health};
+use pastral_manager_ipc_bridge::{
+    ManagerClipKind, ManagerHealthStatus, query_health, query_history, query_search,
+};
+use pastral_storage::{ClipCommit, RepresentationPayload, SearchProjection, Storage};
 
 struct TestRoot(PathBuf);
 
@@ -52,6 +62,99 @@ impl Drop for TestRoot {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
+}
+
+fn commit_text(
+    storage: &mut Storage<DiagnosticStoragePolicy>,
+    domain: ProtectionDomain,
+    order: u64,
+    projection: Option<&str>,
+) -> ClipEventId {
+    let bytes = format!("payload-{order}").into_bytes();
+    let digest = RawDigest::sha256_raw_v1(domain, &bytes).unwrap();
+    let representation = ClipRepresentation::new(
+        ClipRepresentationId::new_v4(),
+        ClipboardFormatIdentity::Standard(StandardFormatId::new(13)),
+        domain,
+        bytes.len() as u64,
+        Some(digest),
+        Fidelity::FullFidelity,
+    )
+    .unwrap();
+    let event_id = ClipEventId::new_v4();
+    let event = ClipEvent::new(
+        event_id,
+        UtcUnixMicros::new(1_700_000_000_000_000 + order as i64).unwrap(),
+        CaptureOrder::new(order).unwrap(),
+        ProfileId::new_v4(),
+        domain,
+        vec![representation.clone()],
+    )
+    .unwrap();
+    let payload = RepresentationPayload::new(representation.id(), bytes);
+    let projection = projection
+        .map(|value| SearchProjection::new(value.to_owned(), diagnostic_storage_limits()).unwrap());
+    storage
+        .commit_clip(ClipCommit::new(event, vec![payload], projection))
+        .unwrap();
+    event_id
+}
+
+#[test]
+fn read_client_returns_authenticated_history_and_literal_search() {
+    let root = TestRoot::new("read");
+    let mut storage = Storage::open(
+        root.path().join("storage"),
+        diagnostic_storage_limits(),
+        DiagnosticStoragePolicy,
+    )
+    .unwrap();
+    let domain = ProtectionDomain::Ordinary(ProtectionDomainId::new_v4());
+    let first = commit_text(&mut storage, domain, 1, Some("alpha beta"));
+    let second = commit_text(&mut storage, domain, 2, Some("alpha OR beta"));
+    let third = commit_text(&mut storage, domain, 3, None);
+    drop(storage);
+
+    let _material = load_or_create_transport_material(root.path()).unwrap();
+    let server_root = root.path().to_path_buf();
+    let server = thread::spawn(move || {
+        let config = HealthServerConfig::new(
+            server_root,
+            NonZeroUsize::new(2).unwrap(),
+            Duration::from_secs(5),
+            Duration::from_secs(2),
+        )
+        .unwrap()
+        .without_summary();
+        serve_read(config, &mut Vec::new()).unwrap();
+    });
+
+    let history = query_history(root.path(), Duration::from_secs(2), 2, None).unwrap();
+    assert_eq!(history.items().len(), 2);
+    assert!(history.has_more());
+    assert_eq!(history.items()[0].event_id(), third);
+    assert_eq!(history.items()[0].capture_order().get(), 3);
+    assert_eq!(history.items()[0].kind(), ManagerClipKind::Unavailable);
+    assert!(history.items()[0].unavailable());
+    assert_eq!(history.items()[0].preview(), "");
+    assert_eq!(history.items()[1].event_id(), second);
+    assert_eq!(history.items()[1].preview(), "alpha OR beta");
+    assert_ne!(history.server_process_id(), 0);
+    assert_eq!(
+        history.session_id(),
+        current_token_identity().unwrap().session_id()
+    );
+
+    let search = query_search(root.path(), Duration::from_secs(2), "alpha OR", 10).unwrap();
+    assert_eq!(search.items().len(), 1);
+    assert!(!search.has_more());
+    assert_eq!(search.items()[0].event_id(), second);
+    assert_ne!(search.items()[0].event_id(), first);
+    assert_eq!(search.items()[0].kind(), ManagerClipKind::Text);
+    assert!(!search.items()[0].pinned());
+    assert_eq!(search.items()[0].source_label(), None);
+    assert!(search.request_elapsed() <= Duration::from_secs(2));
+    server.join().unwrap();
 }
 
 #[test]

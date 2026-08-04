@@ -322,6 +322,7 @@ dependencies = [
  "pastral-ipc-core",
  "pastral-ipc-schema",
  "pastral-ipc-win",
+ "pastral-storage",
 ]
 
 [[package]]

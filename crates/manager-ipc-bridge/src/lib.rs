@@ -16,7 +16,10 @@ pub use abi::{
     PASTRAL_MANAGER_READ_RESULT_BYTES, PastralManagerClipItem, PastralManagerHealthResult,
     PastralManagerHealthStatus, PastralManagerReadResult,
 };
-pub use client::{ManagerHealthSnapshot, ManagerHealthStatus, query_health};
+pub use client::{
+    ManagerClipItemSnapshot, ManagerClipKind, ManagerHealthSnapshot, ManagerHealthStatus,
+    ManagerReadPageSnapshot, query_health, query_history, query_search,
+};
 pub use ffi::{
     pastral_manager_ipc_abi_version, pastral_manager_ipc_clip_item_size,
     pastral_manager_ipc_health_w, pastral_manager_ipc_read_abi_version,
