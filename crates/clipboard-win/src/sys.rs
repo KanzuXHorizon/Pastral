@@ -1,6 +1,8 @@
 use std::{
     cell::RefCell,
-    ffi::c_void,
+    ffi::{OsString, c_void},
+    os::windows::ffi::OsStringExt,
+    path::PathBuf,
     ptr,
     sync::{
         OnceLock,
@@ -10,22 +12,28 @@ use std::{
 
 use windows_sys::Win32::{
     Foundation::{
-        ERROR_CLASS_ALREADY_EXISTS, ERROR_SUCCESS, GetLastError, HGLOBAL, HWND, SetLastError,
+        CloseHandle, ERROR_CLASS_ALREADY_EXISTS, ERROR_SUCCESS, GetLastError, HGLOBAL, HWND,
+        SetLastError,
     },
     System::{
         DataExchange::{
             AddClipboardFormatListener, CloseClipboard, EnumClipboardFormats, GetClipboardData,
-            GetClipboardFormatNameW, GetClipboardSequenceNumber, IsClipboardFormatAvailable,
-            OpenClipboard, RemoveClipboardFormatListener,
+            GetClipboardFormatNameW, GetClipboardOwner, GetClipboardSequenceNumber,
+            IsClipboardFormatAvailable, OpenClipboard, RegisterClipboardFormatW,
+            RemoveClipboardFormatListener,
         },
         LibraryLoader::GetModuleHandleW,
         Memory::{GlobalLock, GlobalSize, GlobalUnlock},
-        Threading::GetCurrentThreadId,
+        Threading::{
+            GetCurrentThreadId, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+            QueryFullProcessImageNameW,
+        },
     },
     UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
-        HWND_MESSAGE, MSG, PostMessageW, PostQuitMessage, PostThreadMessageW, RegisterClassW,
-        TranslateMessage, WM_APP, WM_CLIPBOARDUPDATE, WM_DESTROY, WNDCLASSW,
+        GetWindowThreadProcessId, HWND_MESSAGE, MSG, PostMessageW, PostQuitMessage,
+        PostThreadMessageW, RegisterClassW, TranslateMessage, WM_APP, WM_CLIPBOARDUPDATE,
+        WM_DESTROY, WNDCLASSW,
     },
 };
 
@@ -134,6 +142,61 @@ pub(crate) fn registered_format_name(format: u32) -> Result<String, ClipboardErr
 pub(crate) fn is_format_available(format: u32) -> bool {
     // SAFETY: IsClipboardFormatAvailable has no pointers and does not transfer ownership.
     unsafe { IsClipboardFormatAvailable(format) != 0 }
+}
+
+pub(crate) fn register_clipboard_format(name: &str) -> Result<u32, ClipboardError> {
+    let mut wide = name.encode_utf16().collect::<Vec<_>>();
+    wide.push(0);
+    // SAFETY: `wide` is a valid NUL-terminated UTF-16 buffer for the duration of the call.
+    let format = unsafe { RegisterClipboardFormatW(wide.as_ptr()) };
+    if format == 0 {
+        return Err(last_error("RegisterClipboardFormatW"));
+    }
+    Ok(format)
+}
+
+pub(crate) fn clipboard_owner_process_image() -> Result<Option<PathBuf>, ClipboardError> {
+    // SAFETY: GetClipboardOwner has no parameters or ownership transfer.
+    let owner = unsafe { GetClipboardOwner() };
+    if owner.is_null() {
+        return Ok(None);
+    }
+
+    let mut process_id = 0_u32;
+    // SAFETY: `owner` is an HWND returned by GetClipboardOwner and `process_id` is writable.
+    let thread_id = unsafe { GetWindowThreadProcessId(owner, &mut process_id) };
+    if thread_id == 0 || process_id == 0 {
+        return Ok(None);
+    }
+
+    // SAFETY: Requests only limited query access for the observed PID and transfers ownership of a
+    // successful handle to this function, which closes it before returning.
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, process_id) };
+    if process.is_null() {
+        return Ok(None);
+    }
+
+    let mut buffer = vec![0_u16; 32_768];
+    let mut length = u32::try_from(buffer.len()).map_err(|_| ClipboardError::LengthOutOfRange)?;
+    // SAFETY: `process` is a valid owned process handle, `buffer` is writable for `length` UTF-16
+    // units, and the length pointer remains valid for the call.
+    let query_result =
+        unsafe { QueryFullProcessImageNameW(process, 0, buffer.as_mut_ptr(), &mut length) };
+    // SAFETY: Balances the successful OpenProcess call above on every query path.
+    let close_result = unsafe { CloseHandle(process) };
+    if close_result == 0 {
+        return Err(last_error("CloseHandle"));
+    }
+    if query_result == 0 {
+        return Ok(None);
+    }
+
+    let length = usize::try_from(length).map_err(|_| ClipboardError::LengthOutOfRange)?;
+    if length == 0 || length > buffer.len() {
+        return Ok(None);
+    }
+    buffer.truncate(length);
+    Ok(Some(PathBuf::from(OsString::from_wide(&buffer))))
 }
 
 pub(crate) fn clipboard_data_handle(format: u32) -> Result<NativeGlobalHandle, ClipboardError> {

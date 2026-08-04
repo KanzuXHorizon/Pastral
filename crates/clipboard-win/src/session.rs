@@ -2,10 +2,12 @@ use core::{marker::PhantomData, num::NonZeroUsize};
 use std::rc::Rc;
 
 use crate::{
-    CapturedUnicodeText, ClipboardError, ClipboardFormatDescriptor,
+    CapturedUnicodeText, ClipboardError, ClipboardFormatDescriptor, ClipboardHistoryControls,
+    ClipboardOwnerObservation,
     enumeration::{Win32FormatSource, enumerate_formats},
     format::CF_UNICODETEXT_ID,
     hglobal::copy_clipboard_global,
+    history_controls::inspect_history_controls,
     sys,
 };
 
@@ -29,6 +31,14 @@ impl ClipboardSession {
     ) -> Result<Vec<ClipboardFormatDescriptor>, ClipboardError> {
         let mut source = Win32FormatSource;
         enumerate_formats(&mut source, max_formats)
+    }
+
+    pub fn history_controls(&self) -> Result<ClipboardHistoryControls, ClipboardError> {
+        inspect_history_controls()
+    }
+
+    pub fn owner_process(&self) -> Result<ClipboardOwnerObservation, ClipboardError> {
+        ClipboardOwnerObservation::observe()
     }
 
     pub fn capture_unicode_text(

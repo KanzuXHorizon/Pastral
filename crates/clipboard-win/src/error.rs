@@ -21,6 +21,7 @@ pub enum ClipboardError {
     UnicodeTextMissingTerminator,
     UnicodeTextMisaligned,
     UnicodeTextInvalidUtf16,
+    HistoryControlInvalid,
     LengthOutOfRange,
 }
 
@@ -79,6 +80,9 @@ impl fmt::Display for ClipboardError {
                 )
             }
             Self::UnicodeTextInvalidUtf16 => write!(f, "CF_UNICODETEXT payload is invalid UTF-16"),
+            Self::HistoryControlInvalid => {
+                write!(f, "clipboard history control contains an invalid DWORD")
+            }
             Self::LengthOutOfRange => write!(f, "native length is outside supported Rust range"),
         }
     }
