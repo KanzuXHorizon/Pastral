@@ -1,0 +1,13 @@
+[package]
+name = "pastral-ipc-transport-probe"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+pastral-ipc-auth = { path = "../../crates/ipc-auth" }
+pastral-ipc-core = { path = "../../crates/ipc-core" }
+pastral-ipc-schema = { path = "../../crates/ipc-schema" }
+pastral-ipc-win = { path = "../../crates/ipc-win" }

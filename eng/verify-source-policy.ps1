@@ -48,11 +48,13 @@ try {
     $unsafePattern = '(?m)\bunsafe\s+(fn|extern|impl|trait|\{)'
     $sourcePatterns = @(
         '(?m)\bstd::net\b',
-        '(?m)\bstd::process::Command\b',
-        '(?m)\bCommand::new\s*\(',
         '(?m)\bload_extension\b',
         '(?m)\bATTACH\s+DATABASE\b',
         '(?m)journal_mode\s*=\s*WAL\b'
+    )
+    $processSpawnPatterns = @(
+        '(?m)\bstd::process::Command\b',
+        '(?m)\bCommand::new\s*\('
     )
     $namedPipePatterns = @(
         '(?m)\bCreateNamedPipe[AW]?\b',
@@ -79,7 +81,8 @@ try {
         $isRustProductSource =
             $relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase) -or
             $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase) -or
-            $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase)
+            $relativePath.StartsWith('apps/ipc-probe/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $relativePath.StartsWith('apps/ipc-transport-probe/', [System.StringComparison]::OrdinalIgnoreCase)
         if ($isRustProductSource) {
             $isIpcWinSys = $relativePath.Equals(
                 'crates/ipc-win/src/sys.rs',
@@ -105,6 +108,26 @@ try {
                     [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
                 )) {
                     $violations.Add("forbidden product-source pattern in $relativePath")
+                }
+            }
+            $isTransportProbeProcessBoundary =
+                $relativePath.Equals(
+                    'apps/ipc-transport-probe/src/main.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'apps/ipc-transport-probe/tests/cross_process.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
+                )
+            if (-not $isTransportProbeProcessBoundary) {
+                foreach ($pattern in $processSpawnPatterns) {
+                    if ([System.Text.RegularExpressions.Regex]::IsMatch(
+                        $content,
+                        $pattern,
+                        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+                    )) {
+                        $violations.Add("process spawning outside transport probe main in $relativePath")
+                    }
                 }
             }
             if (-not $isIpcWinSys) {

@@ -276,6 +276,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pastral-ipc-transport-probe"
+version = "0.1.0"
+dependencies = [
+ "pastral-ipc-auth",
+ "pastral-ipc-core",
+ "pastral-ipc-schema",
+ "pastral-ipc-win",
+]
+
+[[package]]
 name = "pastral-ipc-win"
 version = "0.1.0"
 dependencies = [

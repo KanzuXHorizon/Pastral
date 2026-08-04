@@ -2,6 +2,7 @@
 members = [
     "apps/agent",
     "apps/ipc-probe",
+    "apps/ipc-transport-probe",
     "crates/agent-core",
     "crates/clipboard-win",
     "crates/domain",
