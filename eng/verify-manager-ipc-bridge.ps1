@@ -65,6 +65,46 @@ function Resolve-MSBuild {
     return $path
 }
 
+function Resolve-Dumpbin {
+    $installation = Resolve-VisualStudioInstallation
+    $tool = Get-ChildItem -LiteralPath (Join-Path $installation 'VC\Tools\MSVC') -Filter dumpbin.exe -Recurse -File |
+        Where-Object { $_.FullName -match '\\bin\\Hostx64\\x64\\dumpbin\.exe$' } |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+    if ($null -eq $tool) {
+        Fail 'x64 dumpbin.exe was not found in the active Visual Studio installation'
+    }
+    return $tool.FullName
+}
+
+function Assert-ExactBridgeExports {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $output = @(& (Resolve-Dumpbin) /nologo /exports $Path 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        Fail "dumpbin export inspection failed for $Path"
+    }
+
+    $actual = @(
+        $output | ForEach-Object {
+            if ($_ -match '^\s*\d+\s+[0-9A-F]+\s+[0-9A-F]+\s+(\S+)') {
+                $Matches[1]
+            }
+        } | Sort-Object -Unique
+    )
+    $expected = @(
+        '__Disallow_Upb_And_Cpp_In_Same_Binary',
+        'pastral_manager_ipc_abi_version',
+        'pastral_manager_ipc_health_w',
+        'pastral_manager_ipc_result_size'
+    ) | Sort-Object
+
+    $difference = @(Compare-Object -ReferenceObject $expected -DifferenceObject $actual)
+    if ($difference.Count -ne 0 -or $actual.Count -ne $expected.Count) {
+        Fail "Unexpected manager IPC bridge exports: $($actual -join ', ')"
+    }
+}
+
 function Invoke-MSBuildProject {
     param(
         [Parameter(Mandatory = $true)][string]$Project,
@@ -208,6 +248,8 @@ function Invoke-StaticVerification {
     Assert-Contains $PSCommandPath '/p:OutDir=' 'isolated native output override'
     Assert-Contains $PSCommandPath '/p:IntDir=' 'isolated native intermediate override'
     Assert-Contains $PSCommandPath 'target\\verification\\pastral-manager-(ipc|live)-' 'per-run native verification root'
+    Assert-Contains $PSCommandPath 'Assert-ExactBridgeExports\s+-Path\s+\$bridgeDllSource' 'exact native bridge export gate'
+    Assert-Contains $PSCommandPath '__Disallow_Upb_And_Cpp_In_Same_Binary' 'required Protobuf upb binary guard export'
 
     Assert-Contains $managerProject 'BuildPastralManagerIpcBridge' 'manager Rust bridge build target'
     Assert-Contains $managerProject 'cargo build --locked -p pastral-manager-ipc-bridge' 'locked bridge cargo build'
@@ -267,6 +309,7 @@ function Invoke-ProbeVerification {
     try {
         & cargo build --locked -p pastral-manager-ipc-bridge --release
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        Assert-ExactBridgeExports -Path $bridgeDllSource
         & cargo build --locked -p pastral-agent --features ipc-health --bin pastral-agent-ipc --release
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         Invoke-MSBuildProject -Project $probeProject -Configuration Release `
