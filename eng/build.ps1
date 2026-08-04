@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'Agent', 'AgentPolicy', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
     [string]$Task = 'All'
 )
 
@@ -33,6 +33,8 @@ function Invoke-Check { Invoke-Step 'Check workspace' { cargo check --locked --w
 function Invoke-Test { Invoke-Step 'Test workspace' { cargo test --locked --workspace --all-targets } }
 function Invoke-Storage { Invoke-Step 'Test storage foundation' { cargo test --locked -p pastral-storage --all-targets } }
 function Invoke-Clipboard { Invoke-Step 'Test Win32 clipboard foundation' { cargo test --locked -p pastral-clipboard-win --all-targets } }
+function Invoke-Agent { Invoke-Step 'Verify diagnostic resident agent' { & "$PSScriptRoot\verify-agent.ps1" -Mode All } }
+function Invoke-AgentPolicy { Invoke-Step 'Verify diagnostic resident agent policy' { & "$PSScriptRoot\verify-agent.ps1" -Mode Static } }
 function Invoke-Manager { Invoke-Step 'Verify native manager including runtime smoke' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode All } }
 function Invoke-ManagerBuild { Invoke-Step 'Build native manager Debug and Release' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Build } }
 function Invoke-NativePolicy { Invoke-Step 'Verify native manager policy' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Static } }
@@ -48,6 +50,8 @@ switch ($Task) {
     'Test' { Invoke-Test }
     'Storage' { Invoke-Storage }
     'Clipboard' { Invoke-Clipboard }
+    'Agent' { Invoke-Agent }
+    'AgentPolicy' { Invoke-AgentPolicy }
     'Manager' { Invoke-Manager }
     'ManagerBuild' { Invoke-ManagerBuild }
     'NativePolicy' { Invoke-NativePolicy }
@@ -74,6 +78,7 @@ switch ($Task) {
         Invoke-Doc
         Invoke-Dependencies
         Invoke-SourcePolicy
+        Invoke-Agent
         Invoke-NativePolicy
         Invoke-ManagerBuild
     }

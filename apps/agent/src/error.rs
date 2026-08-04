@@ -8,6 +8,11 @@ pub enum AgentRuntimeError {
         kind: ErrorKind,
     },
     InvalidIdentity(&'static str),
+    Storage(&'static str),
+    Clipboard(&'static str),
+    CoordinatorConfiguration,
+    NotificationChannelClosed,
+    IntegrityFailed,
 }
 
 impl AgentRuntimeError {
@@ -30,6 +35,15 @@ impl fmt::Display for AgentRuntimeError {
                 )
             }
             Self::InvalidIdentity(reason) => write!(f, "agent identity is invalid: {reason}"),
+            Self::Storage(operation) => write!(f, "agent storage operation failed: {operation}"),
+            Self::Clipboard(operation) => {
+                write!(f, "agent clipboard operation failed: {operation}")
+            }
+            Self::CoordinatorConfiguration => write!(f, "capture coordinator configuration failed"),
+            Self::NotificationChannelClosed => {
+                write!(f, "clipboard notification channel closed")
+            }
+            Self::IntegrityFailed => write!(f, "storage integrity verification failed"),
         }
     }
 }

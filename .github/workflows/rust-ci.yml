@@ -1,23 +1,28 @@
 name: Rust foundation CI
 
 on:
-  pull_request:
+  push:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "apps/agent/**"
+      - "crates/agent-core/**"
       - "crates/domain/**"
       - "crates/storage/**"
       - "crates/clipboard-win/**"
-      - "eng/**"}]}
+      - "eng/**"
       - ".github/workflows/rust-ci.yml"
   pull_request:
     paths:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "apps/agent/**"
+      - "crates/agent-core/**"
       - "crates/domain/**"
       - "crates/storage/**"
+      - "crates/clipboard-win/**"
       - "eng/**"
       - ".github/workflows/rust-ci.yml"
 
@@ -44,6 +49,9 @@ jobs:
       - name: Test storage foundation
         shell: powershell
         run: cargo test --locked -p pastral-storage --all-targets
+      - name: Verify diagnostic agent
+        shell: powershell
+        run: ./eng/verify-agent.ps1 -Mode All
       - name: Clippy
         shell: powershell
         run: cargo clippy --locked --workspace --all-targets --all-features -- -D warnings

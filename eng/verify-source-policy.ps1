@@ -71,7 +71,10 @@ try {
                 $violations.Add("secret signature in $relativePath")
             }
         }
-        if ($relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $isRustProductSource =
+            $relativePath.StartsWith('crates/', [System.StringComparison]::OrdinalIgnoreCase) -or
+            $relativePath.StartsWith('apps/agent/', [System.StringComparison]::OrdinalIgnoreCase)
+        if ($isRustProductSource) {
             $isClipboardSys = $relativePath.Equals(
                 'crates/clipboard-win/src/sys.rs',
                 [System.StringComparison]::OrdinalIgnoreCase
