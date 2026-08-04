@@ -107,6 +107,53 @@ fn capability_aware_handshake_authenticates_exact_read_only_set() {
 }
 
 #[test]
+fn client_can_request_authenticated_subset_of_server_capabilities() {
+    let root = std::env::temp_dir().join(format!("pastral-subset-handshake-{}", Uuid::new_v4()));
+    let material = load_or_create_transport_material(&root).unwrap();
+    let identity = current_token_identity().unwrap();
+    let name = derive_pipe_name(material.identity(), identity.session_id()).unwrap();
+    let security = build_logon_sid_pipe_security(&identity).unwrap();
+    let mut server = create_first_pipe_server(&name, &security).unwrap();
+    let client_name = name.clone();
+    let client_root = root.clone();
+    let supported = [
+        Capability::Health,
+        Capability::HistoryPage,
+        Capability::Search,
+    ];
+    let requested = [Capability::Health];
+
+    let client_thread = thread::spawn(move || {
+        let client = open_pipe_client(&client_name, deadline()).unwrap();
+        let peer = client.peer_identity().unwrap();
+        let stream = PipeFrameStream::from_client(client, FrameLimits::default());
+        let material = load_or_create_transport_material(&client_root).unwrap();
+        let authenticated =
+            client_handshake_with_capabilities(stream, &material, peer, &requested, deadline())
+                .unwrap();
+        authenticated.capabilities().to_vec()
+    });
+
+    server.connect(deadline()).unwrap();
+    let peer = server.peer_identity().unwrap();
+    let stream = PipeFrameStream::from_server(server, FrameLimits::default());
+    let mut replay = NonceReplayCache::new(64).unwrap();
+    let authenticated = server_handshake_with_capabilities(
+        stream,
+        &material,
+        peer,
+        &mut replay,
+        &supported,
+        deadline(),
+    )
+    .unwrap();
+
+    assert_eq!(authenticated.capabilities(), requested);
+    assert_eq!(client_thread.join().unwrap(), requested);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn wrong_installation_secret_is_rejected_before_authenticated_connection_exists() {
     let server_root = std::env::temp_dir().join(format!("pastral-server-{}", Uuid::new_v4()));
     let client_root = std::env::temp_dir().join(format!("pastral-client-{}", Uuid::new_v4()));

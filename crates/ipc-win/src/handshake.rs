@@ -223,7 +223,7 @@ fn server_handshake_with_nonce(
             "client hello negotiation mismatch",
         ));
     }
-    if client.capabilities() != capabilities {
+    if !capabilities_are_subset(client.capabilities(), capabilities) {
         return Err(TransportError::Protocol(
             "client requested unsupported capabilities",
         ));
@@ -236,8 +236,8 @@ fn server_handshake_with_nonce(
         &client_nonce,
         &peer,
         LocalRole::Server,
-        client.capabilities(),
         capabilities,
+        client.capabilities(),
     )?;
     let proof = AuthenticationProof::from_bytes(*client.authentication_proof());
     verify_proof(material.secret(), &transcript, ProofRole::Client, &proof)
@@ -254,7 +254,7 @@ fn server_handshake_with_nonce(
     let server_proof = compute_proof(material.secret(), &transcript, ProofRole::Server);
     let accepted = ServerAcceptedDto::new(
         SELECTED_MINOR,
-        capabilities.iter().copied(),
+        client.capabilities().iter().copied(),
         *server_proof.as_bytes(),
     )
     .map_err(|_| TransportError::Protocol("server accepted DTO is invalid"))?;
@@ -269,7 +269,7 @@ fn server_handshake_with_nonce(
         stream,
         peer,
         selected_minor: SELECTED_MINOR,
-        capabilities: capabilities.to_vec(),
+        capabilities: client.capabilities().to_vec(),
     })
 }
 
@@ -293,7 +293,7 @@ fn client_handshake_with_nonce(
         .map_err(|_| TransportError::Protocol("server hello decoding failed"))?;
     if server.protocol_major() != PROTOCOL_MAJOR
         || server.minor_range() != (MIN_MINOR, MAX_MINOR)
-        || server.capabilities() != capabilities
+        || !capabilities_are_subset(capabilities, server.capabilities())
         || server.instance_id() != material.identity().instance_id()
     {
         return Err(TransportError::Protocol(
@@ -308,7 +308,7 @@ fn client_handshake_with_nonce(
         &client_nonce,
         &peer,
         LocalRole::Client,
-        capabilities,
+        server.capabilities(),
         capabilities,
     )?;
     let client_proof = compute_proof(material.secret(), &transcript, ProofRole::Client);
@@ -405,6 +405,12 @@ fn transcript(
         accepted_capabilities.iter().copied(),
     )
     .map_err(TransportError::Authentication)
+}
+
+fn capabilities_are_subset(requested: &[Capability], supported: &[Capability]) -> bool {
+    requested
+        .iter()
+        .all(|capability| supported.contains(capability))
 }
 
 fn normalize_capabilities(capabilities: &[Capability]) -> Result<Vec<Capability>, TransportError> {
