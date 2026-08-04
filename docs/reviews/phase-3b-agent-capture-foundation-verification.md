@@ -1,8 +1,11 @@
 # Phase 3B Agent Capture Foundation Verification
 
-**Date:** 2026-08-04  
-**Baseline:** `b96a003`  
-**Implementation head:** `d2fc792`  
+**Date:** 2026-08-04
+
+**Baseline:** `b96a003`
+
+**Implementation head:** `d2fc792`
+
 **Scope:** transactional capture-order assignment, deterministic capture coordinator, Windows clipboard/storage adapters, diagnostic resident-agent executable, local/CI verification integration
 
 ## 1. Result
