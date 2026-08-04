@@ -22,6 +22,7 @@ pub use client::{
 };
 pub use ffi::{
     pastral_manager_ipc_abi_version, pastral_manager_ipc_clip_item_size,
-    pastral_manager_ipc_health_w, pastral_manager_ipc_read_abi_version,
-    pastral_manager_ipc_read_result_size, pastral_manager_ipc_result_size,
+    pastral_manager_ipc_health_w, pastral_manager_ipc_history_w,
+    pastral_manager_ipc_read_abi_version, pastral_manager_ipc_read_result_size,
+    pastral_manager_ipc_result_size, pastral_manager_ipc_search_w,
 };
