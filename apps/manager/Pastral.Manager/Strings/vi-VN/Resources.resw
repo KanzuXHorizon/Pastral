@@ -35,4 +35,166 @@
   <data name="HistoryNoResultsDetail.Text" xml:space="preserve"><value>Khởi động agent cục bộ để ghi nhận lịch sử an toàn. Pastral không tạo dữ liệu giả hoặc đọc dữ liệu ngoài provider đã xác minh.</value></data>
   <data name="HistoryDetailsTitle.Text" xml:space="preserve"><value>Chi tiết nội dung</value></data>
   <data name="HistoryDetailPreview.Text" xml:space="preserve"><value>Chọn một mục để xem nguồn và các biểu diễn dữ liệu khả dụng</value></data>
+  <data name="CommonItemCountOne" xml:space="preserve"><value>{0} mục</value></data>
+  <data name="CommonItemCountMany" xml:space="preserve"><value>{0} mục</value></data>
+  <data name="CommonFirstPageSuffix" xml:space="preserve"><value> · Trang đầu</value></data>
+  <data name="CommonRetry" xml:space="preserve"><value>Thử lại</value></data>
+  <data name="CommonRefresh" xml:space="preserve"><value>Làm mới</value></data>
+  <data name="CommonAvailable" xml:space="preserve"><value>Khả dụng</value></data>
+  <data name="CommonUnavailable" xml:space="preserve"><value>Không khả dụng</value></data>
+  <data name="StatusLoadingTitle" xml:space="preserve"><value>Đang kết nối agent cục bộ</value></data>
+  <data name="StatusLoadingDetail" xml:space="preserve"><value>Đang kiểm tra kết nối cục bộ an toàn.</value></data>
+  <data name="StatusConnectedTitle" xml:space="preserve"><value>Agent Pastral đã kết nối</value></data>
+  <data name="StatusConnectedDetail" xml:space="preserve"><value>Kết nối cục bộ an toàn đã sẵn sàng và các kiểm tra lưu trữ đã đạt.</value></data>
+  <data name="StatusConnectedFirstPageDetail" xml:space="preserve"><value>Kết nối cục bộ an toàn đã trả về trang lịch sử giới hạn đầu tiên.</value></data>
+  <data name="StatusConnectedCurrentPageDetail" xml:space="preserve"><value>Kết nối cục bộ an toàn đã trả về trang lịch sử giới hạn hiện tại.</value></data>
+  <data name="StatusDisconnectedTitle" xml:space="preserve"><value>Agent Pastral chưa được kết nối</value></data>
+  <data name="StatusDisconnectedDetail" xml:space="preserve"><value>Khởi động agent cục bộ, sau đó thử lại kết nối đã xác thực.</value></data>
+  <data name="StatusTimeoutTitle" xml:space="preserve"><value>Agent Pastral không phản hồi</value></data>
+  <data name="StatusTimeoutDetail" xml:space="preserve"><value>Agent cục bộ phản hồi quá chậm. Hãy kiểm tra rồi thử lại.</value></data>
+  <data name="StatusProtocolMismatchTitle" xml:space="preserve"><value>Các phiên bản Pastral không tương thích</value></data>
+  <data name="StatusProtocolMismatchDetail" xml:space="preserve"><value>Trình quản lý và agent cục bộ đang dùng các phiên bản giao thức kết nối không tương thích.</value></data>
+  <data name="StatusAuthenticationFailedTitle" xml:space="preserve"><value>Xác thực agent Pastral thất bại</value></data>
+  <data name="StatusAuthenticationFailedDetail" xml:space="preserve"><value>Không thể xác thực danh tính agent cục bộ. Hãy khởi động lại hoặc sửa chữa cài đặt trước khi thử lại.</value></data>
+  <data name="StatusUnhealthyTitle" xml:space="preserve"><value>Agent Pastral cần được kiểm tra</value></data>
+  <data name="StatusUnhealthyDetail" xml:space="preserve"><value>Agent báo lỗi chính sách riêng tư hoặc tính toàn vẹn lưu trữ. Lịch sử vẫn không khả dụng.</value></data>
+  <data name="StatusInvalidConfigurationTitle" xml:space="preserve"><value>Cấu hình kết nối Pastral không hợp lệ</value></data>
+  <data name="StatusInvalidConfigurationDetail" xml:space="preserve"><value>Vị trí dữ liệu cục bộ không hợp lệ cho kết nối an toàn.</value></data>
+  <data name="StatusAbiMismatchTitle" xml:space="preserve"><value>Các phiên bản bridge Pastral không tương thích</value></data>
+  <data name="StatusAbiMismatchDetail" xml:space="preserve"><value>Trình quản lý và IPC bridge cục bộ đang dùng các phiên bản giao diện native khác nhau.</value></data>
+  <data name="StatusHistoryBridgeUnavailableTitle" xml:space="preserve"><value>History bridge của Pastral không khả dụng</value></data>
+  <data name="StatusHistoryBridgeUnavailableDetail" xml:space="preserve"><value>Hãy sửa chữa cài đặt để trình quản lý có thể tải giao diện Lịch sử có giới hạn.</value></data>
+  <data name="StatusHistoryChangedTitle" xml:space="preserve"><value>Lịch sử Pastral đã thay đổi khi làm mới</value></data>
+  <data name="StatusHistoryChangedDetail" xml:space="preserve"><value>Trang lịch sử giới hạn thay đổi quá nhanh để sao chép an toàn. Hãy thử lại yêu cầu.</value></data>
+  <data name="StatusInternalErrorTitle" xml:space="preserve"><value>Kết nối agent Pastral thất bại</value></data>
+  <data name="StatusInternalErrorDetail" xml:space="preserve"><value>Trình quản lý không thể hoàn tất kiểm tra kết nối cục bộ an toàn.</value></data>
+  <data name="StatusSyntheticTitle" xml:space="preserve"><value>Dữ liệu xem trước mô phỏng</value></data>
+  <data name="StatusSyntheticDetail" xml:space="preserve"><value>Các ví dụ có giới hạn này dùng để kiểm tra bố cục và khả năng truy cập. Đây không phải lịch sử clipboard.</value></data>
+  <data name="StoragePreparing" xml:space="preserve"><value>Đang chuẩn bị trạng thái cục bộ</value></data>
+  <data name="StorageConnected" xml:space="preserve"><value>Schema {0} · Đã xác minh toàn vẹn · {1}</value></data>
+  <data name="StorageDisconnected" xml:space="preserve"><value>Không khả dụng cho đến khi agent cục bộ được kết nối</value></data>
+  <data name="StorageTimeout" xml:space="preserve"><value>Không khả dụng vì agent cục bộ đã hết thời gian phản hồi</value></data>
+  <data name="StorageVersionMismatch" xml:space="preserve"><value>Không khả dụng cho đến khi phiên bản trình quản lý và agent tương thích</value></data>
+  <data name="StorageSynthetic" xml:space="preserve"><value>Chỉ có ví dụ mô phỏng · Không truy cập cơ sở dữ liệu hoặc blob</value></data>
+  <data name="StorageUnhealthy" xml:space="preserve"><value>Không khả dụng cho đến khi agent cục bộ hoạt động ổn định</value></data>
+  <data name="ProfileDevelopment" xml:space="preserve"><value>Phát triển</value></data>
+  <data name="ProfileOrdinary" xml:space="preserve"><value>Thông thường</value></data>
+  <data name="CaptureConnecting" xml:space="preserve"><value>Đang kết nối an toàn</value></data>
+  <data name="CapturePreviewMode" xml:space="preserve"><value>Chế độ xem trước</value></data>
+  <data name="CaptureConnected" xml:space="preserve"><value>Đã kết nối</value></data>
+  <data name="CapturePaused" xml:space="preserve"><value>Đã tạm dừng</value></data>
+  <data name="CaptureVersionMismatch" xml:space="preserve"><value>Không khớp phiên bản</value></data>
+  <data name="CaptureNeedsAttention" xml:space="preserve"><value>Cần kiểm tra</value></data>
+  <data name="HomeEmptyLoadingTitle" xml:space="preserve"><value>Đang kết nối agent cục bộ</value></data>
+  <data name="HomeEmptyLoadingDetail" xml:space="preserve"><value>Các mục gần đây sẽ xuất hiện sau khi kết nối cục bộ an toàn sẵn sàng.</value></data>
+  <data name="HomeEmptySyntheticTitle" xml:space="preserve"><value>Không có bản xem trước mô phỏng</value></data>
+  <data name="HomeEmptySyntheticDetail" xml:space="preserve"><value>Provider trình bày Debug không trả về bản ghi xem trước giới hạn nào.</value></data>
+  <data name="HomeEmptyConnectedTitle" xml:space="preserve"><value>Chưa có lịch sử clipboard</value></data>
+  <data name="HomeEmptyConnectedDetail" xml:space="preserve"><value>Các bản xem trước clipboard an toàn mới sẽ xuất hiện sau khi agent cục bộ ghi nhận chúng.</value></data>
+  <data name="HomeEmptyUnavailableTitle" xml:space="preserve"><value>Các mục gần đây không khả dụng</value></data>
+  <data name="HomeEmptyDisconnectedDetail" xml:space="preserve"><value>Khởi động agent cục bộ, sau đó thử lại kết nối đã xác thực.</value></data>
+  <data name="HomeEmptyPausedTitle" xml:space="preserve"><value>Ghi nhận clipboard đang tạm dừng</value></data>
+  <data name="HomeEmptyPausedDetail" xml:space="preserve"><value>Tiếp tục ghi nhận từ agent trước khi chờ hoạt động clipboard mới.</value></data>
+  <data name="HomeEmptyProtocolDetail" xml:space="preserve"><value>Cập nhật trình quản lý và agent lên các phiên bản tương thích, sau đó thử lại.</value></data>
+  <data name="HomeEmptyErrorDetail" xml:space="preserve"><value>Khắc phục trạng thái trình quản lý ở trên trước khi yêu cầu lịch sử clipboard.</value></data>
+  <data name="HistoryActivityRefreshing" xml:space="preserve"><value>Đang làm mới lịch sử cục bộ</value></data>
+  <data name="HistoryActivitySearching" xml:space="preserve"><value>Đang tìm trong lịch sử cục bộ</value></data>
+  <data name="HistoryActivityLoading" xml:space="preserve"><value>Đang tải lịch sử cục bộ</value></data>
+  <data name="HistoryEmptyLoadingTitle" xml:space="preserve"><value>Đang tải lịch sử cục bộ</value></data>
+  <data name="HistoryEmptyLoadingDetail" xml:space="preserve"><value>Trình quản lý đang kiểm tra kết nối cục bộ đã xác thực và trang giới hạn đầu tiên.</value></data>
+  <data name="HistoryEmptyDisconnectedTitle" xml:space="preserve"><value>Lịch sử chưa được kết nối</value></data>
+  <data name="HistoryEmptyDisconnectedDetail" xml:space="preserve"><value>Khởi động agent cục bộ rồi thử lại. Trình quản lý không bao giờ mở trực tiếp kho lưu trữ.</value></data>
+  <data name="HistoryEmptyUnavailableTitle" xml:space="preserve"><value>Lịch sử không khả dụng</value></data>
+  <data name="HistoryEmptyUnavailableDetail" xml:space="preserve"><value>Khắc phục sự cố kết nối cục bộ trước khi yêu cầu lịch sử.</value></data>
+  <data name="HistoryEmptyNoMatchTitle" xml:space="preserve"><value>Không có mục phù hợp</value></data>
+  <data name="HistoryEmptyNoMatchDetail" xml:space="preserve"><value>Kiểm tra nội dung tìm kiếm chính xác hoặc xóa bộ lọc để quay lại các bản xem trước gần đây.</value></data>
+  <data name="HistoryEmptyNoHistoryTitle" xml:space="preserve"><value>Chưa có lịch sử clipboard</value></data>
+  <data name="HistoryEmptyNoHistoryDetail" xml:space="preserve"><value>Các bản xem trước clipboard an toàn mới sẽ xuất hiện tại đây sau khi agent cục bộ ghi nhận chúng.</value></data>
+  <data name="RelativeJustNow" xml:space="preserve"><value>Vừa xong</value></data>
+  <data name="RelativeMinutes" xml:space="preserve"><value>{0} phút trước</value></data>
+  <data name="RelativeHourOne" xml:space="preserve"><value>{0} giờ trước</value></data>
+  <data name="RelativeHoursMany" xml:space="preserve"><value>{0} giờ trước</value></data>
+  <data name="RelativeDayOne" xml:space="preserve"><value>{0} ngày trước</value></data>
+  <data name="RelativeDaysMany" xml:space="preserve"><value>{0} ngày trước</value></data>
+  <data name="RelativeMonthPlus" xml:space="preserve"><value>Hơn một tháng trước</value></data>
+  <data name="ClipTypeText" xml:space="preserve"><value>Văn bản</value></data>
+  <data name="ClipTypeCode" xml:space="preserve"><value>Mã nguồn</value></data>
+  <data name="ClipTypeLink" xml:space="preserve"><value>Liên kết</value></data>
+  <data name="ClipTypeImage" xml:space="preserve"><value>Hình ảnh</value></data>
+  <data name="ClipTypeFileReference" xml:space="preserve"><value>Tham chiếu tệp</value></data>
+  <data name="RepresentationTextPlain" xml:space="preserve"><value>Văn bản Unicode · Văn bản thuần</value></data>
+  <data name="RepresentationWebLink" xml:space="preserve"><value>Văn bản Unicode · Liên kết web</value></data>
+  <data name="RepresentationImage" xml:space="preserve"><value>PNG · Bitmap</value></data>
+  <data name="RepresentationReferenceOnly" xml:space="preserve"><value>Chỉ tham chiếu</value></data>
+  <data name="RepresentationUnavailable" xml:space="preserve"><value>Chỉ có metadata xem trước · Nội dung không khả dụng</value></data>
+  <data name="RepresentationTextTruncated" xml:space="preserve"><value>Bản xem trước văn bản · Đã rút gọn</value></data>
+  <data name="RepresentationTextPreview" xml:space="preserve"><value>Bản xem trước văn bản</value></data>
+  <data name="StatePinnedUnavailable" xml:space="preserve"><value>Đã ghim · Không khả dụng</value></data>
+  <data name="StatePinnedTruncated" xml:space="preserve"><value>Đã ghim · Bản xem trước đã rút gọn</value></data>
+  <data name="StatePinned" xml:space="preserve"><value>Đã ghim</value></data>
+  <data name="StateTruncated" xml:space="preserve"><value>Bản xem trước đã rút gọn</value></data>
+  <data name="ClipAutomationName" xml:space="preserve"><value>{0}. Nguồn: {1}. Loại: {2}. Hồ sơ: {3}. Thời gian: {4}. Trạng thái: {5}.</value></data>
+  <data name="HistorySelectItem" xml:space="preserve"><value>Chọn một mục lịch sử</value></data>
+  <data name="HomePageContent.AutomationProperties.Name" xml:space="preserve"><value>Nội dung trang Tổng quan</value></data>
+  <data name="HomeHeroIconGlyph.AutomationProperties.Name" xml:space="preserve"><value>Bộ nhớ clipboard</value></data>
+  <data name="HomeConnectionStatus.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái kết nối trình quản lý</value></data>
+  <data name="HomeSyntheticNotice.AutomationProperties.Name" xml:space="preserve"><value>Thông báo dữ liệu xem trước mô phỏng</value></data>
+  <data name="HomeSyntheticNotice.Title" xml:space="preserve"><value>Dữ liệu xem trước mô phỏng</value></data>
+  <data name="HomeSyntheticNotice.Message" xml:space="preserve"><value>Sáu ví dụ có giới hạn này chỉ tồn tại trong bản Debug và không phải lịch sử clipboard.</value></data>
+  <data name="HomeOperationalStateRegion.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái hoạt động</value></data>
+  <data name="HomeLoadingIndicator.AutomationProperties.Name" xml:space="preserve"><value>Đang kết nối agent cục bộ</value></data>
+  <data name="HomeStatusIcon.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái trình quản lý</value></data>
+  <data name="RetryConnectionButton.AutomationProperties.Name" xml:space="preserve"><value>Làm mới kết nối agent cục bộ</value></data>
+  <data name="RetryConnectionButton.Content" xml:space="preserve"><value>Làm mới</value></data>
+  <data name="HomeOverviewRegion.AutomationProperties.Name" xml:space="preserve"><value>Tổng quan hệ thống</value></data>
+  <data name="HomeCaptureSection.AutomationProperties.Name" xml:space="preserve"><value>Khu vực trạng thái ghi nhận</value></data>
+  <data name="HomeCaptureIcon.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái ghi nhận</value></data>
+  <data name="HomeCaptureLabel.Text" xml:space="preserve"><value>Trạng thái ghi nhận</value></data>
+  <data name="HomeCaptureHelp.Text" xml:space="preserve"><value>Trình quản lý chỉ hiển thị trạng thái được cung cấp qua ranh giới provider.</value></data>
+  <data name="HomeProfileSection.AutomationProperties.Name" xml:space="preserve"><value>Khu vực hồ sơ đang hoạt động</value></data>
+  <data name="HomeProfileIcon.AutomationProperties.Name" xml:space="preserve"><value>Hồ sơ đang hoạt động</value></data>
+  <data name="HomeProfileLabel.Text" xml:space="preserve"><value>Hồ sơ đang hoạt động</value></data>
+  <data name="HomeProfileHelp.Text" xml:space="preserve"><value>Hồ sơ Riêng tư vẫn chưa khả dụng cho đến khi các yêu cầu mã hóa, khóa và khôi phục được hoàn tất.</value></data>
+  <data name="HomeStorageSection.AutomationProperties.Name" xml:space="preserve"><value>Khu vực dữ liệu cục bộ</value></data>
+  <data name="HomeStorageIcon.AutomationProperties.Name" xml:space="preserve"><value>Dữ liệu cục bộ</value></data>
+  <data name="HomeStorageLabel.Text" xml:space="preserve"><value>Dữ liệu cục bộ</value></data>
+  <data name="HomeStorageHelp.Text" xml:space="preserve"><value>Trình quản lý không bao giờ mở trực tiếp SQLite hoặc kho blob.</value></data>
+  <data name="HomeRecentClipsList.AutomationProperties.Name" xml:space="preserve"><value>Các mục gần đây</value></data>
+  <data name="HomeEmptyStatePanel.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái trống của các mục gần đây</value></data>
+  <data name="HomeEmptyStateIcon.AutomationProperties.Name" xml:space="preserve"><value>Lịch sử</value></data>
+  <data name="HomeEmptyStateTitle.Text" xml:space="preserve"><value>Không có mục gần đây</value></data>
+  <data name="HomeEmptyStateDetail.Text" xml:space="preserve"><value>Kết nối agent cục bộ để nhận lịch sử an toàn về quyền riêng tư. Bản Release không bao giờ tự tạo dữ liệu mẫu.</value></data>
+  <data name="HistoryPageContent.AutomationProperties.Name" xml:space="preserve"><value>Nội dung trang Lịch sử</value></data>
+  <data name="HistoryConnectionStatus.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái khả dụng của lịch sử</value></data>
+  <data name="HistorySyntheticNotice.AutomationProperties.Name" xml:space="preserve"><value>Thông báo lịch sử mô phỏng</value></data>
+  <data name="HistorySyntheticNotice.Title" xml:space="preserve"><value>Dữ liệu xem trước mô phỏng</value></data>
+  <data name="HistorySyntheticNotice.Message" xml:space="preserve"><value>Các ví dụ có giới hạn này chỉ tồn tại trong bản Debug và không phải lịch sử clipboard.</value></data>
+  <data name="HistorySearchBox.AutomationProperties.HelpText" xml:space="preserve"><value>Chỉ tìm trong metadata xem trước an toàn do provider đang hoạt động cung cấp</value></data>
+  <data name="HistoryClearButton.AutomationProperties.Name" xml:space="preserve"><value>Xóa nội dung tìm kiếm lịch sử</value></data>
+  <data name="HistoryClearButton.Content" xml:space="preserve"><value>Xóa</value></data>
+  <data name="HistoryRetryButton.AutomationProperties.Name" xml:space="preserve"><value>Thử lại kết nối agent cục bộ</value></data>
+  <data name="HistoryRetryButton.Content" xml:space="preserve"><value>Thử lại</value></data>
+  <data name="HistoryResultsRegion.AutomationProperties.Name" xml:space="preserve"><value>Kết quả lịch sử</value></data>
+  <data name="HistoryResultsList.AutomationProperties.Name" xml:space="preserve"><value>Danh sách kết quả lịch sử</value></data>
+  <data name="HistoryNoResultsPanel.AutomationProperties.Name" xml:space="preserve"><value>Trạng thái lịch sử trống hoặc không có kết quả</value></data>
+  <data name="HistoryLoadingIndicator.AutomationProperties.Name" xml:space="preserve"><value>Đang kết nối agent cục bộ</value></data>
+  <data name="HistoryEmptyIconGlyph.AutomationProperties.Name" xml:space="preserve"><value>Lịch sử clipboard</value></data>
+  <data name="HistoryDetailsRegion.AutomationProperties.Name" xml:space="preserve"><value>Chi tiết mục đã chọn</value></data>
+  <data name="HistoryBackButton.AutomationProperties.Name" xml:space="preserve"><value>Quay lại kết quả lịch sử</value></data>
+  <data name="HistoryBackButton.Content" xml:space="preserve"><value>Quay lại kết quả</value></data>
+  <data name="HistoryFieldSource.Text" xml:space="preserve"><value>Nguồn</value></data>
+  <data name="HistoryFieldType.Text" xml:space="preserve"><value>Loại</value></data>
+  <data name="HistoryFieldRepresentations.Text" xml:space="preserve"><value>Biểu diễn dữ liệu</value></data>
+  <data name="HistoryFieldProfile.Text" xml:space="preserve"><value>Hồ sơ</value></data>
+  <data name="HistoryFieldState.Text" xml:space="preserve"><value>Trạng thái</value></data>
+  <data name="HistoryAvailabilityWarning.AutomationProperties.Name" xml:space="preserve"><value>Cảnh báo khả dụng của mục đã chọn</value></data>
+  <data name="HistoryAvailabilityWarning.Title" xml:space="preserve"><value>Nội dung không khả dụng</value></data>
+  <data name="HistoryAvailabilityWarning.Message" xml:space="preserve"><value>Nội dung được tham chiếu không còn khả dụng, vì vậy thao tác dán và sao chép vẫn bị vô hiệu hóa.</value></data>
+  <data name="HistoryPasteButton.AutomationProperties.Name" xml:space="preserve"><value>Dán biểu diễn dữ liệu đã chọn</value></data>
+  <data name="HistoryPasteButton.AutomationProperties.HelpText" xml:space="preserve"><value>Thao tác dán bị vô hiệu hóa cho đến khi IPC lịch sử có phiên bản và xác thực đích được triển khai</value></data>
+  <data name="HistoryPasteButton.Content" xml:space="preserve"><value>Dán</value></data>
+  <data name="HistoryCopyButton.AutomationProperties.Name" xml:space="preserve"><value>Sao chép biểu diễn dữ liệu đã chọn</value></data>
+  <data name="HistoryCopyButton.AutomationProperties.HelpText" xml:space="preserve"><value>Thao tác sao chép bị vô hiệu hóa cho đến khi IPC lịch sử có phiên bản được triển khai</value></data>
+  <data name="HistoryCopyButton.Content" xml:space="preserve"><value>Sao chép</value></data>
+  <data name="HistoryActionsNote.Text" xml:space="preserve"><value>Các thao tác vẫn chưa khả dụng trong bản này; trình quản lý không bao giờ bỏ qua ranh giới agent đã xác thực.</value></data>
 </root>

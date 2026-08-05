@@ -156,6 +156,7 @@
     <ClInclude Include="ViewModels\ClipPreviewViewModel.h" />
     <ClInclude Include="Services\IManagerDataProvider.h" />
     <ClInclude Include="Services\ManagerDataProvider.h" />
+    <ClInclude Include="Services\ManagerStrings.h" />
     <ClInclude Include="Services\ManagerIpcBridge.h" />
   </ItemGroup>
 
@@ -169,6 +170,7 @@
 
   <ItemGroup>
     <PRIResource Include="Strings\en-US\Resources.resw" />
+    <PRIResource Include="Strings\vi-VN\Resources.resw" />
   </ItemGroup>
 
   <ItemGroup>
@@ -189,6 +191,7 @@
     </ClCompile>
     <ClCompile Include="ViewModels\ClipPreviewViewModel.cpp" />
     <ClCompile Include="Services\ManagerDataProvider.cpp" />
+    <ClCompile Include="Services\ManagerStrings.cpp" />
     <ClCompile Include="Services\ManagerIpcBridge.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>

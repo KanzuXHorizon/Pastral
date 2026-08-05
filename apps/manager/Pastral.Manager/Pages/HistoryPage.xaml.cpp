@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "HistoryPage.xaml.h"
+#include "../Services/ManagerStrings.h"
 
 #if __has_include("HistoryPage.g.cpp")
 #include "HistoryPage.g.cpp"
@@ -172,7 +173,10 @@ namespace winrt::Pastral::Manager::implementation
     void HistoryPage::RefreshSnapshot()
     {
         auto const generation = ++m_loadGeneration;
-        BeginReadActivity(L"Refreshing local history");
+        BeginReadActivity(
+            ::Pastral::Manager::Presentation::ManagerStrings::Current().Get(
+                L"HistoryActivityRefreshing",
+                L"Refreshing local history"));
 
         auto const weakThis = get_weak();
         auto const dispatcher = DispatcherQueue();
@@ -196,7 +200,9 @@ namespace winrt::Pastral::Manager::implementation
     void HistoryPage::SearchSnapshot(std::wstring query)
     {
         auto const generation = ++m_loadGeneration;
-        BeginReadActivity(query.empty() ? L"Loading local history" : L"Searching local history");
+        BeginReadActivity(
+            ::Pastral::Manager::Presentation::ManagerStrings::Current().HistoryActivity(
+                !query.empty()));
 
         auto const weakThis = get_weak();
         auto const dispatcher = DispatcherQueue();
@@ -241,8 +247,9 @@ namespace winrt::Pastral::Manager::implementation
         m_hasMore = snapshot.hasMore;
         m_allClips = std::move(snapshot.clips);
 
-        HistoryConnectionStatus().Title(winrt::hstring(snapshot.statusTitle));
-        HistoryConnectionStatus().Message(winrt::hstring(snapshot.statusDetail));
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
+        HistoryConnectionStatus().Title(strings.StatusTitle(snapshot.statusCode));
+        HistoryConnectionStatus().Message(strings.StatusDetail(snapshot.statusCode));
         InfoBarSeverity severity = InfoBarSeverity::Informational;
         switch (m_connection)
         {
@@ -304,14 +311,10 @@ namespace winrt::Pastral::Manager::implementation
             }
         }
 
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
         auto const count = m_results.Size();
         auto const hasResults = count > 0;
-        auto countText = std::to_wstring(count) + (count == 1 ? L" item" : L" items");
-        if (m_hasMore)
-        {
-            countText += L" · First page";
-        }
-        HistoryResultCount().Text(winrt::hstring(countText));
+        HistoryResultCount().Text(strings.FormatItemCount(count, m_hasMore));
         HistoryResultsList().Visibility(hasResults ? Visibility::Visible : Visibility::Collapsed);
         HistoryNoResultsPanel().Visibility(hasResults ? Visibility::Collapsed : Visibility::Visible);
         HistoryClearButton().IsEnabled(!query.empty() && m_connection == ConnectionState::Connected);
@@ -334,37 +337,9 @@ namespace winrt::Pastral::Manager::implementation
         else
         {
             m_showingDetails = false;
-            if (m_connection == ConnectionState::Loading)
-            {
-                HistoryNoResultsTitle().Text(L"Loading local history");
-                HistoryNoResultsDetail().Text(
-                    L"The manager is checking the authenticated local connection and first bounded page.");
-            }
-            else if (m_connection == ConnectionState::Disconnected)
-            {
-                HistoryNoResultsTitle().Text(L"History is not connected");
-                HistoryNoResultsDetail().Text(
-                    L"Start the local agent, then retry. The manager never opens storage directly.");
-            }
-            else if (m_connection == ConnectionState::ProtocolMismatch ||
-                     m_connection == ConnectionState::Error)
-            {
-                HistoryNoResultsTitle().Text(L"History is unavailable");
-                HistoryNoResultsDetail().Text(
-                    L"Resolve the local connection issue before requesting history.");
-            }
-            else if (!query.empty())
-            {
-                HistoryNoResultsTitle().Text(L"No matching clips");
-                HistoryNoResultsDetail().Text(
-                    L"Check the literal search text or clear it to return to recent safe previews.");
-            }
-            else
-            {
-                HistoryNoResultsTitle().Text(L"No clipboard history yet");
-                HistoryNoResultsDetail().Text(
-                    L"New safe clipboard previews will appear here after the local agent captures them.");
-            }
+            auto const hasQuery = !query.empty();
+            HistoryNoResultsTitle().Text(strings.HistoryEmptyTitle(m_connection, hasQuery));
+            HistoryNoResultsDetail().Text(strings.HistoryEmptyDetail(m_connection, hasQuery));
             ClearSelectionDetails();
         }
         UpdateResponsiveLayout();
@@ -387,7 +362,9 @@ namespace winrt::Pastral::Manager::implementation
         HistoryDetailType().Text(selected.TypeLabel());
         HistoryDetailRepresentation().Text(selected.RepresentationSummary());
         HistoryDetailProfile().Text(selected.Profile());
-        HistoryDetailState().Text(selected.StateSummary().empty() ? L"Available" : selected.StateSummary());
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
+        HistoryDetailState().Text(
+            selected.StateSummary().empty() ? strings.Available() : selected.StateSummary());
         HistoryAvailabilityWarning().IsOpen(selected.Unavailable());
         HistoryAvailabilityWarning().Visibility(
             selected.Unavailable() ? Visibility::Visible : Visibility::Collapsed);
@@ -397,12 +374,14 @@ namespace winrt::Pastral::Manager::implementation
     {
         using winrt::Microsoft::UI::Xaml::Visibility;
 
-        HistoryDetailPreview().Text(L"Select a history item");
-        HistoryDetailSource().Text(L"Unavailable");
-        HistoryDetailType().Text(L"Unavailable");
-        HistoryDetailRepresentation().Text(L"Unavailable");
-        HistoryDetailProfile().Text(L"Unavailable");
-        HistoryDetailState().Text(L"Unavailable");
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
+        HistoryDetailPreview().Text(strings.SelectHistoryItem());
+        auto const unavailable = strings.Unavailable();
+        HistoryDetailSource().Text(unavailable);
+        HistoryDetailType().Text(unavailable);
+        HistoryDetailRepresentation().Text(unavailable);
+        HistoryDetailProfile().Text(unavailable);
+        HistoryDetailState().Text(unavailable);
         HistoryAvailabilityWarning().IsOpen(false);
         HistoryAvailabilityWarning().Visibility(Visibility::Collapsed);
     }

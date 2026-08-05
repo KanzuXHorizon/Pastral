@@ -103,6 +103,8 @@ function Invoke-StaticVerification {
         'apps/manager/Pastral.Manager/Services/IManagerDataProvider.h',
         'apps/manager/Pastral.Manager/Services/ManagerDataProvider.h',
         'apps/manager/Pastral.Manager/Services/ManagerDataProvider.cpp',
+        'apps/manager/Pastral.Manager/Services/ManagerStrings.h',
+        'apps/manager/Pastral.Manager/Services/ManagerStrings.cpp',
         'apps/manager/Pastral.Manager/Services/ManagerIpcBridge.h',
         'apps/manager/Pastral.Manager/Services/ManagerIpcBridge.cpp',
         'apps/manager/Pastral.Manager/Tests/ManagerIpcBridgeProbe.cpp',
@@ -193,6 +195,15 @@ function Invoke-StaticVerification {
     Assert-Contains $packagesPath 'Microsoft\.WindowsAppSDK"\s+Version="2\.3\.1"' 'Windows App SDK 2.3.1 pin'
     Assert-Contains $packagesPath 'Microsoft\.Windows\.CppWinRT"\s+Version="3\.0\.260715\.1"' 'C++/WinRT package pin'
 
+    $appCode = Join-Path $managerRoot 'App.xaml.cpp'
+    Assert-Contains $appCode '#if\s+defined\(_DEBUG\)[\s\S]*PASTRAL_MANAGER_LANGUAGE' 'Debug-only manager language override'
+    Assert-Contains $appCode 'Microsoft::Windows::Globalization::ApplicationLanguages::PrimaryLanguageOverride' 'unpackaged-safe diagnostic application language qualifier'
+    Assert-NotContains $appCode 'PrimaryLanguageOverride\(L""\)' 'invalid empty diagnostic language override'
+    Assert-NotContains $appCode 'winrt::Windows::Globalization::ApplicationLanguages' 'package-identity-only application language API'
+    $precompiledHeader = Join-Path $managerRoot 'pch.h'
+    Assert-Contains $precompiledHeader 'winrt/Microsoft\.Windows\.Globalization\.h' 'Windows App SDK globalization header'
+    Assert-NotContains $precompiledHeader 'winrt/Windows\.Globalization\.h' 'package-identity-only globalization header'
+
     $mainWindow = Join-Path $managerRoot 'MainWindow.xaml'
     Assert-Contains $mainWindow '<MicaBackdrop' 'Mica backdrop'
     Assert-Contains $mainWindow '<TitleBar' 'TitleBar control'
@@ -210,6 +221,34 @@ function Invoke-StaticVerification {
 
     $englishResources = Join-Path $managerRoot 'Strings\en-US\Resources.resw'
     $vietnameseResources = Join-Path $managerRoot 'Strings\vi-VN\Resources.resw'
+    [xml]$englishXml = [System.IO.File]::ReadAllText($englishResources)
+    [xml]$vietnameseXml = [System.IO.File]::ReadAllText($vietnameseResources)
+    $englishKeys = @($englishXml.root.data | ForEach-Object { $_.name } | Sort-Object -Unique)
+    $vietnameseKeys = @($vietnameseXml.root.data | ForEach-Object { $_.name } | Sort-Object -Unique)
+    $resourceDifference = @(Compare-Object $englishKeys $vietnameseKeys)
+    if ($resourceDifference.Count -gt 0) {
+        Fail ('English/Vietnamese resource keys differ: ' + (($resourceDifference | ForEach-Object { "$($_.InputObject):$($_.SideIndicator)" }) -join ', '))
+    }
+    foreach ($resource in @($englishXml, $vietnameseXml)) {
+        $blankKeys = @($resource.root.data | Where-Object { [string]::IsNullOrWhiteSpace($_.value) } | ForEach-Object { $_.name })
+        if ($blankKeys.Count -gt 0) {
+            Fail ('Manager resources contain blank values: ' + ($blankKeys -join ', '))
+        }
+    }
+    $englishValues = @{}
+    foreach ($entry in $englishXml.root.data) { $englishValues[$entry.name] = [string]$entry.value }
+    $vietnameseValues = @{}
+    foreach ($entry in $vietnameseXml.root.data) { $vietnameseValues[$entry.name] = [string]$entry.value }
+    foreach ($key in $englishKeys) {
+        $englishPlaceholders = @([regex]::Matches($englishValues[$key], '\{\d+\}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
+        $vietnamesePlaceholders = @([regex]::Matches($vietnameseValues[$key], '\{\d+\}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
+        if (@(Compare-Object $englishPlaceholders $vietnamesePlaceholders).Count -gt 0) {
+            Fail "English/Vietnamese resource placeholders differ for key '$key'"
+        }
+    }
+    $managerProject = Join-Path $managerRoot 'Pastral.Manager.vcxproj'
+    Assert-Contains $managerProject 'PRIResource Include="Strings\\en-US\\Resources\.resw"' 'English manager resources'
+    Assert-Contains $managerProject 'PRIResource Include="Strings\\vi-VN\\Resources\.resw"' 'Vietnamese manager resources'
     Assert-Contains $englishResources 'HomePageEyebrow\.Text"[\s\S]*<value>Private by design</value>' 'English Home positioning copy'
     Assert-Contains $vietnameseResources 'HomePageEyebrow\.Text"[\s\S]*<value>Riêng tư từ thiết kế</value>' 'Vietnamese Home positioning copy'
     Assert-Contains $englishResources 'HistoryPageEyebrow\.Text"[\s\S]*<value>Search with context</value>' 'English History positioning copy'
@@ -236,9 +275,15 @@ function Invoke-StaticVerification {
     Assert-Contains $homePage 'Text="\{Binding Source\}"' 'Home source binding'
     Assert-Contains $homePage 'Text="\{Binding RepresentationSummary\}"' 'Home representation binding'
 
+    $managerStrings = Join-Path $managerRoot 'Services\ManagerStrings.cpp'
+    Assert-Contains $managerStrings 'Microsoft::Windows::ApplicationModel::Resources::ResourceLoader' 'Windows App SDK resource loader boundary'
+    Assert-Contains $managerStrings 'ManagerStrings::Current' 'shared manager string service'
+    Assert-Contains $managerStrings 'FormatItemCount' 'localized item count formatter'
+
     $provider = Join-Path $managerRoot 'Services\ManagerDataProvider.cpp'
-    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*statusDetail\s*=\s*L"Checking the secure local connection\."' 'plain-language loading connection copy'
-    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*storageSummary\s*=\s*L"Preparing local status"' 'plain-language loading storage copy'
+    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*statusCode\s*=\s*ManagerStatusCode::Loading' 'semantic loading connection state'
+    Assert-Contains $provider 'CreateLoadingSnapshot\(\)[\s\S]*storageSchemaVersion\s*=\s*0' 'semantic loading storage state'
+    Assert-NotContains $provider 'statusTitle|statusDetail|activeProfile|storageSummary|RelativeTime\(' 'provider-localized presentation copy'
 
     $providerInterface = Join-Path $managerRoot 'Services\IManagerDataProvider.h'
     Assert-Contains $providerInterface 'LoadSnapshotAsync\(SnapshotCompletion completion\)' 'asynchronous manager provider contract'
@@ -723,16 +768,141 @@ public static class PastralManagerWindowApi
     Write-Host 'Native manager runtime smoke: PASS'
 }
 
+function Invoke-VietnameseSmokeVerification {
+    $executable = Resolve-DebugExecutable
+    $previousLanguage = $env:PASTRAL_MANAGER_LANGUAGE
+    $process = $null
+    try {
+        $env:PASTRAL_MANAGER_LANGUAGE = 'vi-VN'
+        $process = Start-Process -FilePath $executable -PassThru
+        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        $windowHandle = [IntPtr]::Zero
+        while ([DateTime]::UtcNow -lt $deadline -and -not $process.HasExited) {
+            Start-Sleep -Milliseconds 200
+            $process.Refresh()
+            $windowHandle = $process.MainWindowHandle
+            if ($windowHandle -ne [IntPtr]::Zero) {
+                break
+            }
+        }
+        if ($process.HasExited) {
+            Fail "Vietnamese manager exited during smoke test with code $($process.ExitCode)"
+        }
+        if ($windowHandle -eq [IntPtr]::Zero) {
+            Fail 'Vietnamese manager did not create a top-level window within 15 seconds'
+        }
+
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+        $automationRoot = [System.Windows.Automation.AutomationElement]::FromHandle($windowHandle)
+        $historyCondition = New-Object System.Windows.Automation.AndCondition(
+            (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                'Lịch sử'
+            )),
+            (New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+                [System.Windows.Automation.ControlType]::ListItem
+            ))
+        )
+        $historyItem = $null
+        $navigationDeadline = [DateTime]::UtcNow.AddSeconds(8)
+        while ([DateTime]::UtcNow -lt $navigationDeadline -and $null -eq $historyItem) {
+            Start-Sleep -Milliseconds 150
+            $historyItem = $automationRoot.FindFirst(
+                [System.Windows.Automation.TreeScope]::Subtree,
+                $historyCondition
+            )
+        }
+        if ($null -eq $historyItem) {
+            Fail 'Vietnamese UI Automation could not find the localized History navigation item'
+        }
+        $historyItem.GetCurrentPattern(
+            [System.Windows.Automation.SelectionItemPattern]::Pattern
+        ).Select()
+
+        foreach ($name in @(
+            'Tìm lại mọi thứ bạn đã sao chép',
+            'Tìm trong lịch sử clipboard',
+            '6 mục'
+        )) {
+            $condition = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::NameProperty,
+                $name
+            )
+            $element = $null
+            $elementDeadline = [DateTime]::UtcNow.AddSeconds(8)
+            while ([DateTime]::UtcNow -lt $elementDeadline -and $null -eq $element) {
+                Start-Sleep -Milliseconds 150
+                $element = $automationRoot.FindFirst(
+                    [System.Windows.Automation.TreeScope]::Subtree,
+                    $condition
+                )
+            }
+            if ($null -eq $element) {
+                Fail "Vietnamese UI Automation could not find localized element '$name'"
+            }
+        }
+
+        $historyListCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'Danh sách kết quả lịch sử'
+        )
+        $historyList = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyListCondition
+        )
+        if ($null -eq $historyList) {
+            Fail 'Vietnamese UI Automation could not find the localized History results list'
+        }
+        $listItemCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::ListItem
+        )
+        $rows = $historyList.FindAll(
+            [System.Windows.Automation.TreeScope]::Children,
+            $listItemCondition
+        )
+        if ($rows.Count -ne 6) {
+            Fail "Vietnamese History expected six rows but found $($rows.Count)"
+        }
+        $firstName = $rows.Item(0).Current.Name
+        if (-not $firstName.Contains('Nguồn:') -or
+            -not $firstName.Contains('Trạng thái:')) {
+            Fail "Vietnamese History row did not use localized automation metadata: '$firstName'"
+        }
+
+        Write-Host 'Manager Vietnamese static, dynamic, and accessibility localization smoke: PASS'
+    }
+    finally {
+        $env:PASTRAL_MANAGER_LANGUAGE = $previousLanguage
+        if ($null -ne $process) {
+            if (-not $process.HasExited) {
+                [void]$process.CloseMainWindow()
+                if (-not $process.WaitForExit(3000)) {
+                    $process.Kill()
+                    $process.WaitForExit()
+                }
+            }
+            $process.Dispose()
+        }
+    }
+}
+
 Push-Location $repositoryRoot
 try {
     switch ($Mode) {
         'Static' { Invoke-StaticVerification }
         'Build' { Invoke-BuildVerification }
-        'Smoke' { Invoke-SmokeVerification }
+        'Smoke' {
+            Invoke-SmokeVerification
+            Invoke-VietnameseSmokeVerification
+        }
         'All' {
             Invoke-StaticVerification
             Invoke-BuildVerification
             Invoke-SmokeVerification
+            Invoke-VietnameseSmokeVerification
         }
     }
 }

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "HomePage.xaml.h"
+#include "../Services/ManagerStrings.h"
 
 #if __has_include("HomePage.g.cpp")
 #include "HomePage.g.cpp"
@@ -59,8 +60,11 @@ namespace winrt::Pastral::Manager::implementation
         using winrt::Microsoft::UI::Xaml::Controls::InfoBarSeverity;
         using winrt::Microsoft::UI::Xaml::Visibility;
 
-        HomeConnectionStatus().Title(winrt::hstring(snapshot.statusTitle));
-        HomeConnectionStatus().Message(winrt::hstring(snapshot.statusDetail));
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
+        auto const statusTitle = strings.StatusTitle(snapshot.statusCode);
+        auto const statusDetail = strings.StatusDetail(snapshot.statusCode);
+        HomeConnectionStatus().Title(statusTitle);
+        HomeConnectionStatus().Message(statusDetail);
         InfoBarSeverity severity = InfoBarSeverity::Informational;
         switch (snapshot.connection)
         {
@@ -86,58 +90,19 @@ namespace winrt::Pastral::Manager::implementation
         HomeConnectionStatus().Visibility(
             showConnectionBanner ? Visibility::Visible : Visibility::Collapsed);
 
-        HomeStatusTitle().Text(winrt::hstring(snapshot.statusTitle));
-        HomeStatusDetail().Text(winrt::hstring(snapshot.statusDetail));
-        HomeProfileValue().Text(winrt::hstring(snapshot.activeProfile));
-        HomeStorageValue().Text(winrt::hstring(snapshot.storageSummary));
+        HomeStatusTitle().Text(statusTitle);
+        HomeStatusDetail().Text(statusDetail);
+        HomeProfileValue().Text(strings.ActiveProfile(snapshot.synthetic));
+        HomeStorageValue().Text(strings.StorageSummary(snapshot));
 
         auto const isLoading = snapshot.connection == ConnectionState::Loading;
         HomeLoadingIndicator().IsActive(isLoading);
         HomeLoadingIndicator().Visibility(isLoading ? Visibility::Visible : Visibility::Collapsed);
         HomeStatusIcon().Visibility(isLoading ? Visibility::Collapsed : Visibility::Visible);
 
-        switch (snapshot.connection)
-        {
-        case ConnectionState::Loading:
-            HomeCaptureValue().Text(L"Connecting securely");
-            HomeEmptyStateTitle().Text(L"Connecting to local agent");
-            HomeEmptyStateDetail().Text(
-                L"Recent clips will appear after the secure local connection is ready.");
-            break;
-        case ConnectionState::Connected:
-            HomeCaptureValue().Text(snapshot.synthetic ? L"Preview mode" : L"Connected");
-            HomeEmptyStateTitle().Text(
-                snapshot.synthetic ? L"No synthetic previews are available" : L"No clipboard history yet");
-            HomeEmptyStateDetail().Text(
-                snapshot.synthetic
-                    ? L"The Debug presentation provider returned no bounded preview records."
-                    : L"New safe clipboard previews will appear after the local agent captures them.");
-            break;
-        case ConnectionState::Disconnected:
-            HomeCaptureValue().Text(L"Unavailable");
-            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
-            HomeEmptyStateDetail().Text(
-                L"Start the local agent, then retry the authenticated connection.");
-            break;
-        case ConnectionState::CapturePaused:
-            HomeCaptureValue().Text(L"Paused");
-            HomeEmptyStateTitle().Text(L"Capture is paused");
-            HomeEmptyStateDetail().Text(
-                L"Resume capture from the agent before expecting new clipboard activity.");
-            break;
-        case ConnectionState::ProtocolMismatch:
-            HomeCaptureValue().Text(L"Version mismatch");
-            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
-            HomeEmptyStateDetail().Text(
-                L"Update the manager and agent to compatible versions, then retry.");
-            break;
-        case ConnectionState::Error:
-            HomeCaptureValue().Text(L"Needs attention");
-            HomeEmptyStateTitle().Text(L"Recent clips are unavailable");
-            HomeEmptyStateDetail().Text(
-                L"Resolve the manager status above before requesting clipboard history.");
-            break;
-        }
+        HomeCaptureValue().Text(strings.CaptureValue(snapshot.connection, snapshot.synthetic));
+        HomeEmptyStateTitle().Text(strings.HomeEmptyTitle(snapshot.connection, snapshot.synthetic));
+        HomeEmptyStateDetail().Text(strings.HomeEmptyDetail(snapshot.connection, snapshot.synthetic));
 
         HomeSyntheticNotice().IsOpen(snapshot.synthetic);
         HomeSyntheticNotice().Visibility(snapshot.synthetic ? Visibility::Visible : Visibility::Collapsed);
@@ -146,7 +111,7 @@ namespace winrt::Pastral::Manager::implementation
             snapshot.connection == ConnectionState::ProtocolMismatch ||
             snapshot.connection == ConnectionState::Error;
         auto const canRefresh = snapshot.connection == ConnectionState::Connected && !snapshot.synthetic;
-        RetryConnectionButton().Content(winrt::box_value(canRetry ? L"Retry" : L"Refresh"));
+        RetryConnectionButton().Content(winrt::box_value(strings.RetryAction(canRetry)));
         RetryConnectionButton().IsEnabled(canRetry || canRefresh);
         RetryConnectionButton().Visibility(
             (canRetry || canRefresh) ? Visibility::Visible : Visibility::Collapsed);
@@ -160,6 +125,6 @@ namespace winrt::Pastral::Manager::implementation
         auto const hasClips = m_recentClips.Size() > 0;
         HomeRecentClipsList().Visibility(hasClips ? Visibility::Visible : Visibility::Collapsed);
         HomeEmptyStatePanel().Visibility(hasClips ? Visibility::Collapsed : Visibility::Visible);
-        HomeRecentCount().Text(winrt::hstring(std::to_wstring(m_recentClips.Size()) + L" items"));
+        HomeRecentCount().Text(strings.FormatItemCount(m_recentClips.Size(), false));
     }
 }

@@ -35,4 +35,166 @@
   <data name="HistoryNoResultsDetail.Text" xml:space="preserve"><value>Start the local agent to capture privacy-safe history. Pastral never invents or reads data outside the verified provider.</value></data>
   <data name="HistoryDetailsTitle.Text" xml:space="preserve"><value>Clip details</value></data>
   <data name="HistoryDetailPreview.Text" xml:space="preserve"><value>Select a clip to inspect its source and available representations</value></data>
+  <data name="CommonItemCountOne" xml:space="preserve"><value>{0} item</value></data>
+  <data name="CommonItemCountMany" xml:space="preserve"><value>{0} items</value></data>
+  <data name="CommonFirstPageSuffix" xml:space="preserve"><value> · First page</value></data>
+  <data name="CommonRetry" xml:space="preserve"><value>Retry</value></data>
+  <data name="CommonRefresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="CommonAvailable" xml:space="preserve"><value>Available</value></data>
+  <data name="CommonUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="StatusLoadingTitle" xml:space="preserve"><value>Connecting to local agent</value></data>
+  <data name="StatusLoadingDetail" xml:space="preserve"><value>Checking the secure local connection.</value></data>
+  <data name="StatusConnectedTitle" xml:space="preserve"><value>Pastral agent is connected</value></data>
+  <data name="StatusConnectedDetail" xml:space="preserve"><value>The secure local connection is ready and storage checks passed.</value></data>
+  <data name="StatusConnectedFirstPageDetail" xml:space="preserve"><value>The secure local connection returned the first bounded page of history.</value></data>
+  <data name="StatusConnectedCurrentPageDetail" xml:space="preserve"><value>The secure local connection returned the current bounded history page.</value></data>
+  <data name="StatusDisconnectedTitle" xml:space="preserve"><value>Pastral agent is not connected</value></data>
+  <data name="StatusDisconnectedDetail" xml:space="preserve"><value>Start the local agent, then retry the authenticated connection.</value></data>
+  <data name="StatusTimeoutTitle" xml:space="preserve"><value>Pastral agent did not respond</value></data>
+  <data name="StatusTimeoutDetail" xml:space="preserve"><value>The local agent took too long to respond. Check it, then retry.</value></data>
+  <data name="StatusProtocolMismatchTitle" xml:space="preserve"><value>Pastral versions are incompatible</value></data>
+  <data name="StatusProtocolMismatchDetail" xml:space="preserve"><value>The manager and local agent use incompatible connection versions.</value></data>
+  <data name="StatusAuthenticationFailedTitle" xml:space="preserve"><value>Pastral agent authentication failed</value></data>
+  <data name="StatusAuthenticationFailedDetail" xml:space="preserve"><value>The local agent identity could not be authenticated. Restart or repair the installation before retrying.</value></data>
+  <data name="StatusUnhealthyTitle" xml:space="preserve"><value>Pastral agent needs attention</value></data>
+  <data name="StatusUnhealthyDetail" xml:space="preserve"><value>The agent reported a privacy-policy or storage-integrity failure. History remains unavailable.</value></data>
+  <data name="StatusInvalidConfigurationTitle" xml:space="preserve"><value>Pastral connection configuration is invalid</value></data>
+  <data name="StatusInvalidConfigurationDetail" xml:space="preserve"><value>The local data location is not valid for the secure connection.</value></data>
+  <data name="StatusAbiMismatchTitle" xml:space="preserve"><value>Pastral bridge versions are incompatible</value></data>
+  <data name="StatusAbiMismatchDetail" xml:space="preserve"><value>The manager and local IPC bridge use different native interface versions.</value></data>
+  <data name="StatusHistoryBridgeUnavailableTitle" xml:space="preserve"><value>Pastral history bridge is unavailable</value></data>
+  <data name="StatusHistoryBridgeUnavailableDetail" xml:space="preserve"><value>Repair the installation so the manager can load the bounded History interface.</value></data>
+  <data name="StatusHistoryChangedTitle" xml:space="preserve"><value>Pastral history changed during refresh</value></data>
+  <data name="StatusHistoryChangedDetail" xml:space="preserve"><value>The bounded history page changed too quickly to copy safely. Retry the request.</value></data>
+  <data name="StatusInternalErrorTitle" xml:space="preserve"><value>Pastral agent connection failed</value></data>
+  <data name="StatusInternalErrorDetail" xml:space="preserve"><value>The manager could not complete the secure local connection check.</value></data>
+  <data name="StatusSyntheticTitle" xml:space="preserve"><value>Synthetic preview data</value></data>
+  <data name="StatusSyntheticDetail" xml:space="preserve"><value>These bounded examples exercise manager layout and accessibility. They are not clipboard history.</value></data>
+  <data name="StoragePreparing" xml:space="preserve"><value>Preparing local status</value></data>
+  <data name="StorageConnected" xml:space="preserve"><value>Schema {0} · Integrity verified · {1}</value></data>
+  <data name="StorageDisconnected" xml:space="preserve"><value>Unavailable until the local agent is connected</value></data>
+  <data name="StorageTimeout" xml:space="preserve"><value>Unavailable because the local agent timed out</value></data>
+  <data name="StorageVersionMismatch" xml:space="preserve"><value>Unavailable until manager and agent versions match</value></data>
+  <data name="StorageSynthetic" xml:space="preserve"><value>Synthetic examples only · No database or blob access</value></data>
+  <data name="StorageUnhealthy" xml:space="preserve"><value>Unavailable until the local agent is healthy</value></data>
+  <data name="ProfileDevelopment" xml:space="preserve"><value>Development</value></data>
+  <data name="ProfileOrdinary" xml:space="preserve"><value>Ordinary</value></data>
+  <data name="CaptureConnecting" xml:space="preserve"><value>Connecting securely</value></data>
+  <data name="CapturePreviewMode" xml:space="preserve"><value>Preview mode</value></data>
+  <data name="CaptureConnected" xml:space="preserve"><value>Connected</value></data>
+  <data name="CapturePaused" xml:space="preserve"><value>Paused</value></data>
+  <data name="CaptureVersionMismatch" xml:space="preserve"><value>Version mismatch</value></data>
+  <data name="CaptureNeedsAttention" xml:space="preserve"><value>Needs attention</value></data>
+  <data name="HomeEmptyLoadingTitle" xml:space="preserve"><value>Connecting to local agent</value></data>
+  <data name="HomeEmptyLoadingDetail" xml:space="preserve"><value>Recent clips will appear after the secure local connection is ready.</value></data>
+  <data name="HomeEmptySyntheticTitle" xml:space="preserve"><value>No synthetic previews are available</value></data>
+  <data name="HomeEmptySyntheticDetail" xml:space="preserve"><value>The Debug presentation provider returned no bounded preview records.</value></data>
+  <data name="HomeEmptyConnectedTitle" xml:space="preserve"><value>No clipboard history yet</value></data>
+  <data name="HomeEmptyConnectedDetail" xml:space="preserve"><value>New safe clipboard previews will appear after the local agent captures them.</value></data>
+  <data name="HomeEmptyUnavailableTitle" xml:space="preserve"><value>Recent clips are unavailable</value></data>
+  <data name="HomeEmptyDisconnectedDetail" xml:space="preserve"><value>Start the local agent, then retry the authenticated connection.</value></data>
+  <data name="HomeEmptyPausedTitle" xml:space="preserve"><value>Capture is paused</value></data>
+  <data name="HomeEmptyPausedDetail" xml:space="preserve"><value>Resume capture from the agent before expecting new clipboard activity.</value></data>
+  <data name="HomeEmptyProtocolDetail" xml:space="preserve"><value>Update the manager and agent to compatible versions, then retry.</value></data>
+  <data name="HomeEmptyErrorDetail" xml:space="preserve"><value>Resolve the manager status above before requesting clipboard history.</value></data>
+  <data name="HistoryActivityRefreshing" xml:space="preserve"><value>Refreshing local history</value></data>
+  <data name="HistoryActivitySearching" xml:space="preserve"><value>Searching local history</value></data>
+  <data name="HistoryActivityLoading" xml:space="preserve"><value>Loading local history</value></data>
+  <data name="HistoryEmptyLoadingTitle" xml:space="preserve"><value>Loading local history</value></data>
+  <data name="HistoryEmptyLoadingDetail" xml:space="preserve"><value>The manager is checking the authenticated local connection and first bounded page.</value></data>
+  <data name="HistoryEmptyDisconnectedTitle" xml:space="preserve"><value>History is not connected</value></data>
+  <data name="HistoryEmptyDisconnectedDetail" xml:space="preserve"><value>Start the local agent, then retry. The manager never opens storage directly.</value></data>
+  <data name="HistoryEmptyUnavailableTitle" xml:space="preserve"><value>History is unavailable</value></data>
+  <data name="HistoryEmptyUnavailableDetail" xml:space="preserve"><value>Resolve the local connection issue before requesting history.</value></data>
+  <data name="HistoryEmptyNoMatchTitle" xml:space="preserve"><value>No matching clips</value></data>
+  <data name="HistoryEmptyNoMatchDetail" xml:space="preserve"><value>Check the literal search text or clear it to return to recent safe previews.</value></data>
+  <data name="HistoryEmptyNoHistoryTitle" xml:space="preserve"><value>No clipboard history yet</value></data>
+  <data name="HistoryEmptyNoHistoryDetail" xml:space="preserve"><value>New safe clipboard previews will appear here after the local agent captures them.</value></data>
+  <data name="RelativeJustNow" xml:space="preserve"><value>Just now</value></data>
+  <data name="RelativeMinutes" xml:space="preserve"><value>{0} min ago</value></data>
+  <data name="RelativeHourOne" xml:space="preserve"><value>{0} hour ago</value></data>
+  <data name="RelativeHoursMany" xml:space="preserve"><value>{0} hours ago</value></data>
+  <data name="RelativeDayOne" xml:space="preserve"><value>{0} day ago</value></data>
+  <data name="RelativeDaysMany" xml:space="preserve"><value>{0} days ago</value></data>
+  <data name="RelativeMonthPlus" xml:space="preserve"><value>More than a month ago</value></data>
+  <data name="ClipTypeText" xml:space="preserve"><value>Text</value></data>
+  <data name="ClipTypeCode" xml:space="preserve"><value>Code</value></data>
+  <data name="ClipTypeLink" xml:space="preserve"><value>Link</value></data>
+  <data name="ClipTypeImage" xml:space="preserve"><value>Image</value></data>
+  <data name="ClipTypeFileReference" xml:space="preserve"><value>File reference</value></data>
+  <data name="RepresentationTextPlain" xml:space="preserve"><value>Unicode text · Plain text</value></data>
+  <data name="RepresentationWebLink" xml:space="preserve"><value>Unicode text · Web link</value></data>
+  <data name="RepresentationImage" xml:space="preserve"><value>PNG · Bitmap</value></data>
+  <data name="RepresentationReferenceOnly" xml:space="preserve"><value>Reference only</value></data>
+  <data name="RepresentationUnavailable" xml:space="preserve"><value>Preview metadata only · Content unavailable</value></data>
+  <data name="RepresentationTextTruncated" xml:space="preserve"><value>Text preview · Truncated</value></data>
+  <data name="RepresentationTextPreview" xml:space="preserve"><value>Text preview</value></data>
+  <data name="StatePinnedUnavailable" xml:space="preserve"><value>Pinned · Unavailable</value></data>
+  <data name="StatePinnedTruncated" xml:space="preserve"><value>Pinned · Preview truncated</value></data>
+  <data name="StatePinned" xml:space="preserve"><value>Pinned</value></data>
+  <data name="StateTruncated" xml:space="preserve"><value>Preview truncated</value></data>
+  <data name="ClipAutomationName" xml:space="preserve"><value>{0}. Source: {1}. Type: {2}. Profile: {3}. Time: {4}. State: {5}.</value></data>
+  <data name="HistorySelectItem" xml:space="preserve"><value>Select a history item</value></data>
+  <data name="HomePageContent.AutomationProperties.Name" xml:space="preserve"><value>Home page content</value></data>
+  <data name="HomeHeroIconGlyph.AutomationProperties.Name" xml:space="preserve"><value>Clipboard memory</value></data>
+  <data name="HomeConnectionStatus.AutomationProperties.Name" xml:space="preserve"><value>Manager connection status</value></data>
+  <data name="HomeSyntheticNotice.AutomationProperties.Name" xml:space="preserve"><value>Synthetic preview disclosure</value></data>
+  <data name="HomeSyntheticNotice.Title" xml:space="preserve"><value>Synthetic preview data</value></data>
+  <data name="HomeSyntheticNotice.Message" xml:space="preserve"><value>These six bounded examples exist only in Debug builds and are not clipboard history.</value></data>
+  <data name="HomeOperationalStateRegion.AutomationProperties.Name" xml:space="preserve"><value>Operational state</value></data>
+  <data name="HomeLoadingIndicator.AutomationProperties.Name" xml:space="preserve"><value>Connecting to local agent</value></data>
+  <data name="HomeStatusIcon.AutomationProperties.Name" xml:space="preserve"><value>Manager status</value></data>
+  <data name="RetryConnectionButton.AutomationProperties.Name" xml:space="preserve"><value>Refresh local agent connection</value></data>
+  <data name="RetryConnectionButton.Content" xml:space="preserve"><value>Refresh</value></data>
+  <data name="HomeOverviewRegion.AutomationProperties.Name" xml:space="preserve"><value>System overview</value></data>
+  <data name="HomeCaptureSection.AutomationProperties.Name" xml:space="preserve"><value>Capture state section</value></data>
+  <data name="HomeCaptureIcon.AutomationProperties.Name" xml:space="preserve"><value>Capture state</value></data>
+  <data name="HomeCaptureLabel.Text" xml:space="preserve"><value>Capture state</value></data>
+  <data name="HomeCaptureHelp.Text" xml:space="preserve"><value>The manager shows only state supplied through its provider boundary.</value></data>
+  <data name="HomeProfileSection.AutomationProperties.Name" xml:space="preserve"><value>Active profile section</value></data>
+  <data name="HomeProfileIcon.AutomationProperties.Name" xml:space="preserve"><value>Active profile</value></data>
+  <data name="HomeProfileLabel.Text" xml:space="preserve"><value>Active profile</value></data>
+  <data name="HomeProfileHelp.Text" xml:space="preserve"><value>Private remains unavailable until encryption, lock, and recovery gates pass.</value></data>
+  <data name="HomeStorageSection.AutomationProperties.Name" xml:space="preserve"><value>Local data section</value></data>
+  <data name="HomeStorageIcon.AutomationProperties.Name" xml:space="preserve"><value>Local data</value></data>
+  <data name="HomeStorageLabel.Text" xml:space="preserve"><value>Local data</value></data>
+  <data name="HomeStorageHelp.Text" xml:space="preserve"><value>The manager never opens SQLite or blob storage directly.</value></data>
+  <data name="HomeRecentClipsList.AutomationProperties.Name" xml:space="preserve"><value>Recent clips</value></data>
+  <data name="HomeEmptyStatePanel.AutomationProperties.Name" xml:space="preserve"><value>Recent clips empty state</value></data>
+  <data name="HomeEmptyStateIcon.AutomationProperties.Name" xml:space="preserve"><value>History</value></data>
+  <data name="HomeEmptyStateTitle.Text" xml:space="preserve"><value>No recent clips are available</value></data>
+  <data name="HomeEmptyStateDetail.Text" xml:space="preserve"><value>Connect the local agent to receive privacy-safe history. Release builds never invent sample data.</value></data>
+  <data name="HistoryPageContent.AutomationProperties.Name" xml:space="preserve"><value>History page content</value></data>
+  <data name="HistoryConnectionStatus.AutomationProperties.Name" xml:space="preserve"><value>History availability status</value></data>
+  <data name="HistorySyntheticNotice.AutomationProperties.Name" xml:space="preserve"><value>Synthetic history disclosure</value></data>
+  <data name="HistorySyntheticNotice.Title" xml:space="preserve"><value>Synthetic preview data</value></data>
+  <data name="HistorySyntheticNotice.Message" xml:space="preserve"><value>These bounded examples exist only in Debug builds and are not clipboard history.</value></data>
+  <data name="HistorySearchBox.AutomationProperties.HelpText" xml:space="preserve"><value>Searches only privacy-safe preview metadata supplied by the active provider</value></data>
+  <data name="HistoryClearButton.AutomationProperties.Name" xml:space="preserve"><value>Clear history search</value></data>
+  <data name="HistoryClearButton.Content" xml:space="preserve"><value>Clear</value></data>
+  <data name="HistoryRetryButton.AutomationProperties.Name" xml:space="preserve"><value>Retry local agent connection</value></data>
+  <data name="HistoryRetryButton.Content" xml:space="preserve"><value>Retry</value></data>
+  <data name="HistoryResultsRegion.AutomationProperties.Name" xml:space="preserve"><value>History results</value></data>
+  <data name="HistoryResultsList.AutomationProperties.Name" xml:space="preserve"><value>History results list</value></data>
+  <data name="HistoryNoResultsPanel.AutomationProperties.Name" xml:space="preserve"><value>History empty or no-results state</value></data>
+  <data name="HistoryLoadingIndicator.AutomationProperties.Name" xml:space="preserve"><value>Connecting to local agent</value></data>
+  <data name="HistoryEmptyIconGlyph.AutomationProperties.Name" xml:space="preserve"><value>Clipboard history</value></data>
+  <data name="HistoryDetailsRegion.AutomationProperties.Name" xml:space="preserve"><value>Selected clip details</value></data>
+  <data name="HistoryBackButton.AutomationProperties.Name" xml:space="preserve"><value>Back to history results</value></data>
+  <data name="HistoryBackButton.Content" xml:space="preserve"><value>Back to results</value></data>
+  <data name="HistoryFieldSource.Text" xml:space="preserve"><value>Source</value></data>
+  <data name="HistoryFieldType.Text" xml:space="preserve"><value>Type</value></data>
+  <data name="HistoryFieldRepresentations.Text" xml:space="preserve"><value>Representations</value></data>
+  <data name="HistoryFieldProfile.Text" xml:space="preserve"><value>Profile</value></data>
+  <data name="HistoryFieldState.Text" xml:space="preserve"><value>State</value></data>
+  <data name="HistoryAvailabilityWarning.AutomationProperties.Name" xml:space="preserve"><value>Selected clip availability warning</value></data>
+  <data name="HistoryAvailabilityWarning.Title" xml:space="preserve"><value>Content unavailable</value></data>
+  <data name="HistoryAvailabilityWarning.Message" xml:space="preserve"><value>The referenced content is unavailable, so paste and copy remain disabled.</value></data>
+  <data name="HistoryPasteButton.AutomationProperties.Name" xml:space="preserve"><value>Paste selected representation</value></data>
+  <data name="HistoryPasteButton.AutomationProperties.HelpText" xml:space="preserve"><value>Paste is disabled until versioned history IPC and destination validation are implemented</value></data>
+  <data name="HistoryPasteButton.Content" xml:space="preserve"><value>Paste</value></data>
+  <data name="HistoryCopyButton.AutomationProperties.Name" xml:space="preserve"><value>Copy selected representation</value></data>
+  <data name="HistoryCopyButton.AutomationProperties.HelpText" xml:space="preserve"><value>Copy is disabled until versioned history IPC is implemented</value></data>
+  <data name="HistoryCopyButton.Content" xml:space="preserve"><value>Copy</value></data>
+  <data name="HistoryActionsNote.Text" xml:space="preserve"><value>Actions remain unavailable in this build; the manager never bypasses the authenticated agent boundary.</value></data>
 </root>

@@ -128,16 +128,12 @@ namespace Pastral::Manager::Presentation
             return { DataRootMode::Normal, std::move(path) };
         }
 
-        [[nodiscard]] ManagerSnapshot ErrorSnapshot(
-            std::wstring title,
-            std::wstring detail)
+        [[nodiscard]] ManagerSnapshot ErrorSnapshot(ManagerStatusCode statusCode)
         {
             ManagerSnapshot snapshot;
             snapshot.connection = ConnectionState::Error;
-            snapshot.statusTitle = std::move(title);
-            snapshot.statusDetail = std::move(detail);
-            snapshot.activeProfile = L"Ordinary";
-            snapshot.storageSummary = L"Unavailable until the local agent is healthy";
+            snapshot.statusCode = statusCode;
+            snapshot.storageSchemaVersion = 0;
             snapshot.clips.clear();
             snapshot.query.clear();
             snapshot.hasMore = false;
@@ -149,69 +145,44 @@ namespace Pastral::Manager::Presentation
             Services::ManagerIpcBridgeHealth const& health)
         {
             ManagerSnapshot snapshot;
-            snapshot.activeProfile = L"Ordinary";
             snapshot.clips.clear();
             snapshot.query.clear();
             snapshot.hasMore = false;
             snapshot.synthetic = false;
+            snapshot.storageSchemaVersion = health.storageSchemaVersion;
 
             using Services::ManagerIpcBridgeStatus;
             switch (health.status)
             {
             case ManagerIpcBridgeStatus::Connected:
                 snapshot.connection = ConnectionState::Connected;
-                snapshot.statusTitle = L"Pastral agent is connected";
-                snapshot.statusDetail =
-                    L"The secure local connection is ready and storage checks passed.";
-                snapshot.storageSummary =
-                    L"Schema " + std::to_wstring(health.storageSchemaVersion) + L" · Integrity verified";
+                snapshot.statusCode = ManagerStatusCode::Connected;
                 break;
             case ManagerIpcBridgeStatus::Disconnected:
                 snapshot.connection = ConnectionState::Disconnected;
-                snapshot.statusTitle = L"Pastral agent is not connected";
-                snapshot.statusDetail =
-                    L"Start the local agent, then retry the authenticated connection.";
-                snapshot.storageSummary = L"Unavailable until the local agent is connected";
+                snapshot.statusCode = ManagerStatusCode::Disconnected;
                 break;
             case ManagerIpcBridgeStatus::Timeout:
                 snapshot.connection = ConnectionState::Disconnected;
-                snapshot.statusTitle = L"Pastral agent did not respond";
-                snapshot.statusDetail =
-                    L"The local agent took too long to respond. Check it, then retry.";
-                snapshot.storageSummary = L"Unavailable because the local agent timed out";
+                snapshot.statusCode = ManagerStatusCode::Timeout;
                 break;
             case ManagerIpcBridgeStatus::ProtocolMismatch:
                 snapshot.connection = ConnectionState::ProtocolMismatch;
-                snapshot.statusTitle = L"Pastral versions are incompatible";
-                snapshot.statusDetail =
-                    L"The manager and local agent use incompatible connection versions.";
-                snapshot.storageSummary = L"Unavailable until manager and agent versions match";
+                snapshot.statusCode = ManagerStatusCode::ProtocolMismatch;
                 break;
             case ManagerIpcBridgeStatus::AuthenticationFailed:
-                return ErrorSnapshot(
-                    L"Pastral agent authentication failed",
-                    L"The local agent identity could not be authenticated. Restart or repair the installation before retrying.");
+                return ErrorSnapshot(ManagerStatusCode::AuthenticationFailed);
             case ManagerIpcBridgeStatus::Unhealthy:
-                return ErrorSnapshot(
-                    L"Pastral agent needs attention",
-                    L"The agent reported a privacy-policy or storage-integrity failure. History remains unavailable.");
+                return ErrorSnapshot(ManagerStatusCode::Unhealthy);
             case ManagerIpcBridgeStatus::InvalidArgument:
-                return ErrorSnapshot(
-                    L"Pastral connection configuration is invalid",
-                    L"The diagnostic or local data location is not valid for the secure local connection.");
+                return ErrorSnapshot(ManagerStatusCode::InvalidConfiguration);
             case ManagerIpcBridgeStatus::AbiMismatch:
-                return ErrorSnapshot(
-                    L"Pastral bridge versions are incompatible",
-                    L"The manager and local IPC bridge use different native interface versions.");
+                return ErrorSnapshot(ManagerStatusCode::AbiMismatch);
             case ManagerIpcBridgeStatus::InsufficientBuffer:
-                return ErrorSnapshot(
-                    L"Pastral history changed during refresh",
-                    L"The bounded history page changed too quickly to copy safely. Retry the request.");
+                return ErrorSnapshot(ManagerStatusCode::HistoryChanged);
             case ManagerIpcBridgeStatus::InternalError:
             default:
-                return ErrorSnapshot(
-                    L"Pastral agent connection failed",
-                    L"The manager could not complete the secure local connection check.");
+                return ErrorSnapshot(ManagerStatusCode::InternalError);
             }
             return snapshot;
         }
@@ -234,46 +205,22 @@ namespace Pastral::Manager::Presentation
             return value;
         }
 
-        [[nodiscard]] std::wstring RelativeTime(std::int64_t observedAtUnixMicros)
+        [[nodiscard]] std::int64_t ObservedAtAgo(std::chrono::microseconds elapsed)
         {
             using namespace std::chrono;
             auto const now = duration_cast<microseconds>(
                 system_clock::now().time_since_epoch()).count();
-            auto const elapsed = now > observedAtUnixMicros
-                ? now - observedAtUnixMicros
-                : 0;
-            auto const seconds = elapsed / 1'000'000;
-            if (seconds < 60)
-            {
-                return L"Just now";
-            }
-            auto const minutes = seconds / 60;
-            if (minutes < 60)
-            {
-                return std::to_wstring(minutes) + (minutes == 1 ? L" min ago" : L" min ago");
-            }
-            auto const hours = minutes / 60;
-            if (hours < 24)
-            {
-                return std::to_wstring(hours) + (hours == 1 ? L" hour ago" : L" hours ago");
-            }
-            auto const days = hours / 24;
-            if (days < 30)
-            {
-                return std::to_wstring(days) + (days == 1 ? L" day ago" : L" days ago");
-            }
-            return L"More than a month ago";
+            return now - elapsed.count();
         }
 
         [[nodiscard]] ClipPreviewData MakeClip(
             std::wstring id,
             std::wstring safePreview,
             std::wstring source,
-            std::wstring relativeTime,
+            std::int64_t observedAtUnixMicros,
             std::wstring typeLabel,
             std::wstring profile,
             std::wstring representationSummary,
-            std::wstring automationName,
             bool pinned,
             bool unavailable,
             bool previewTruncated = false)
@@ -282,11 +229,10 @@ namespace Pastral::Manager::Presentation
             clip.id = std::move(id);
             clip.safePreview = std::move(safePreview);
             clip.source = std::move(source);
-            clip.relativeTime = std::move(relativeTime);
+            clip.observedAtUnixMicros = observedAtUnixMicros;
             clip.typeLabel = std::move(typeLabel);
             clip.profile = std::move(profile);
             clip.representationSummary = std::move(representationSummary);
-            clip.automationName = std::move(automationName);
             clip.pinned = pinned;
             clip.unavailable = unavailable;
             clip.previewTruncated = previewTruncated;
@@ -300,7 +246,6 @@ namespace Pastral::Manager::Presentation
             auto const source = value.sourceLabel.has_value() && !value.sourceLabel->empty()
                 ? *value.sourceLabel
                 : L"Unknown source";
-            auto const relativeTime = RelativeTime(value.observedAtUnixMicros);
             std::wstring const type = unavailable ? L"Unavailable" : L"Text";
             auto const preview = unavailable
                 ? L"Preview unavailable"
@@ -308,20 +253,14 @@ namespace Pastral::Manager::Presentation
             auto const representation = unavailable
                 ? L"Preview metadata only · Content unavailable"
                 : (value.previewTruncated ? L"Text preview · Truncated" : L"Text preview");
-            auto automationName = type + L" clip from " + source + L", " + relativeTime;
-            if (value.previewTruncated)
-            {
-                automationName += L", preview truncated";
-            }
             return MakeClip(
                 FormatUuid(value.eventId),
                 preview,
                 source,
-                relativeTime,
+                value.observedAtUnixMicros,
                 type,
                 L"Ordinary",
                 representation,
-                automationName,
                 value.pinned,
                 unavailable,
                 value.previewTruncated);
@@ -357,11 +296,8 @@ namespace Pastral::Manager::Presentation
         {
             ManagerSnapshot snapshot;
             snapshot.connection = ConnectionState::Connected;
-            snapshot.statusTitle = L"Synthetic preview data";
-            snapshot.statusDetail =
-                L"These bounded examples exercise manager layout and accessibility. They are not clipboard history.";
-            snapshot.activeProfile = L"Development";
-            snapshot.storageSummary = L"Synthetic examples only · No database or blob access";
+            snapshot.statusCode = ManagerStatusCode::Synthetic;
+            snapshot.storageSchemaVersion = 0;
             snapshot.query = query;
             snapshot.hasMore = false;
             snapshot.synthetic = true;
@@ -370,66 +306,60 @@ namespace Pastral::Manager::Presentation
                     L"synthetic-clip-text",
                     L"Build verification passed for the local workspace.",
                     L"Visual Studio Code",
-                    L"2 min ago",
+                    ObservedAtAgo(std::chrono::minutes(2)),
                     L"Text",
                     L"Development",
                     L"Unicode text · Plain text",
-                    L"Text clip from Visual Studio Code, copied 2 minutes ago",
                     false,
                     false),
                 MakeClip(
                     L"synthetic-clip-code",
                     L"cargo test --locked --workspace --all-targets",
                     L"Windows Terminal",
-                    L"8 min ago",
+                    ObservedAtAgo(std::chrono::minutes(8)),
                     L"Code",
                     L"Development",
                     L"Unicode text · Plain text",
-                    L"Code clip from Windows Terminal, copied 8 minutes ago",
                     false,
                     false),
                 MakeClip(
                     L"synthetic-clip-url",
                     L"learn.microsoft.com/windows/apps/windows-app-sdk/",
                     L"Microsoft Edge",
-                    L"18 min ago",
+                    ObservedAtAgo(std::chrono::minutes(18)),
                     L"Link",
                     L"Ordinary",
                     L"Unicode text · Web link",
-                    L"Link from Microsoft Edge, copied 18 minutes ago",
                     false,
                     false),
                 MakeClip(
                     L"synthetic-clip-image",
                     L"Screenshot · 1920 × 1080",
                     L"Snipping Tool",
-                    L"34 min ago",
+                    ObservedAtAgo(std::chrono::minutes(34)),
                     L"Image",
                     L"Ordinary",
                     L"PNG · Bitmap",
-                    L"Image from Snipping Tool, copied 34 minutes ago",
                     false,
                     false),
                 MakeClip(
                     L"synthetic-clip-pinned",
                     L"Release checklist: verify signatures and recovery.",
                     L"Pastral Manager",
-                    L"Yesterday",
+                    ObservedAtAgo(std::chrono::days(1)),
                     L"Text",
                     L"Development",
                     L"Unicode text · Plain text",
-                    L"Pinned text clip from Pastral Manager, copied yesterday",
                     true,
                     false),
                 MakeClip(
                     L"synthetic-clip-unavailable",
                     L"Referenced file is no longer available.",
                     L"File Explorer",
-                    L"3 days ago",
+                    ObservedAtAgo(std::chrono::days(3)),
                     L"File reference",
                     L"Ordinary",
                     L"Reference only",
-                    L"Unavailable file reference from File Explorer, copied 3 days ago",
                     false,
                     true),
             };
@@ -481,9 +411,7 @@ namespace Pastral::Manager::Presentation
             auto const root = ResolveDataRoot();
             if (root.mode == DataRootMode::Invalid)
             {
-                return ErrorSnapshot(
-                    L"Pastral connection configuration is invalid",
-                    L"The manager could not resolve a safe local data location for the secure connection.");
+                return ErrorSnapshot(ManagerStatusCode::InvalidConfiguration);
             }
 
             auto const health = Services::ManagerIpcBridge::QueryHealth(
@@ -496,9 +424,7 @@ namespace Pastral::Manager::Presentation
             }
             if (!Services::ManagerIpcBridge::IsReadAvailable())
             {
-                return ErrorSnapshot(
-                    L"Pastral history bridge is unavailable",
-                    L"Repair the installation so the manager can load the bounded History interface.");
+                return ErrorSnapshot(ManagerStatusCode::HistoryBridgeUnavailable);
             }
 
             auto const page = kind == RequestKind::Search && !query.empty()
@@ -523,12 +449,9 @@ namespace Pastral::Manager::Presentation
             {
                 snapshot.clips.push_back(MapClip(item));
             }
-            snapshot.statusDetail = page.hasMore
-                ? L"The secure local connection returned the first bounded page of history."
-                : L"The secure local connection returned the current bounded history page.";
-            snapshot.storageSummary +=
-                L" · " + std::to_wstring(snapshot.clips.size()) +
-                (snapshot.clips.size() == 1 ? L" item" : L" items");
+            snapshot.statusCode = page.hasMore
+                ? ManagerStatusCode::ConnectedFirstPage
+                : ManagerStatusCode::ConnectedCurrentPage;
             return snapshot;
         }
 
@@ -625,9 +548,7 @@ namespace Pastral::Manager::Presentation
                     }
                     catch (...)
                     {
-                        snapshot = ErrorSnapshot(
-                            L"Pastral agent connection failed",
-                            L"The manager could not prepare the secure local connection state.");
+                        snapshot = ErrorSnapshot(ManagerStatusCode::InternalError);
                     }
 
                     bool deliver = false;
@@ -661,10 +582,8 @@ namespace Pastral::Manager::Presentation
     {
         ManagerSnapshot snapshot;
         snapshot.connection = ConnectionState::Loading;
-        snapshot.statusTitle = L"Connecting to local agent";
-        snapshot.statusDetail = L"Checking the secure local connection.";
-        snapshot.activeProfile = L"Ordinary";
-        snapshot.storageSummary = L"Preparing local status";
+        snapshot.statusCode = ManagerStatusCode::Loading;
+        snapshot.storageSchemaVersion = 0;
         snapshot.clips.clear();
         snapshot.query.clear();
         snapshot.hasMore = false;

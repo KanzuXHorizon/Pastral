@@ -12,6 +12,7 @@
         MaxWidth="{StaticResource PastralContentMaxWidth}"
         HorizontalAlignment="Stretch"
         VerticalAlignment="Stretch"
+        x:Uid="HistoryPageContent"
         AutomationProperties.Name="History page content"
         Padding="28,24,28,24"
         RowSpacing="18">
@@ -124,6 +125,7 @@
                 Spacing="12">
                 <InfoBar
                     x:Name="HistoryConnectionStatus"
+                    x:Uid="HistoryConnectionStatus"
                     AutomationProperties.LiveSetting="Polite"
                     AutomationProperties.Name="History availability status"
                     IsClosable="False"
@@ -131,6 +133,7 @@
                     Severity="Informational" />
                 <InfoBar
                     x:Name="HistorySyntheticNotice"
+                    x:Uid="HistorySyntheticNotice"
                     AutomationProperties.Name="Synthetic history disclosure"
                     IsClosable="False"
                     IsOpen="True"
@@ -185,6 +188,7 @@
                     TextChanged="SearchBox_TextChanged" />
                 <Button
                     x:Name="HistoryClearButton"
+                    x:Uid="HistoryClearButton"
                     Grid.Row="1"
                     Grid.Column="1"
                     Margin="0,12,0,0"
@@ -195,6 +199,7 @@
                     VerticalAlignment="Bottom" />
                 <Button
                     x:Name="HistoryRetryButton"
+                    x:Uid="HistoryRetryButton"
                     Grid.Row="1"
                     Grid.Column="2"
                     Margin="0,12,0,0"
@@ -220,6 +225,7 @@
 
                 <Border
                     x:Name="HistoryResultsRegion"
+                    x:Uid="HistoryResultsRegion"
                     AutomationProperties.Name="History results"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Stretch"
@@ -227,6 +233,7 @@
                     <Grid>
                         <ListView
                             x:Name="HistoryResultsList"
+                            x:Uid="HistoryResultsList"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Stretch"
                             AutomationProperties.Name="History results list"
@@ -297,6 +304,7 @@
 
                         <StackPanel
                             x:Name="HistoryNoResultsPanel"
+                            x:Uid="HistoryNoResultsPanel"
                             MaxWidth="440"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
@@ -304,6 +312,7 @@
                             Spacing="12">
                             <ProgressRing
                                 x:Name="HistoryLoadingIndicator"
+                                x:Uid="HistoryLoadingIndicator"
                                 Width="32"
                                 Height="32"
                                 HorizontalAlignment="Center"
@@ -318,6 +327,7 @@
                                 Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                 CornerRadius="14">
                                 <FontIcon
+                                    x:Uid="HistoryEmptyIconGlyph"
                                     AutomationProperties.Name="Clipboard history"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
@@ -342,6 +352,7 @@
 
                 <Border
                     x:Name="HistoryDetailsRegion"
+                    x:Uid="HistoryDetailsRegion"
                     Grid.Column="1"
                     AutomationProperties.Name="Selected clip details"
                     HorizontalAlignment="Stretch"
@@ -353,6 +364,7 @@
                         <StackPanel Spacing="16">
                             <Button
                                 x:Name="HistoryBackButton"
+                                x:Uid="HistoryBackButton"
                                 HorizontalAlignment="Left"
                                 AutomationProperties.Name="Back to history results"
                                 Click="BackToResults_Click"
@@ -392,7 +404,7 @@
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <TextBlock Style="{StaticResource PastralMetadataTextStyle}" Text="Source" />
+                            <TextBlock x:Uid="HistoryFieldSource" Style="{StaticResource PastralMetadataTextStyle}" Text="Source" />
                             <TextBlock
                                 x:Name="HistoryDetailSource"
                                 Grid.Column="1"
@@ -400,6 +412,7 @@
                                 Text="Unavailable"
                                 TextWrapping="Wrap" />
                             <TextBlock
+                                x:Uid="HistoryFieldType"
                                 Grid.Row="1"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Type" />
@@ -410,6 +423,7 @@
                                 Style="{StaticResource BodyTextBlockStyle}"
                                 Text="Unavailable" />
                             <TextBlock
+                                x:Uid="HistoryFieldRepresentations"
                                 Grid.Row="2"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Representations" />
@@ -421,6 +435,7 @@
                                 Text="Unavailable"
                                 TextWrapping="Wrap" />
                             <TextBlock
+                                x:Uid="HistoryFieldProfile"
                                 Grid.Row="3"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Profile" />
@@ -431,6 +446,7 @@
                                 Style="{StaticResource BodyTextBlockStyle}"
                                 Text="Unavailable" />
                             <TextBlock
+                                x:Uid="HistoryFieldState"
                                 Grid.Row="4"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="State" />
@@ -444,6 +460,7 @@
                         </Grid>
                         <InfoBar
                             x:Name="HistoryAvailabilityWarning"
+                            x:Uid="HistoryAvailabilityWarning"
                             AutomationProperties.Name="Selected clip availability warning"
                             IsClosable="False"
                             IsOpen="True"
@@ -456,18 +473,21 @@
                             Spacing="8">
                             <Button
                                 x:Name="HistoryPasteButton"
+                                x:Uid="HistoryPasteButton"
                                 AutomationProperties.HelpText="Paste is disabled until versioned history IPC and destination validation are implemented"
                                 AutomationProperties.Name="Paste selected representation"
                                 Content="Paste"
                                 IsEnabled="False" />
                             <Button
                                 x:Name="HistoryCopyButton"
+                                x:Uid="HistoryCopyButton"
                                 AutomationProperties.HelpText="Copy is disabled until versioned history IPC is implemented"
                                 AutomationProperties.Name="Copy selected representation"
                                 Content="Copy"
                                 IsEnabled="False" />
                         </StackPanel>
                             <TextBlock
+                                x:Uid="HistoryActionsNote"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Actions remain unavailable in this build; the manager never bypasses the authenticated agent boundary." />
                         </StackPanel>

@@ -5,6 +5,7 @@
     NavigationCacheMode="Enabled">
 
     <ScrollViewer
+        x:Uid="HomePageContent"
         AutomationProperties.Name="Home page content"
         HorizontalScrollBarVisibility="Disabled"
         VerticalScrollBarVisibility="Auto">
@@ -99,6 +100,7 @@
                         VerticalAlignment="Center"
                         Style="{StaticResource PastralBrandMarkStyle}">
                         <FontIcon
+                            x:Uid="HomeHeroIconGlyph"
                             AutomationProperties.Name="Clipboard memory"
                             FontSize="22"
                             Foreground="White"
@@ -112,6 +114,7 @@
                 Spacing="12">
                 <InfoBar
                     x:Name="HomeConnectionStatus"
+                    x:Uid="HomeConnectionStatus"
                     AutomationProperties.LiveSetting="Polite"
                     AutomationProperties.Name="Manager connection status"
                     IsClosable="False"
@@ -119,6 +122,7 @@
                     Severity="Informational" />
                 <InfoBar
                     x:Name="HomeSyntheticNotice"
+                    x:Uid="HomeSyntheticNotice"
                     AutomationProperties.Name="Synthetic preview disclosure"
                     IsClosable="False"
                     IsOpen="True"
@@ -130,6 +134,7 @@
 
             <Border
                 x:Name="HomeOperationalStateRegion"
+                x:Uid="HomeOperationalStateRegion"
                 Grid.Row="2"
                 AutomationProperties.Name="Operational state"
                 Style="{StaticResource PastralCardStyle}">
@@ -148,6 +153,7 @@
                     </Grid.RowDefinitions>
                     <ProgressRing
                         x:Name="HomeLoadingIndicator"
+                        x:Uid="HomeLoadingIndicator"
                         Width="24"
                         Height="24"
                         AutomationProperties.Name="Connecting to local agent"
@@ -156,6 +162,7 @@
                         Visibility="Collapsed" />
                     <FontIcon
                         x:Name="HomeStatusIcon"
+                        x:Uid="HomeStatusIcon"
                         Width="24"
                         AutomationProperties.Name="Manager status"
                         FontSize="20"
@@ -182,6 +189,7 @@
                     </StackPanel>
                     <Button
                         x:Name="RetryConnectionButton"
+                        x:Uid="RetryConnectionButton"
                         Grid.Column="2"
                         AutomationProperties.Name="Refresh local agent connection"
                         Click="RetryConnection_Click"
@@ -193,6 +201,7 @@
 
             <Border
                 x:Name="HomeOverviewRegion"
+                x:Uid="HomeOverviewRegion"
                 Grid.Row="3"
                 AutomationProperties.Name="System overview"
                 Style="{StaticResource PastralCardStyle}">
@@ -209,12 +218,13 @@
                             Text="Verified local state, profile protection, and storage boundaries." />
                     </StackPanel>
 
-                    <Grid ColumnSpacing="14">
+                    <Grid x:Uid="HomeCaptureSection" ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <FontIcon
+                            x:Uid="HomeCaptureIcon"
                             AutomationProperties.Name="Capture state"
                             FontSize="18"
                             Glyph="&#xE7C8;"
@@ -223,6 +233,7 @@
                             Grid.Column="1"
                             Spacing="3">
                             <TextBlock
+                                x:Uid="HomeCaptureLabel"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Capture state" />
                             <TextBlock
@@ -231,6 +242,7 @@
                                 Text="Unavailable"
                                 TextWrapping="Wrap" />
                             <TextBlock
+                                x:Uid="HomeCaptureHelp"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="The manager shows only state supplied through its provider boundary." />
                         </StackPanel>
@@ -241,12 +253,13 @@
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"
                         IsHitTestVisible="False" />
 
-                    <Grid ColumnSpacing="14">
+                    <Grid x:Uid="HomeProfileSection" ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <FontIcon
+                            x:Uid="HomeProfileIcon"
                             AutomationProperties.Name="Active profile"
                             FontSize="18"
                             Glyph="&#xE77B;"
@@ -255,6 +268,7 @@
                             Grid.Column="1"
                             Spacing="3">
                             <TextBlock
+                                x:Uid="HomeProfileLabel"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Active profile" />
                             <TextBlock
@@ -263,6 +277,7 @@
                                 Text="Ordinary"
                                 TextWrapping="Wrap" />
                             <TextBlock
+                                x:Uid="HomeProfileHelp"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Private remains unavailable until encryption, lock, and recovery gates pass." />
                         </StackPanel>
@@ -273,12 +288,13 @@
                         Background="{ThemeResource DividerStrokeColorDefaultBrush}"
                         IsHitTestVisible="False" />
 
-                    <Grid ColumnSpacing="14">
+                    <Grid x:Uid="HomeStorageSection" ColumnSpacing="14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <FontIcon
+                            x:Uid="HomeStorageIcon"
                             AutomationProperties.Name="Local data"
                             FontSize="18"
                             Glyph="&#xEDA2;"
@@ -287,6 +303,7 @@
                             Grid.Column="1"
                             Spacing="3">
                             <TextBlock
+                                x:Uid="HomeStorageLabel"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Local data" />
                             <TextBlock
@@ -295,6 +312,7 @@
                                 Text="Unavailable"
                                 TextWrapping="Wrap" />
                             <TextBlock
+                                x:Uid="HomeStorageHelp"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="The manager never opens SQLite or blob storage directly." />
                         </StackPanel>
@@ -342,6 +360,7 @@
 
                 <ListView
                     x:Name="HomeRecentClipsList"
+                    x:Uid="HomeRecentClipsList"
                     Grid.Row="1"
                     AutomationProperties.Name="Recent clips"
                     IsItemClickEnabled="False"
@@ -404,6 +423,7 @@
 
                 <Border
                     x:Name="HomeEmptyStatePanel"
+                    x:Uid="HomeEmptyStatePanel"
                     Grid.Row="1"
                     AutomationProperties.Name="Recent clips empty state"
                     Style="{StaticResource PastralCardStyle}">
@@ -418,6 +438,7 @@
                             Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                             CornerRadius="12">
                             <FontIcon
+                                x:Uid="HomeEmptyStateIcon"
                                 AutomationProperties.Name="History"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
@@ -430,10 +451,12 @@
                             Spacing="4">
                             <TextBlock
                                 x:Name="HomeEmptyStateTitle"
+                                x:Uid="HomeEmptyStateTitle"
                                 Style="{StaticResource SubtitleTextBlockStyle}"
                                 Text="No recent clips are available" />
                             <TextBlock
                                 x:Name="HomeEmptyStateDetail"
+                                x:Uid="HomeEmptyStateDetail"
                                 Style="{StaticResource PastralMetadataTextStyle}"
                                 Text="Connect the local agent to receive privacy-safe history. Release builds never invent sample data." />
                         </StackPanel>

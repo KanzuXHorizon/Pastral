@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -15,16 +16,34 @@ namespace Pastral::Manager::Presentation
         Error,
     };
 
+    enum class ManagerStatusCode
+    {
+        Loading,
+        Connected,
+        ConnectedFirstPage,
+        ConnectedCurrentPage,
+        Disconnected,
+        Timeout,
+        ProtocolMismatch,
+        AuthenticationFailed,
+        Unhealthy,
+        InvalidConfiguration,
+        AbiMismatch,
+        HistoryBridgeUnavailable,
+        HistoryChanged,
+        InternalError,
+        Synthetic,
+    };
+
     struct ClipPreviewData
     {
         std::wstring id;
         std::wstring safePreview;
         std::wstring source;
-        std::wstring relativeTime;
+        std::int64_t observedAtUnixMicros{};
         std::wstring typeLabel;
         std::wstring profile;
         std::wstring representationSummary;
-        std::wstring automationName;
         bool pinned{ false };
         bool unavailable{ false };
         bool previewTruncated{ false };
@@ -33,10 +52,8 @@ namespace Pastral::Manager::Presentation
     struct ManagerSnapshot
     {
         ConnectionState connection{ ConnectionState::Disconnected };
-        std::wstring statusTitle;
-        std::wstring statusDetail;
-        std::wstring activeProfile;
-        std::wstring storageSummary;
+        ManagerStatusCode statusCode{ ManagerStatusCode::Disconnected };
+        std::uint32_t storageSchemaVersion{};
         std::vector<ClipPreviewData> clips;
         std::wstring query;
         bool hasMore{ false };

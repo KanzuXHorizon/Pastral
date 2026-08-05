@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ClipPreviewViewModel.h"
+#include "../Services/ManagerStrings.h"
 
 #if __has_include("ClipPreviewViewModel.g.cpp")
 #include "ClipPreviewViewModel.g.cpp"
@@ -11,42 +12,22 @@ namespace winrt::Pastral::Manager::implementation
         : m_id(std::move(data.id)),
           m_safePreview(std::move(data.safePreview)),
           m_source(std::move(data.source)),
-          m_relativeTime(std::move(data.relativeTime)),
-          m_typeLabel(std::move(data.typeLabel)),
-          m_profile(std::move(data.profile)),
-          m_representationSummary(std::move(data.representationSummary)),
-          m_automationName(std::move(data.automationName)),
           m_pinned(data.pinned),
           m_unavailable(data.unavailable)
     {
-        if (!m_safePreview.empty())
-        {
-            std::wstring accessibleName{ m_safePreview.c_str() };
-            accessibleName.append(L". ");
-            accessibleName.append(m_automationName.c_str());
-            m_automationName = winrt::hstring(accessibleName);
-        }
-
-        if (m_pinned && m_unavailable)
-        {
-            m_stateSummary = L"Pinned · Unavailable";
-        }
-        else if (m_pinned && data.previewTruncated)
-        {
-            m_stateSummary = L"Pinned · Preview truncated";
-        }
-        else if (m_pinned)
-        {
-            m_stateSummary = L"Pinned";
-        }
-        else if (m_unavailable)
-        {
-            m_stateSummary = L"Unavailable";
-        }
-        else if (data.previewTruncated)
-        {
-            m_stateSummary = L"Preview truncated";
-        }
+        auto const& strings = ::Pastral::Manager::Presentation::ManagerStrings::Current();
+        m_relativeTime = strings.RelativeTime(data.observedAtUnixMicros);
+        m_typeLabel = strings.ClipType(data.typeLabel);
+        m_profile = strings.Profile(data.profile);
+        m_representationSummary = strings.Representation(data.representationSummary);
+        m_stateSummary = strings.StateSummary(m_pinned, m_unavailable, data.previewTruncated);
+        m_automationName = strings.ClipAutomationName(
+            m_safePreview.c_str(),
+            m_source.c_str(),
+            m_relativeTime.c_str(),
+            m_typeLabel.c_str(),
+            m_profile.c_str(),
+            m_stateSummary.c_str());
     }
 
     winrt::hstring ClipPreviewViewModel::Id() const
