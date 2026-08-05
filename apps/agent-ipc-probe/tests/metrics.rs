@@ -19,10 +19,12 @@ fn exact_ceilings_and_negative_runtime_deltas_are_accepted() {
 }
 
 #[test]
-fn zero_underflow_and_one_byte_over_each_ceiling_fail_closed() {
+fn zero_and_one_byte_over_each_ceiling_fail_closed() {
+    let smaller_admission = evaluate_footprint(3 * MIB, 2 * MIB, 1, 1, 1, 1).unwrap();
+    assert_eq!(smaller_admission.binary_delta_bytes(), MIB);
+
     let invalid = [
         evaluate_footprint(0, 1, 1, 1, 1, 1),
-        evaluate_footprint(2, 1, 1, 1, 1, 1),
         evaluate_footprint(1, 1 + 6 * MIB + 1, 1, 1, 1, 1),
         evaluate_footprint(1, 1, 1, 1, 1 + 12 * MIB + 1, 1),
         evaluate_footprint(1, 1, 1, 1, 1, 1 + 8 * MIB + 1),

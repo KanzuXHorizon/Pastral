@@ -1,6 +1,6 @@
 # ADR 0018: Protobuf control schema with bounded named-pipe framing
 
-**Status:** Proposed — Rust framing/schema, authenticated Windows transport, measured agent Health admission, and the native manager Health bridge pass; generated C++ schema parity, fuzzing, bulk cleanup, and production default-agent lifecycle gates remain open
+**Status:** Proposed — Rust framing/schema, authenticated Windows transport, native manager read bridge, and the production resident capture/read lifecycle pass; generated C++ schema parity, fuzzing, bulk cleanup, and adjacent-version compatibility gates remain open
 **Date:** 2026-08-04
 
 ## Context
@@ -157,7 +157,21 @@ Phase 3G connects the measured Health path to the unpackaged C++/WinRT manager w
 - Native verifier builds use unique ignored `target\verification\<run>` output and intermediate roots. This prevents concurrent verification from locking or corrupting the normal manager `x64` artifacts.
 - Focused verification runs 21 feature-enabled agent tests and 14 bridge ABI/client/FFI tests. A representative native Release query returned storage schema `1`, privacy/integrity success, connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. The bridge DLL measured 414,208 bytes. These machine-specific values are evidence, not release SLAs.
 
-Phase 3G satisfies manager linkage for content-free Health through a reviewed C ABI boundary. ADR 0018 remains Proposed because the manager does not yet host generated C++ Protobuf parsing, parser/schema fuzzing and adjacent-version fixtures remain incomplete, bulk staging is absent, and the default clipboard-owning resident agent does not yet supervise this IPC lifecycle during simultaneous capture.
+Phase 3G satisfies manager linkage for content-free Health through a reviewed C ABI boundary.
+
+## Production resident lifecycle evidence — 2026-08-05
+
+Phase 3I integrates capture and authenticated read IPC into the only production resident process:
+
+- `pastral-agent.exe` defaults to resident mode when invoked without arguments and resolves `%LOCALAPPDATA%\Pastral` through a fail-closed local absolute-path policy.
+- One preflight Health/storage initialization completes before capture and IPC split, preventing concurrent first-open/schema migration races.
+- Clipboard capture and authenticated `Health`, `HistoryPage`, and `Search` run concurrently under one shared stop signal. The manager remains a client and never opens SQLite or blob storage directly.
+- The resident named-pipe loop polls with a bounded connect timeout. A timed-out first pipe handle is explicitly released before publishing the next first-instance handle; authentication/protocol failures are isolated to one connection.
+- Deterministic tests prove simultaneous listener/read operation, rejected-client containment, 20 repeated startup/shutdown runs, literal search, unavailable rows, idle timeout survival, and clean bounded joins.
+- Representative Release evidence measured a `2,484,224`-byte agent, approximately `12,775,424` bytes working set, `3,252,224` bytes private usage, and 171 handles while capture and IPC were resident. The private footprint remains below the 25 MiB gate.
+- The diagnostic `pastral-agent-ipc.exe` remains test-only and is excluded from the MSIX. Production package startup targets only `pastral-agent.exe`.
+
+This closes the production default-agent lifecycle gate. ADR 0018 remains Proposed because generated C++ schema parity, parser/schema fuzzing, bulk transfer/staging cleanup, and adjacent-version compatibility fixtures are still incomplete.
 
 ## Acceptance gates
 

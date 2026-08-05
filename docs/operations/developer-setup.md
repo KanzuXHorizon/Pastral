@@ -343,7 +343,7 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - `sha2 = 0.10.9`: SHA-256 implementation for the explicitly versioned `sha256-raw-v1` logical-byte digest.
 - `rusqlite = 0.40.1`: reviewed synchronous SQLite wrapper. Only `bundled` and `blob` are enabled; default features and unrelated integration features are disabled.
 
-`Cargo.lock` is committed and every compiling/testing/documentation/dependency gate uses `--locked`. `eng/verify-dependencies.ps1` permits exact official Protobuf `4.35.0-release` only in `pastral-ipc-schema` and `pastral-ipc-probe`; it proves agent/domain/storage/clipboard/agent-core/ipc-core remain protobuf-free and rejects alternate serializers, async runtimes, gRPC/HTTP/network stacks, logging backends, unauthorized Windows bindings, and UI dependencies. `eng/verify-source-policy.ps1` rejects common secret/private-key signatures, credential/key files, build output, the machine-local launcher, unsafe product code outside the reviewed clipboard/native-generated boundaries, network/process/named-pipe APIs, SQLite extension loading, database attachment, and WAL activation in current product source.
+`Cargo.lock` is committed and every compiling/testing/documentation/dependency gate uses `--locked`. `eng/verify-dependencies.ps1` pins official Protobuf `4.35.0-release` in the resident agent and reviewed IPC/schema/bridge probes; domain/storage/clipboard/agent-core/ipc-auth/ipc-core remain Protobuf-free. The policy rejects alternate serializers, async runtimes, gRPC/HTTP/network stacks, logging backends, unauthorized Windows bindings, and UI dependencies. `eng/verify-source-policy.ps1` rejects common secret/private-key signatures, credential/key files, build output, the machine-local launcher, unsafe product code outside the reviewed clipboard/native-generated boundaries, network/process/named-pipe APIs, SQLite extension loading, database attachment, and WAL activation in current product source.
 
 ## Native manager data policy
 
@@ -357,9 +357,41 @@ Storage unit and integration tests create synthetic disposable roots under the c
 - Only ordinary protection-domain payloads are accepted. Sensitive and Private plaintext is rejected before any payload or search projection is persisted.
 - Blob placement is selected by a caller-supplied versioned policy. No benchmark-selected production threshold exists yet.
 - Inputs are bounded owned byte buffers; the agent currently captures only `CF_UNICODETEXT`, while Win32/OLE streaming acquisition and other clipboard formats are not implemented.
-- The agent enforces Windows history-control hard deny, unresolved-source fail-closed policy, an exact executable denylist, and a narrow private-key detector. It still has no durable source attribution, reliable private-browser detection, publisher verification, comprehensive secret classifier, auto-start registration, process supervision, authenticated IPC server, replay suppression marker, or graceful Ctrl+C control channel.
-- The Rust IPC frame/state/schema layer, authenticated Windows transport, and measured real-agent Health admission pass their current correctness, security, and footprint gates, but they are not yet production IPC. C++ generated/runtime parity, manager client integration, production resident-agent lifecycle/linkage, fuzzing, adjacent-version fixtures, and bulk staging cleanup remain incomplete.
+- The agent enforces Windows history-control hard deny, unresolved-source fail-closed policy, an exact executable denylist, and a narrow private-key detector. It now has one supervised resident capture/read lifecycle and MSIX startup declaration, but it still lacks durable source attribution, reliable private-browser detection, publisher verification, a comprehensive secret classifier, replay suppression marker, user-initiated graceful shutdown, suspend/update handoff, and crash supervision.
+- The Rust IPC frame/state/schema layer, authenticated Windows transport, manager bridge, live History/Search, and resident-agent lifecycle pass their current correctness, security, and footprint gates. Generated C++ schema parity, parser/schema fuzzing, adjacent-version fixtures, mutation/bulk staging, and update handoff remain incomplete.
 - No encryption, backup/restore, import/export, backend migration, retention/quota engine, multi-process ownership, or background maintenance exists.
 - FTS search is bounded literal lexical matching with deterministic ordering; no snippets, typo correction, semantic ranking, or sensitive indexing is provided.
-- The manager's Debug filtering is bounded presentation-only matching over synthetic safe metadata; it is not the production typed query/FTS pipeline.
-- Formal Narrator, high-contrast, 300% text/DPI, RTL, touch, RDP, packaging, signing, startup-performance, and memory budgets still require dedicated evidence.
+- Release manager History/Search uses authenticated bounded IPC and literal lexical search. Debug mode retains explicitly disclosed synthetic records for UI verification only.
+- Deterministic x64 MSIX staging, development signing, extraction parity, Start Apps activation, startup declaration, live IPC registration smoke, and package cleanup pass. Public trusted/timestamped signing, elevated clean-machine install, update/repair/rollback, Store/WinGet, and the formal Narrator/high-contrast/300% text/DPI/RTL/touch/RDP release matrix remain open.
+
+## Resident and MSIX commands
+
+Build and run the production resident agent with the default `%LOCALAPPDATA%\Pastral` root:
+
+```powershell
+cargo build --locked -p pastral-agent --release
+.\target\release\pastral-agent.exe
+```
+
+Create the signed development installer and public certificate:
+
+```powershell
+.\eng\build-msix.ps1 -CreateDevelopmentCertificate
+```
+
+Verify the exact staged package through non-elevated Windows package registration, Start Apps activation, live authenticated IPC, cleanup, and data-root restoration:
+
+```powershell
+.\eng\test-msix-registration.ps1 `
+  -StagingDirectory .\target\package\Pastral_0.1.0.0_x64
+```
+
+Run the signed MSIX install/uninstall gate from an Administrator PowerShell because AppX deployment requires the self-signed public certificate in `LocalMachine\TrustedPeople`:
+
+```powershell
+.\eng\test-msix-install.ps1 `
+  -PackagePath .\artifacts\Pastral-0.1.0.0-x64.msix `
+  -CertificatePath .\artifacts\Pastral-Development.cer
+```
+
+The development `.pfx` is temporary ignored output and is removed after signing. Do not distribute or commit it.

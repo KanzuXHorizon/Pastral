@@ -335,6 +335,25 @@ Out of scope as a guaranteed defense:
 - source context stores evidence type/confidence and never infers domain/project from arbitrary titles by default;
 - tests for sequence zero/wrap/gaps, forged/stale markers, registered ID changes, owner/foreground conflict, and PID reuse.
 
+### T19 — Package/startup identity confusion and development-signing abuse
+
+**Threat:** A package launches the wrong executable, installs a diagnostic server, starts more than one resident owner, trusts an attacker-controlled development certificate, leaves a private signing key behind, or uses unpackaged Windows App SDK initialization under packaged activation and exits before presenting UI.
+
+**Controls:**
+
+- exact MSIX allowlist containing only `pastral-agent.exe`, `pastral-manager.exe`, the reviewed bridge, resources, and brand assets;
+- package verifier rejects diagnostic IPC binaries, symbols, libraries, logs, private keys, bootstrap DLLs, and unused WebView payloads;
+- manager is compiled in packaged framework-dependent mode with unpackaged bootstrap/deployment auto-initializers disabled;
+- one startup declaration targets only `pastral-agent.exe`; the no-argument entry point is resident mode;
+- package identity, architecture, runtime behavior, trust level, framework dependencies, startup task, and `runFullTrust` are parsed and asserted before signing;
+- development certificate subject exactly matches manifest Publisher; the temporary PFX/password remain in ignored storage and are deleted after signing;
+- only the public `.cer` is distributed; development trust is temporary and removed after verification;
+- self-signed signed-install smoke requires elevation and imports only into `LocalMachine\TrustedPeople`, then removes that trust;
+- non-elevated registration smoke backs up/restores `%LOCALAPPDATA%\Pastral`, proves Start Apps activation and live authenticated IPC, unregisters the package, and rejects foreign Pastral processes;
+- public release requires trusted/timestamped signing and does not reuse the development identity.
+
+**Residual risk:** A user or administrator who manually trusts an unverified self-signed certificate expands machine trust. Development packages are therefore unsuitable for public distribution without a trusted signing service or Store signature.
+
 ## 6. Security test mapping
 
 | Boundary | Required evidence |

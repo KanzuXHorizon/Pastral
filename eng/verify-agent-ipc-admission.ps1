@@ -100,18 +100,17 @@ function Invoke-StaticVerification {
     $agentTree = @(& cargo tree --locked -p pastral-agent --edges all --prefix none --format '{p}')
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     $agentTreeText = $agentTree -join "`n"
-    foreach ($forbidden in @(
+    foreach ($required in @(
         '(?m)^protobuf\s',
-        '(?m)^protobuf-codegen\s',
-        '(?m)^protobuf-macros\s',
         '(?m)^pastral-ipc-auth\s',
         '(?m)^pastral-ipc-schema\s',
         '(?m)^pastral-ipc-win\s'
     )) {
-        if ([System.Text.RegularExpressions.Regex]::IsMatch($agentTreeText, $forbidden)) {
-            Fail "Default agent dependency graph contains forbidden IPC/runtime package: $forbidden"
+        if (-not [System.Text.RegularExpressions.Regex]::IsMatch($agentTreeText, $required)) {
+            Fail "Resident agent dependency graph is missing required authenticated IPC package: $required"
         }
     }
+    Assert-Contains $agentManifest 'default\s*=\s*\[\s*"ipc-health"\s*\]' 'resident IPC default feature'
 
     $manifest = [System.IO.File]::ReadAllText($probeManifest)
     foreach ($required in @(
@@ -150,11 +149,20 @@ function Invoke-StaticVerification {
 
     $sharedServer = Join-Path $repositoryRoot 'apps\agent\src\ipc_health.rs'
     Assert-Contains $sharedServer 'agent-ipc-ready=1' 'server readiness marker'
+    Assert-Contains $sharedServer 'agent-resident-ipc-ready=1' 'resident IPC readiness marker'
+    Assert-Contains $sharedServer 'serve_read_until_stopped' 'stop-aware resident read server'
+    Assert-Contains $sharedServer 'drop\(server\)' 'idle-timeout first-instance release'
     Assert-Contains $sharedServer 'server_handshake' 'authenticated server handshake'
     Assert-Contains $sharedServer 'RequestDto::Health' 'Health request authorization'
     Assert-Contains $sharedServer 'RequestDto::HistoryPage' 'HistoryPage request authorization'
     Assert-Contains $sharedServer 'RequestDto::Search' 'Search request authorization'
     Assert-Contains $sharedServer 'load_health_snapshot\(data_root\)' 'per-request Health reload'
+
+    $runtime = Join-Path $repositoryRoot 'apps\agent\src\runtime.rs'
+    Assert-Contains $runtime 'run_resident' 'single resident capture and IPC supervisor'
+    Assert-Contains $runtime 'run_listener_until_stopped' 'stop-aware clipboard listener'
+    Assert-Contains $runtime 'load_health_snapshot\(data_root\)' 'resident preflight storage initialization'
+    Assert-Contains $runtime 'serve_read_until_stopped' 'resident authenticated read thread'
 
     $metrics = Join-Path $probeRoot 'src\metrics.rs'
     Assert-Contains $metrics '25\s*\*\s*MIB' '25 MiB server private ceiling'
@@ -239,8 +247,13 @@ function Invoke-SmokeVerification {
     foreach ($value in @($defaultBinary, $admissionBinary, $baselineWorking, $baselinePrivate, $serverWorking, $serverPrivate)) {
         if ($value -eq 0) { Fail 'Admission emitted zero byte metric' }
     }
-    if ($admissionBinary -lt $defaultBinary -or $admissionBinary - $defaultBinary -ne $binaryDelta) {
-        Fail 'Admission binary delta is inconsistent'
+    $expectedBinaryDelta = if ($admissionBinary -ge $defaultBinary) {
+        $admissionBinary - $defaultBinary
+    } else {
+        $defaultBinary - $admissionBinary
+    }
+    if ($expectedBinaryDelta -ne $binaryDelta) {
+        Fail 'Admission binary delta magnitude is inconsistent'
     }
     if ($binaryDelta -gt 6MB) { Fail 'Admission binary delta exceeds 6 MiB' }
     if ($serverPrivate -gt 25MB) { Fail 'Admission server private usage exceeds 25 MiB' }

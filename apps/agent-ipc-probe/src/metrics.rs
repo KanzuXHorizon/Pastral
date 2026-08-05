@@ -50,9 +50,7 @@ pub fn calculate_footprint(
             return Err(AdmissionError::InvalidMetric);
         }
     }
-    let binary_delta_bytes = admission_binary_bytes
-        .checked_sub(default_agent_binary_bytes)
-        .ok_or(AdmissionError::InvalidMetric)?;
+    let binary_delta_bytes = admission_binary_bytes.abs_diff(default_agent_binary_bytes);
     let working_set_delta_bytes =
         signed_delta(server_working_set_bytes, baseline_working_set_bytes)?;
     let private_delta_bytes = signed_delta(server_private_bytes, baseline_private_bytes)?;

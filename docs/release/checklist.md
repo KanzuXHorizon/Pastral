@@ -179,6 +179,18 @@ Record exact commands, pass/fail/skip counts, environment, and artifact hashes.
 - [ ] WinGet manifest is absent unless signing/install/update/uninstall behavior is stable and validated.
 - [ ] Store assets, declarations, privacy/security/accessibility statements, and screenshots use factual synthetic content.
 
+### Development-installer evidence — not public release approval
+
+- [x] Exact 17-file x64 MSIX allowlist excludes diagnostic binaries, symbols, libraries, logs, private keys, bootstrap DLLs, and unused WebView payloads.
+- [x] Development identity, publisher, architecture, version, framework dependencies, manager runtime/trust, `runFullTrust`, and `PastralAgentStartup` declaration are verified.
+- [x] Packaged manager is compiled without unpackaged Windows App SDK bootstrap/deployment auto-initializers; Start Apps activation creates a stable window.
+- [x] Development MSIX is SHA-256 signed; SignTool verification reports one valid signature with zero warnings/errors while trust is temporarily installed.
+- [x] MakeAppx unpack and per-file SHA-256 extraction parity pass.
+- [x] Loose registration smoke passes x64 registration, Start Apps activation, live authenticated IPC, Connected/empty UI, cleanup, unregister, and pre-existing data-root restoration.
+- [x] Temporary development PFX is removed after signing and is absent from staged/distributable artifacts.
+- [ ] Elevated signed install/uninstall smoke runs on a clean supported machine with temporary `LocalMachine\TrustedPeople` trust.
+- [ ] Public package uses a trusted organization/Store/Azure Artifact Signing identity and timestamp.
+
 ## 14. Documentation and support
 
 - [ ] README, setup, user guide, privacy, security, backup/restore, diagnostics, recovery, accessibility, shortcuts, settings, known limitations, and release notes match the artifact.
