@@ -49,6 +49,12 @@ namespace winrt::Pastral::Manager::implementation
         winrt::Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const&)
     {
         UpdateSelectionDetails();
+        if (!m_isWideLayout && !m_suppressDetailTransition && HistoryResultsList().SelectedItem())
+        {
+            m_showingDetails = true;
+            UpdateResponsiveLayout();
+            HistoryBackButton().Focus(winrt::Microsoft::UI::Xaml::FocusState::Programmatic);
+        }
     }
 
     void HistoryPage::ClearFilters_Click(
@@ -77,11 +83,46 @@ namespace winrt::Pastral::Manager::implementation
         RefreshSnapshot();
     }
 
+    void HistoryPage::BackToResults_Click(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
+    {
+        m_showingDetails = false;
+        UpdateResponsiveLayout(true);
+    }
+
+    void HistoryPage::Page_SizeChanged(
+        winrt::Windows::Foundation::IInspectable const&,
+        winrt::Microsoft::UI::Xaml::SizeChangedEventArgs const& args)
+    {
+        auto const wasWide = m_isWideLayout;
+        m_isWideLayout = args.NewSize().Width >= 920.0;
+        if (wasWide && !m_isWideLayout)
+        {
+            m_showingDetails = false;
+            m_suppressDetailTransition = true;
+            HistoryResultsList().SelectedIndex(-1);
+            m_suppressDetailTransition = false;
+            ClearSelectionDetails();
+        }
+        else if (!wasWide && m_isWideLayout && m_results.Size() > 0 &&
+                 HistoryResultsList().SelectedIndex() < 0)
+        {
+            m_suppressDetailTransition = true;
+            HistoryResultsList().SelectedIndex(0);
+            m_suppressDetailTransition = false;
+            UpdateSelectionDetails();
+        }
+        UpdateResponsiveLayout();
+    }
+
     void HistoryPage::Page_Loaded(
         winrt::Windows::Foundation::IInspectable const&,
         winrt::Microsoft::UI::Xaml::RoutedEventArgs const&)
     {
         m_unloaded = false;
+        m_isWideLayout = ActualWidth() >= 920.0;
+        UpdateResponsiveLayout();
         if (m_hasLoadedOnce)
         {
             RefreshSnapshot();
@@ -185,6 +226,8 @@ namespace winrt::Pastral::Manager::implementation
         HistoryResultCount().Text(announcement);
         HistorySearchBox().IsEnabled(m_connection ==
             ::Pastral::Manager::Presentation::ConnectionState::Connected);
+        m_showingDetails = false;
+        UpdateResponsiveLayout();
     }
 
     void HistoryPage::ApplySnapshot(::Pastral::Manager::Presentation::ManagerSnapshot snapshot)
@@ -275,10 +318,22 @@ namespace winrt::Pastral::Manager::implementation
 
         if (hasResults)
         {
-            HistoryResultsList().SelectedIndex(0);
+            m_showingDetails = false;
+            m_suppressDetailTransition = true;
+            HistoryResultsList().SelectedIndex(m_isWideLayout ? 0 : -1);
+            m_suppressDetailTransition = false;
+            if (m_isWideLayout)
+            {
+                UpdateSelectionDetails();
+            }
+            else
+            {
+                ClearSelectionDetails();
+            }
         }
         else
         {
+            m_showingDetails = false;
             if (m_connection == ConnectionState::Loading)
             {
                 HistoryNoResultsTitle().Text(L"Loading local history");
@@ -312,6 +367,7 @@ namespace winrt::Pastral::Manager::implementation
             }
             ClearSelectionDetails();
         }
+        UpdateResponsiveLayout();
     }
 
     void HistoryPage::UpdateSelectionDetails()
@@ -349,5 +405,43 @@ namespace winrt::Pastral::Manager::implementation
         HistoryDetailState().Text(L"Unavailable");
         HistoryAvailabilityWarning().IsOpen(false);
         HistoryAvailabilityWarning().Visibility(Visibility::Collapsed);
+    }
+
+    void HistoryPage::UpdateResponsiveLayout(bool restoreResultsFocus)
+    {
+        using winrt::Microsoft::UI::Xaml::Controls::Control;
+        using winrt::Microsoft::UI::Xaml::FocusState;
+        using winrt::Microsoft::UI::Xaml::Visibility;
+
+        if (m_isWideLayout)
+        {
+            HistoryResultsRegion().Visibility(Visibility::Visible);
+            HistoryDetailsRegion().Visibility(Visibility::Visible);
+            HistoryBackButton().Visibility(Visibility::Collapsed);
+            return;
+        }
+
+        auto const showDetails = m_showingDetails && HistoryResultsList().SelectedItem();
+        HistoryResultsRegion().Visibility(showDetails ? Visibility::Collapsed : Visibility::Visible);
+        HistoryDetailsRegion().Visibility(showDetails ? Visibility::Visible : Visibility::Collapsed);
+        HistoryBackButton().Visibility(showDetails ? Visibility::Visible : Visibility::Collapsed);
+
+        if (!restoreResultsFocus || showDetails)
+        {
+            return;
+        }
+
+        auto const selected = HistoryResultsList().SelectedItem();
+        auto const container = selected
+            ? HistoryResultsList().ContainerFromItem(selected).try_as<Control>()
+            : nullptr;
+        if (container)
+        {
+            container.Focus(FocusState::Programmatic);
+        }
+        else
+        {
+            HistorySearchBox().Focus(FocusState::Programmatic);
+        }
     }
 }

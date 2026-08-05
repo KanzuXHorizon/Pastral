@@ -261,7 +261,11 @@ function Invoke-StaticVerification {
     Assert-Contains $historyPage 'HeadingLevel="Level1"' 'History Level1 heading'
     Assert-Contains $historyPage 'AutomationProperties\.Name=' 'History accessibility names'
     Assert-Contains $historyPage '<VisualStateManager\.VisualStateGroups>' 'History adaptive visual states'
+    Assert-Contains $historyPage 'MinWindowWidth="0"' 'History narrow-layout trigger'
     Assert-Contains $historyPage 'MinWindowWidth="920"' 'History wide-layout trigger'
+    Assert-NotContains $historyPage '<ScrollViewer\s+AutomationProperties\.Name="History page content"' 'page-level History scroll owner'
+    Assert-NotContains $historyPage 'MaxHeight="560"' 'fixed-height History list'
+    Assert-Contains $historyPage 'x:Name="HistoryBackButton"' 'History narrow detail Back action'
     Assert-Contains $historyPage 'x:Name="HistoryHeaderStates"' 'History responsive header states'
     Assert-Contains $historyPage 'x:Name="HistoryHeader"' 'History responsive header region'
     Assert-NotContains $historyPage 'SEARCH • RECALL • PASTE' 'premature History paste promise'
@@ -294,6 +298,9 @@ function Invoke-StaticVerification {
     Assert-Contains $historyCode 'SearchAsync\(' 'History backend Search dispatch'
     Assert-Contains $historyCode 'RefreshAsync\(' 'History backend refresh dispatch'
     Assert-Contains $historyCode 'ResultsList_SelectionChanged' 'History selection handler'
+    Assert-Contains $historyCode 'BackToResults_Click' 'History narrow Back handler'
+    Assert-Contains $historyCode 'Page_SizeChanged' 'History responsive size handler'
+    Assert-Contains $historyCode 'UpdateResponsiveLayout' 'History responsive render method'
     Assert-Contains $historyCode 'ClearFilters_Click' 'History clear-filter handler'
     Assert-Contains $historyCode 'Retry_Click' 'History retry handler'
     Assert-Contains $historyCode 'HistoryLoadingIndicator\(\)\.IsActive' 'History loading progress state'
@@ -423,6 +430,18 @@ function Resolve-DebugExecutable {
 }
 
 function Invoke-SmokeVerification {
+    if (-not ('PastralManagerWindowApi' -as [type])) {
+        Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class PastralManagerWindowApi
+{
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool MoveWindow(IntPtr hWnd, int x, int y, int width, int height, bool repaint);
+}
+'@
+    }
+
     $runtime = @(Get-AppxPackage -Name 'Microsoft.WindowsAppRuntime.2' -ErrorAction SilentlyContinue |
         Where-Object { $_.Architecture -eq 'X64' -and $_.Version -eq [version]'2.3.1.0' })
     if ($runtime.Count -eq 0) {
@@ -604,6 +623,66 @@ function Invoke-SmokeVerification {
         )
         if ($null -eq $selectedDetail) {
             Fail 'History selection details did not update for the filtered Terminal item'
+        }
+
+        if (-not [PastralManagerWindowApi]::MoveWindow($windowHandle, 120, 100, 760, 760, $true)) {
+            Fail 'History smoke could not resize the manager to narrow width'
+        }
+        Start-Sleep -Milliseconds 600
+
+        $narrowHistoryList = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyListCondition
+        )
+        if ($null -eq $narrowHistoryList -or $narrowHistoryList.Current.IsOffscreen) {
+            Fail 'History narrow layout did not preserve the results pane before selection'
+        }
+        $narrowRows = $narrowHistoryList.FindAll(
+            [System.Windows.Automation.TreeScope]::Children,
+            $listItemCondition
+        )
+        if ($narrowRows.Count -ne 1) {
+            Fail "History narrow filtered result expected one row but found $($narrowRows.Count)"
+        }
+        $narrowSelection = $narrowRows.Item(0).GetCurrentPattern(
+            [System.Windows.Automation.SelectionItemPattern]::Pattern
+        )
+        $narrowSelection.Select()
+
+        $backCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'Back to history results'
+        )
+        $backButton = $null
+        $backDeadline = [DateTime]::UtcNow.AddSeconds(5)
+        while ([DateTime]::UtcNow -lt $backDeadline -and $null -eq $backButton) {
+            Start-Sleep -Milliseconds 100
+            $backButton = $automationRoot.FindFirst(
+                [System.Windows.Automation.TreeScope]::Subtree,
+                $backCondition
+            )
+        }
+        if ($null -eq $backButton -or $backButton.Current.IsOffscreen) {
+            Fail 'History narrow selection did not open the one-pane details view with Back action'
+        }
+        $narrowListAfterSelection = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyListCondition
+        )
+        if ($null -ne $narrowListAfterSelection -and -not $narrowListAfterSelection.Current.IsOffscreen) {
+            Fail 'History narrow details view left the results pane visible beside details'
+        }
+        $backButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Milliseconds 250
+        $restoredList = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyListCondition
+        )
+        if ($null -eq $restoredList -or $restoredList.Current.IsOffscreen) {
+            Fail 'History Back action did not restore the results pane'
+        }
+        if ($valuePattern.Current.Value -ne 'Terminal') {
+            Fail 'History Back action did not preserve the active search query'
         }
 
         $valuePattern.SetValue('no matching Pastral clip')

@@ -4,20 +4,23 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Loaded="Page_Loaded"
     NavigationCacheMode="Enabled"
+    SizeChanged="Page_SizeChanged"
     Unloaded="Page_Unloaded">
 
-    <ScrollViewer
+    <Grid
+        x:Name="HistoryLayoutRoot"
+        MaxWidth="{StaticResource PastralContentMaxWidth}"
+        HorizontalAlignment="Stretch"
+        VerticalAlignment="Stretch"
         AutomationProperties.Name="History page content"
-        HorizontalScrollBarVisibility="Disabled"
-        VerticalScrollBarVisibility="Auto">
-        <Grid
-            x:Name="HistoryLayoutRoot"
-            MaxWidth="{StaticResource PastralContentMaxWidth}"
-            Padding="28,24,28,36"
-            RowSpacing="18">
+        Padding="28,24,28,24"
+        RowSpacing="18">
             <VisualStateManager.VisualStateGroups>
                 <VisualStateGroup x:Name="HistoryLayoutStates">
                     <VisualState x:Name="NarrowLayout">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
                         <VisualState.Setters>
                             <Setter Target="HistoryLayoutRoot.Padding" Value="20,16,20,28" />
                             <Setter Target="HistoryColumns.ColumnDefinitions[0].Width" Value="*" />
@@ -25,7 +28,7 @@
                             <Setter Target="HistoryResultsRegion.(Grid.Column)" Value="0" />
                             <Setter Target="HistoryResultsRegion.(Grid.Row)" Value="0" />
                             <Setter Target="HistoryDetailsRegion.(Grid.Column)" Value="0" />
-                            <Setter Target="HistoryDetailsRegion.(Grid.Row)" Value="1" />
+                            <Setter Target="HistoryDetailsRegion.(Grid.Row)" Value="0" />
                         </VisualState.Setters>
                     </VisualState>
                     <VisualState x:Name="WideLayout">
@@ -75,7 +78,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
             <Grid
@@ -212,18 +215,20 @@
                     <ColumnDefinition Width="2*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
                 <Border
                     x:Name="HistoryResultsRegion"
                     AutomationProperties.Name="History results"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
                     Style="{StaticResource PastralHeroPanelStyle}">
-                    <Grid MinHeight="420">
+                    <Grid>
                         <ListView
                             x:Name="HistoryResultsList"
-                            MaxHeight="560"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
                             AutomationProperties.Name="History results list"
                             SelectionChanged="ResultsList_SelectionChanged"
                             SelectionMode="Single"
@@ -339,9 +344,22 @@
                     x:Name="HistoryDetailsRegion"
                     Grid.Column="1"
                     AutomationProperties.Name="Selected clip details"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
                     Style="{StaticResource PastralCardStyle}">
-                    <StackPanel Spacing="16">
-                        <StackPanel Spacing="4">
+                    <ScrollViewer
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="16">
+                            <Button
+                                x:Name="HistoryBackButton"
+                                HorizontalAlignment="Left"
+                                AutomationProperties.Name="Back to history results"
+                                Click="BackToResults_Click"
+                                Content="Back to results"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Visibility="Collapsed" />
+                            <StackPanel Spacing="4">
                             <TextBlock
                                 x:Uid="HistoryDetailsTitle"
                                 AutomationProperties.HeadingLevel="Level2"
@@ -449,12 +467,12 @@
                                 Content="Copy"
                                 IsEnabled="False" />
                         </StackPanel>
-                        <TextBlock
-                            Style="{StaticResource PastralMetadataTextStyle}"
-                            Text="Actions remain unavailable in this build; the manager never bypasses the authenticated agent boundary." />
-                    </StackPanel>
+                            <TextBlock
+                                Style="{StaticResource PastralMetadataTextStyle}"
+                                Text="Actions remain unavailable in this build; the manager never bypasses the authenticated agent boundary." />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Border>
             </Grid>
         </Grid>
-    </ScrollViewer>
 </Page>

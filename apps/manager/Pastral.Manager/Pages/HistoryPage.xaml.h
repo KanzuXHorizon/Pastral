@@ -24,6 +24,12 @@ namespace winrt::Pastral::Manager::implementation
         void Retry_Click(
             winrt::Windows::Foundation::IInspectable const& sender,
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void BackToResults_Click(
+            winrt::Windows::Foundation::IInspectable const& sender,
+            winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
+        void Page_SizeChanged(
+            winrt::Windows::Foundation::IInspectable const& sender,
+            winrt::Microsoft::UI::Xaml::SizeChangedEventArgs const& args);
         void Page_Loaded(
             winrt::Windows::Foundation::IInspectable const& sender,
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const& args);
@@ -40,6 +46,7 @@ namespace winrt::Pastral::Manager::implementation
         void UpdateSelectionDetails();
         void ClearSelectionDetails();
         void BeginReadActivity(winrt::hstring const& announcement);
+        void UpdateResponsiveLayout(bool restoreResultsFocus = false);
 
         std::shared_ptr<::Pastral::Manager::Presentation::IManagerDataProvider> m_provider;
         std::vector<::Pastral::Manager::Presentation::ClipPreviewData> m_allClips;
@@ -51,6 +58,9 @@ namespace winrt::Pastral::Manager::implementation
         bool m_hasMore{ false };
         bool m_unloaded{ false };
         bool m_hasLoadedOnce{ false };
+        bool m_isWideLayout{ true };
+        bool m_showingDetails{ false };
+        bool m_suppressDetailTransition{ false };
         std::uint64_t m_loadGeneration{};
         winrt::Windows::Foundation::Collections::IObservableVector<
             winrt::Pastral::Manager::ClipPreviewViewModel> m_results{
