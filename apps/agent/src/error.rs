@@ -12,7 +12,7 @@ pub enum AgentRuntimeError {
     Storage(&'static str),
     Clipboard(&'static str),
     InvalidDataRoot,
-    ResidentIpc,
+    ResidentIpc(&'static str),
     CoordinatorConfiguration,
     NotificationChannelClosed,
     IntegrityFailed,
@@ -46,7 +46,9 @@ impl fmt::Display for AgentRuntimeError {
                 write!(f, "agent clipboard operation failed: {operation}")
             }
             Self::InvalidDataRoot => write!(f, "agent data root is invalid"),
-            Self::ResidentIpc => write!(f, "resident authenticated IPC failed"),
+            Self::ResidentIpc(stage) => {
+                write!(f, "resident authenticated IPC failed: {stage}")
+            }
             Self::CoordinatorConfiguration => write!(f, "capture coordinator configuration failed"),
             Self::NotificationChannelClosed => {
                 write!(f, "clipboard notification channel closed")

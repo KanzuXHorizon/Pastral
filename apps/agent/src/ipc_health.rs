@@ -258,7 +258,7 @@ pub fn serve_read_until_stopped<W: Write>(
                 ) => write_marker(output, "agent-ipc-client-rejected=1")?,
                 Err(error) => return Err(error),
             },
-            Err(TransportError::Timeout(_)) => {}
+            Err(TransportError::Timeout(_)) => drop(server),
             Err(_) => return Err(AgentIpcError::Transport),
         }
         if stop.load(Ordering::Acquire) {

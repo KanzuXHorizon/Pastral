@@ -72,6 +72,7 @@ fn rejected_client_is_contained_before_valid_health_and_bounded_shutdown() {
         serve_read_until_stopped(config, server_stop, &mut output).map(|summary| (summary, output))
     });
 
+    thread::sleep(Duration::from_millis(750));
     let rejected = open_pipe_client(&name, Instant::now() + Duration::from_secs(5)).unwrap();
     drop(rejected);
 

@@ -18,7 +18,7 @@ use crate::{
     SystemClock, ThreadSleeper, WindowsClipboardSource, load_health_snapshot,
 };
 #[cfg(feature = "ipc-health")]
-use crate::{ResidentReadServerConfig, serve_read_until_stopped};
+use crate::{AgentIpcError, ResidentReadServerConfig, serve_read_until_stopped};
 use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
 
@@ -48,7 +48,7 @@ pub fn run_command<W: Write + Send>(
             #[cfg(not(feature = "ipc-health"))]
             {
                 let _ = (max_events, max_connections, output);
-                Err(AgentRuntimeError::ResidentIpc)
+                Err(AgentRuntimeError::ResidentIpc("feature-disabled"))
             }
         }
         AgentCommand::HealthCheck { data_root } => run_health_check(&data_root, output),
@@ -154,7 +154,7 @@ fn run_resident<W: Write + Send>(
         Duration::from_secs(2),
         max_connections,
     )
-    .map_err(|_| AgentRuntimeError::ResidentIpc)?;
+    .map_err(|_| AgentRuntimeError::ResidentIpc("configuration"))?;
 
     let (capture_result, ipc_result, ipc_output) = thread::scope(|scope| {
         let ipc_stop = Arc::clone(&stop);
@@ -173,7 +173,7 @@ fn run_resident<W: Write + Send>(
         stop.store(true, Ordering::Release);
         let (ipc_result, ipc_output) = ipc_thread
             .join()
-            .map_err(|_| AgentRuntimeError::ResidentIpc)?;
+            .map_err(|_| AgentRuntimeError::ResidentIpc("thread-panic"))?;
         Ok::<_, AgentRuntimeError>((capture_result, ipc_result, ipc_output))
     })?;
 
@@ -181,8 +181,21 @@ fn run_resident<W: Write + Send>(
         .write_all(&ipc_output)
         .map_err(|error| AgentRuntimeError::io("write resident IPC output", &error))?;
     capture_result?;
-    ipc_result.map_err(|_| AgentRuntimeError::ResidentIpc)?;
+    ipc_result.map_err(|error| AgentRuntimeError::ResidentIpc(resident_ipc_error_stage(&error)))?;
     Ok(())
+}
+
+#[cfg(feature = "ipc-health")]
+fn resident_ipc_error_stage(error: &AgentIpcError) -> &'static str {
+    match error {
+        AgentIpcError::Io { operation, .. } => operation,
+        AgentIpcError::InvalidConfiguration => "invalid-configuration",
+        AgentIpcError::AgentHealth => "agent-health",
+        AgentIpcError::Material => "material",
+        AgentIpcError::Transport => "transport",
+        AgentIpcError::Authentication => "authentication",
+        AgentIpcError::Protocol => "protocol",
+    }
 }
 
 fn run_listener<W: Write>(
