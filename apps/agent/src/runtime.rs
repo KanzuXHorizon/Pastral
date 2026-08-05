@@ -4,6 +4,11 @@ use std::{
     ffi::OsString,
     io::Write,
     path::{Path, PathBuf},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
     time::Duration,
 };
 
@@ -12,6 +17,8 @@ use crate::{
     AgentCommand, AgentIdentity, AgentRuntimeError, PrivacyPolicyConfig, StorageCaptureSink,
     SystemClock, ThreadSleeper, WindowsClipboardSource, load_health_snapshot,
 };
+#[cfg(feature = "ipc-health")]
+use crate::{ResidentReadServerConfig, serve_read_until_stopped};
 use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
 
@@ -23,7 +30,7 @@ const RETRY_DELAYS: [Duration; 4] = [
     Duration::from_millis(35),
 ];
 
-pub fn run_command<W: Write>(
+pub fn run_command<W: Write + Send>(
     command: AgentCommand,
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
@@ -31,10 +38,18 @@ pub fn run_command<W: Write>(
         AgentCommand::Run {
             data_root,
             max_events,
-            max_connections: _,
+            max_connections,
         } => {
             let data_root = resolve_resident_data_root(data_root)?;
-            run_listener(&data_root, max_events, output)
+            #[cfg(feature = "ipc-health")]
+            {
+                run_resident(&data_root, max_events, max_connections, output)
+            }
+            #[cfg(not(feature = "ipc-health"))]
+            {
+                let _ = (max_events, max_connections, output);
+                Err(AgentRuntimeError::ResidentIpc)
+            }
         }
         AgentCommand::HealthCheck { data_root } => run_health_check(&data_root, output),
         AgentCommand::CaptureCurrent { data_root } => run_capture_current(&data_root, output),
@@ -124,9 +139,69 @@ fn run_capture_current<W: Write>(
     write_outcome(output, outcome)
 }
 
+#[cfg(feature = "ipc-health")]
+fn run_resident<W: Write + Send>(
+    data_root: &Path,
+    max_events: Option<NonZeroUsize>,
+    max_connections: Option<NonZeroUsize>,
+    output: &mut W,
+) -> Result<(), AgentRuntimeError> {
+    let _preflight = load_health_snapshot(data_root)?;
+    let stop = Arc::new(AtomicBool::new(false));
+    let ipc_config = ResidentReadServerConfig::new(
+        data_root.to_path_buf(),
+        Duration::from_millis(250),
+        Duration::from_secs(2),
+        max_connections,
+    )
+    .map_err(|_| AgentRuntimeError::ResidentIpc)?;
+
+    let (capture_result, ipc_result, ipc_output) = thread::scope(|scope| {
+        let ipc_stop = Arc::clone(&stop);
+        let ipc_thread = scope.spawn(move || {
+            let mut ipc_output = Vec::new();
+            let result =
+                serve_read_until_stopped(ipc_config, Arc::clone(&ipc_stop), &mut ipc_output);
+            if result.is_err() {
+                ipc_stop.store(true, Ordering::Release);
+            }
+            (result, ipc_output)
+        });
+
+        let capture_result =
+            run_listener_until_stopped(data_root, max_events, Arc::clone(&stop), output);
+        stop.store(true, Ordering::Release);
+        let (ipc_result, ipc_output) = ipc_thread
+            .join()
+            .map_err(|_| AgentRuntimeError::ResidentIpc)?;
+        Ok::<_, AgentRuntimeError>((capture_result, ipc_result, ipc_output))
+    })?;
+
+    output
+        .write_all(&ipc_output)
+        .map_err(|error| AgentRuntimeError::io("write resident IPC output", &error))?;
+    capture_result?;
+    ipc_result.map_err(|_| AgentRuntimeError::ResidentIpc)?;
+    Ok(())
+}
+
 fn run_listener<W: Write>(
     data_root: &Path,
     max_events: Option<NonZeroUsize>,
+    output: &mut W,
+) -> Result<(), AgentRuntimeError> {
+    run_listener_until_stopped(
+        data_root,
+        max_events,
+        Arc::new(AtomicBool::new(false)),
+        output,
+    )
+}
+
+fn run_listener_until_stopped<W: Write>(
+    data_root: &Path,
+    max_events: Option<NonZeroUsize>,
+    stop: Arc<AtomicBool>,
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
     let identity = AgentIdentity::load_or_create(data_root)?;
@@ -140,13 +215,14 @@ fn run_listener<W: Write>(
         ClipboardListener::start().map_err(|_| AgentRuntimeError::Clipboard("listener-start"))?;
     let mut terminal_outcomes = 0usize;
 
-    loop {
+    while !stop.load(Ordering::Acquire) {
         match notifications.recv_timeout(Duration::from_secs(1)) {
             Ok(notification) => {
                 let Some(raw_sequence) = notification.sequence().raw() else {
                     write_line(output, "capture-outcome=sequence-unavailable")?;
                     terminal_outcomes += 1;
                     if reached_limit(terminal_outcomes, max_events) {
+                        stop.store(true, Ordering::Release);
                         break;
                     }
                     continue;
@@ -163,6 +239,7 @@ fn run_listener<W: Write>(
                 write_outcome(output, outcome)?;
                 terminal_outcomes += 1;
                 if reached_limit(terminal_outcomes, max_events) {
+                    stop.store(true, Ordering::Release);
                     break;
                 }
             }

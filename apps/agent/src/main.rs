@@ -12,8 +12,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let stdout = io::stdout();
-    let mut output = stdout.lock();
+    let mut output = io::stdout();
     match run_command(command, &mut output) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
