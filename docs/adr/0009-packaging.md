@@ -36,8 +36,8 @@ The deterministic pipeline under `eng/` produced and verified:
 - package: `Pastral-0.1.0.0-x64.msix`;
 - identity: `Pastral.Development`;
 - publisher: `CN=Pastral Development`;
-- package size: `1,713,595` bytes;
-- package SHA-256: `cabbed1dcb25dfcf2a5ebc21c0618540d8a34fc752ddf07e52427a0dfa6b02eb`;
+- package size: `1,713,602` bytes;
+- package SHA-256: `413e29e3159fb9b823b6b72c7c59ea57b8f8afe9e6e90b0e31940835e8852232`;
 - resident agent: `2,484,224` bytes;
 - packaged manager: `606,208` bytes;
 - manager bridge: `443,392` bytes.

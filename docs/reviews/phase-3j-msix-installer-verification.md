@@ -15,8 +15,8 @@
 | Identity | `Pastral.Development` |
 | Publisher | `CN=Pastral Development` |
 | Architecture | x64 |
-| Size | 1,713,595 bytes |
-| SHA-256 | `cabbed1dcb25dfcf2a5ebc21c0618540d8a34fc752ddf07e52427a0dfa6b02eb` |
+| Size | 1,713,602 bytes |
+| SHA-256 | `413e29e3159fb9b823b6b72c7c59ea57b8f8afe9e6e90b0e31940835e8852232` |
 | Public certificate | `Pastral-Development.cer` |
 | Private key | generated temporarily, not distributed, deleted after signing |
 
