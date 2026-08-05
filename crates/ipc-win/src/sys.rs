@@ -43,8 +43,9 @@ use windows_sys::Win32::{
         },
         SystemServices::{ACCESS_ALLOWED_ACE_TYPE, SE_GROUP_ENABLED, SE_GROUP_LOGON_ID},
         Threading::{
-            CreateEventW, GetCurrentProcessId, GetExitCodeProcess, OpenProcess, OpenProcessToken,
-            PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_VM_READ,
+            CreateEventW, CreateMutexW, GetCurrentProcessId, GetExitCodeProcess, OpenProcess,
+            OpenProcessToken, PROCESS_QUERY_INFORMATION, PROCESS_QUERY_LIMITED_INFORMATION,
+            PROCESS_VM_READ,
         },
     },
 };
@@ -242,6 +243,27 @@ impl Drop for OwnedPipeHandle {
             unsafe { CloseHandle(self.0) };
         }
     }
+}
+
+pub(crate) struct OwnedInstanceHandle(HANDLE);
+
+impl Drop for OwnedInstanceHandle {
+    fn drop(&mut self) {
+        if !self.0.is_null() && self.0 != INVALID_HANDLE_VALUE {
+            unsafe { CloseHandle(self.0) };
+        }
+    }
+}
+
+pub(crate) fn create_local_process_instance(
+    name: &[u16],
+) -> Result<(OwnedInstanceHandle, bool), TransportError> {
+    let handle = unsafe { CreateMutexW(ptr::null(), 0, name.as_ptr()) };
+    if handle.is_null() || handle == INVALID_HANDLE_VALUE {
+        return Err(last_error("CreateMutexW"));
+    }
+    let already_running = unsafe { GetLastError() } == ERROR_ALREADY_EXISTS;
+    Ok((OwnedInstanceHandle(handle), already_running))
 }
 
 pub(crate) fn build_logon_sid_security_descriptor(

@@ -21,6 +21,7 @@ pub enum TransportError {
     InvalidTokenIdentity(&'static str),
     InvalidProcessMemory(&'static str),
     InvalidPipeName(&'static str),
+    InvalidInstanceName(&'static str),
     Authentication(AuthError),
     Timeout(&'static str),
     Disconnected,
@@ -60,6 +61,9 @@ impl core::fmt::Display for TransportError {
                 write!(formatter, "invalid process memory evidence: {reason}")
             }
             Self::InvalidPipeName(reason) => write!(formatter, "invalid pipe name: {reason}"),
+            Self::InvalidInstanceName(reason) => {
+                write!(formatter, "invalid process instance name: {reason}")
+            }
             Self::Authentication(error) => write!(formatter, "IPC authentication failed: {error}"),
             Self::Timeout(operation) => write!(formatter, "{operation} timed out"),
             Self::Disconnected => formatter.write_str("pipe disconnected"),

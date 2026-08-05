@@ -213,6 +213,7 @@ dependencies = [
  "pastral-ipc-schema",
  "pastral-ipc-win",
  "pastral-storage",
+ "sha2",
 ]
 
 [[package]]

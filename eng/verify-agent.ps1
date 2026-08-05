@@ -44,7 +44,8 @@ function Invoke-StaticVerification {
         'src\platform.rs',
         'src\privacy_config.rs',
         'src\storage_sink.rs',
-        'src\config.rs'
+        'src\config.rs',
+        'tests\resident_single_instance.rs'
     )
     $missing = @(
         $required | Where-Object {
@@ -59,7 +60,7 @@ function Invoke-StaticVerification {
     Assert-Contains $cli '"health-check"' 'health-check command'
     Assert-Contains $cli '"capture-current"' 'capture-current command'
     Assert-Contains $cli '"listen"' 'listen command'
-    Assert-Contains $cli 'MissingCommand' 'missing-command fail-closed state'
+    Assert-Contains $cli 'let Some\(command\) = arguments\.next\(\) else \{[\s\S]*AgentCommand::Run' 'no-argument resident command'
     Assert-Contains $cli 'MissingDataRoot' 'required data-root state'
     Assert-Contains $cli 'InvalidMaxEvents' 'bounded listen state'
 
@@ -73,6 +74,10 @@ function Invoke-StaticVerification {
     Assert-Contains $runtime 'Duration::from_millis\(5\)' '5 ms retry delay'
     Assert-Contains $runtime 'Duration::from_millis\(15\)' '15 ms retry delay'
     Assert-Contains $runtime 'Duration::from_millis\(35\)' '35 ms retry delay'
+    Assert-Contains $runtime 'resident_instance_name' 'per-data-root resident instance identity'
+    Assert-Contains $runtime 'acquire_local_process_instance' 'resident kernel instance guard'
+    Assert-Contains $runtime 'run_resident[\s\S]*acquire_local_process_instance[\s\S]*load_health_snapshot' 'instance guard before resident preflight and storage ownership'
+    Assert-Contains $runtime 'resident-instance=already-running' 'content-free duplicate resident result'
     Assert-Contains $runtime 'load_health_snapshot' 'shared health snapshot use'
     Assert-Contains $runtime 'PrivacyPolicyConfig::load_or_create' 'strict privacy policy loading for capture commands'
     Assert-Contains $runtime 'privacy-policy=ok' 'privacy policy health marker'
@@ -192,17 +197,46 @@ function Invoke-SmokeVerification {
             Fail 'Agent health-check did not create/open storage metadata'
         }
 
-        $previousErrorActionPreference = $ErrorActionPreference
+        $residentLocalAppData = Join-Path $temporaryRoot 'local-app-data'
+        $residentRoot = Join-Path $residentLocalAppData 'Pastral'
+        New-Item -ItemType Directory -Path $residentLocalAppData -Force | Out-Null
+        $previousLocalAppData = $env:LOCALAPPDATA
+        $residentProcess = $null
         try {
-            $ErrorActionPreference = 'Continue'
-            & $executable *> $null
-            $invalidCommandExitCode = $LASTEXITCODE
+            $env:LOCALAPPDATA = $residentLocalAppData
+            $residentProcess = Start-Process -FilePath $executable -PassThru
+            $residentDeadline = [DateTime]::UtcNow.AddSeconds(10)
+            while ([DateTime]::UtcNow -lt $residentDeadline -and -not $residentProcess.HasExited) {
+                if ((Test-Path -LiteralPath (Join-Path $residentRoot 'agent-identity.txt') -PathType Leaf) -and
+                    (Test-Path -LiteralPath (Join-Path $residentRoot 'privacy-policy.txt') -PathType Leaf) -and
+                    (Test-Path -LiteralPath (Join-Path $residentRoot 'storage\metadata.sqlite3') -PathType Leaf)) {
+                    break
+                }
+                Start-Sleep -Milliseconds 100
+                $residentProcess.Refresh()
+            }
+            if ($residentProcess.HasExited) {
+                Fail "No-argument resident exited unexpectedly with code $($residentProcess.ExitCode)"
+            }
+            foreach ($relative in @(
+                'agent-identity.txt',
+                'privacy-policy.txt',
+                'storage\metadata.sqlite3'
+            )) {
+                if (-not (Test-Path -LiteralPath (Join-Path $residentRoot $relative) -PathType Leaf)) {
+                    Fail "No-argument resident did not initialize expected local state: $relative"
+                }
+            }
         }
         finally {
-            $ErrorActionPreference = $previousErrorActionPreference
-        }
-        if ($invalidCommandExitCode -eq 0) {
-            Fail 'Agent without an explicit command must fail closed'
+            $env:LOCALAPPDATA = $previousLocalAppData
+            if ($null -ne $residentProcess) {
+                if (-not $residentProcess.HasExited) {
+                    $residentProcess.Kill()
+                    $residentProcess.WaitForExit()
+                }
+                $residentProcess.Dispose()
+            }
         }
         $global:LASTEXITCODE = 0
     }
@@ -211,7 +245,7 @@ function Invoke-SmokeVerification {
             Remove-Item -LiteralPath $temporaryRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
-    Write-Host 'Agent health-check smoke: PASS'
+    Write-Host 'Agent health-check and no-argument resident smoke: PASS'
 }
 
 Push-Location $repositoryRoot

@@ -2,7 +2,9 @@ use core::num::{NonZeroU32, NonZeroUsize};
 use std::{
     env,
     ffi::OsString,
+    fmt::Write as FmtWrite,
     io::Write,
+    os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -21,6 +23,10 @@ use crate::{
 use crate::{AgentIpcError, ResidentReadServerConfig, serve_read_until_stopped};
 use pastral_agent_core::{CaptureConfig, CaptureCoordinator, CaptureOutcome, CaptureSequence};
 use pastral_clipboard_win::{ClipboardListener, NotificationReceiveError};
+#[cfg(feature = "ipc-health")]
+use pastral_ipc_win::{LocalProcessInstance, acquire_local_process_instance};
+#[cfg(feature = "ipc-health")]
+use sha2::{Digest, Sha256};
 
 const MAX_UNICODE_TEXT_BYTES: usize = 16 * 1024 * 1024;
 const RETRY_DELAYS: [Duration; 4] = [
@@ -146,6 +152,17 @@ fn run_resident<W: Write + Send>(
     max_connections: Option<NonZeroUsize>,
     output: &mut W,
 ) -> Result<(), AgentRuntimeError> {
+    let instance_name = resident_instance_name(data_root);
+    let _instance_guard = match acquire_local_process_instance(&instance_name)
+        .map_err(|_| AgentRuntimeError::ResidentIpc("instance-lock"))?
+    {
+        LocalProcessInstance::Acquired(guard) => guard,
+        LocalProcessInstance::AlreadyRunning => {
+            write_line(output, "resident-instance=already-running")?;
+            return Ok(());
+        }
+    };
+
     let _preflight = load_health_snapshot(data_root)?;
     let stop = Arc::new(AtomicBool::new(false));
     let ipc_config = ResidentReadServerConfig::new(
@@ -183,6 +200,35 @@ fn run_resident<W: Write + Send>(
     capture_result?;
     ipc_result.map_err(|error| AgentRuntimeError::ResidentIpc(resident_ipc_error_stage(&error)))?;
     Ok(())
+}
+
+#[cfg(feature = "ipc-health")]
+fn resident_instance_name(data_root: &Path) -> String {
+    let mut normalized = data_root
+        .as_os_str()
+        .encode_wide()
+        .map(|unit| match unit {
+            value if value == u16::from(b'/') => u16::from(b'\\'),
+            value if value >= u16::from(b'A') && value <= u16::from(b'Z') => value + 32,
+            value => value,
+        })
+        .collect::<Vec<_>>();
+    while normalized.last() == Some(&u16::from(b'\\'))
+        && !(normalized.len() == 3 && normalized.get(1) == Some(&u16::from(b':')))
+    {
+        normalized.pop();
+    }
+
+    let mut hasher = Sha256::new();
+    for unit in normalized {
+        hasher.update(unit.to_le_bytes());
+    }
+    let digest = hasher.finalize();
+    let mut suffix = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        write!(&mut suffix, "{byte:02x}").expect("formatting into String cannot fail");
+    }
+    format!(r"Local\Pastral.Resident.v1.{suffix}")
 }
 
 #[cfg(feature = "ipc-health")]
@@ -322,4 +368,23 @@ fn write_outcome<W: Write>(
 fn write_line<W: Write>(output: &mut W, value: &str) -> Result<(), AgentRuntimeError> {
     writeln!(output, "{value}")
         .map_err(|error| AgentRuntimeError::io("write diagnostic output", &error))
+}
+
+#[cfg(all(test, feature = "ipc-health"))]
+mod tests {
+    use super::resident_instance_name;
+    use std::path::Path;
+
+    #[test]
+    fn resident_instance_name_normalizes_ascii_case_separators_and_trailing_slash() {
+        let canonical = resident_instance_name(Path::new(r"C:\Users\Example\Pastral"));
+        assert_eq!(
+            canonical,
+            resident_instance_name(Path::new(r"c:/users/example/pastral/"))
+        );
+        assert_ne!(
+            canonical,
+            resident_instance_name(Path::new(r"C:\Users\Example\Other"))
+        );
+    }
 }

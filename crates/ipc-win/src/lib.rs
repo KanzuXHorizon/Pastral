@@ -4,6 +4,7 @@ mod config;
 mod dpapi;
 mod error;
 mod handshake;
+mod instance;
 mod overlapped;
 mod pipe;
 mod process_memory;
@@ -26,6 +27,9 @@ pub use handshake::{
     AuthenticatedClientConnection, AuthenticatedServerConnection, client_handshake,
     client_handshake_with_capabilities, client_handshake_with_nonce_for_test, server_handshake,
     server_handshake_with_capabilities, server_handshake_with_nonce_for_test,
+};
+pub use instance::{
+    LocalProcessInstance, LocalProcessInstanceGuard, acquire_local_process_instance,
 };
 pub use pipe::{PipeClient, PipeServer, create_first_pipe_server, open_pipe_client};
 pub use process_memory::{ProcessMemorySnapshot, process_memory_snapshot};

@@ -33,3 +33,4 @@ pastral-ipc-core = { path = "../../crates/ipc-core", optional = true }
 pastral-ipc-schema = { path = "../../crates/ipc-schema", optional = true }
 pastral-ipc-win = { path = "../../crates/ipc-win", optional = true }
 pastral-storage = { path = "../../crates/storage" }
+sha2.workspace = true
