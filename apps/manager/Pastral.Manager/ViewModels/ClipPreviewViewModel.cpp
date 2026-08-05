@@ -19,6 +19,14 @@ namespace winrt::Pastral::Manager::implementation
           m_pinned(data.pinned),
           m_unavailable(data.unavailable)
     {
+        if (!m_safePreview.empty())
+        {
+            std::wstring accessibleName{ m_safePreview.c_str() };
+            accessibleName.append(L". ");
+            accessibleName.append(m_automationName.c_str());
+            m_automationName = winrt::hstring(accessibleName);
+        }
+
         if (m_pinned && m_unavailable)
         {
             m_stateSummary = L"Pinned · Unavailable";

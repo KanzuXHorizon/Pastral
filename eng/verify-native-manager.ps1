@@ -412,17 +412,14 @@ function Resolve-DebugExecutable {
         Fail "Requested smoke executable was not found at $SmokeExecutable"
     }
 
-    $candidates = @(
-        (Join-Path $debugOutput 'pastral-manager.exe'),
-        (Join-Path $managerRoot 'x64\Debug\pastral-manager.exe'),
-        (Join-Path $managerRoot 'bin\x64\Debug\pastral-manager.exe')
-    )
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-            return $candidate
-        }
+    $freshExecutable = Join-Path $debugOutput 'pastral-manager.exe'
+    if (-not (Test-Path -LiteralPath $freshExecutable -PathType Leaf)) {
+        Invoke-BuildVerification
     }
-    Fail ('Debug manager executable not found. Checked: ' + ($candidates -join ', '))
+    if (-not (Test-Path -LiteralPath $freshExecutable -PathType Leaf)) {
+        Fail "Fresh Debug manager executable was not produced at $freshExecutable"
+    }
+    return $freshExecutable
 }
 
 function Invoke-SmokeVerification {
@@ -514,6 +511,48 @@ function Invoke-SmokeVerification {
             }
         }
 
+        $historyListCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::NameProperty,
+            'History results list'
+        )
+        $historyList = $automationRoot.FindFirst(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $historyListCondition
+        )
+        $listItemCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::ListItem
+        )
+        $historyRows = $historyList.FindAll(
+            [System.Windows.Automation.TreeScope]::Children,
+            $listItemCondition
+        )
+        if ($historyRows.Count -ne 6) {
+            Fail "History expected six synthetic rows but found $($historyRows.Count)"
+        }
+        foreach ($row in $historyRows) {
+            if ([string]::IsNullOrWhiteSpace($row.Current.Name)) {
+                Fail 'History row exposes an empty UI Automation name'
+            }
+        }
+        $firstRow = $historyRows.Item(0)
+        if (-not $firstRow.Current.Name.Contains('Build verification passed') -or
+            -not $firstRow.Current.Name.Contains('Visual Studio Code')) {
+            Fail "History first-row UI Automation name does not contain safe preview/source: '$($firstRow.Current.Name)'"
+        }
+        $textCondition = New-Object System.Windows.Automation.PropertyCondition(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::Text
+        )
+        $firstRowText = @($firstRow.FindAll(
+            [System.Windows.Automation.TreeScope]::Subtree,
+            $textCondition
+        ) | ForEach-Object { $_.Current.Name })
+        if ($firstRowText -notcontains 'Build verification passed for the local workspace.' -or
+            $firstRowText -notcontains 'Visual Studio Code') {
+            Fail ('History first row is missing visible safe preview/source text: ' + ($firstRowText -join ' | '))
+        }
+
         $searchGroupCondition = New-Object System.Windows.Automation.PropertyCondition(
             [System.Windows.Automation.AutomationElement]::NameProperty,
             'Search clipboard history'
@@ -540,7 +579,7 @@ function Invoke-SmokeVerification {
 
         $filteredCountCondition = New-Object System.Windows.Automation.PropertyCondition(
             [System.Windows.Automation.AutomationElement]::NameProperty,
-            '1 items'
+            '1 item'
         )
         $filteredCount = $null
         $filterDeadline = [DateTime]::UtcNow.AddSeconds(5)

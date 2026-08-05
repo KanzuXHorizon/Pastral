@@ -1,6 +1,6 @@
 namespace Pastral.Manager
 {
-    [default_interface]
+    [bindable, default_interface]
     runtimeclass ClipPreviewViewModel
     {
         String Id{ get; };
