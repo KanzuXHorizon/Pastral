@@ -70,7 +70,14 @@ fn accepts_exact_supported_commands() {
 
 #[test]
 fn rejects_missing_or_unknown_command_and_root() {
-    assert_eq!(parse_arguments(args(&[])), Err(CliError::MissingCommand));
+    assert_eq!(
+        parse_arguments(args(&[])),
+        Ok(AgentCommand::Run {
+            data_root: None,
+            max_events: None,
+            max_connections: None,
+        })
+    );
     assert_eq!(
         parse_arguments(args(&["unknown"])),
         Err(CliError::UnknownCommand)

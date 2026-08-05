@@ -80,7 +80,13 @@ pub fn parse_arguments(
     arguments: impl IntoIterator<Item = OsString>,
 ) -> Result<AgentCommand, CliError> {
     let mut arguments = arguments.into_iter();
-    let command = arguments.next().ok_or(CliError::MissingCommand)?;
+    let Some(command) = arguments.next() else {
+        return Ok(AgentCommand::Run {
+            data_root: None,
+            max_events: None,
+            max_connections: None,
+        });
+    };
     let command = command.to_str().ok_or(CliError::UnknownCommand)?;
     let policy = match command {
         "run" => CommandPolicy {
