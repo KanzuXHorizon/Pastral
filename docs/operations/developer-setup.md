@@ -366,6 +366,14 @@ Storage unit and integration tests create synthetic disposable roots under the c
 
 ## Resident and MSIX commands
 
+Package scripts resolve `makeappx.exe` and `signtool.exe` only from the exact `WindowsTargetPlatformVersion` in `Directory.Build.props` (`10.0.26100.0`). They fail closed when that SDK is absent even if a newer SDK is installed. Verify this contract with:
+
+```powershell
+.\eng\build.ps1 -Task PackageToolchain
+```
+
+The signed-package verification report records the selected SDK version and SHA-256 hashes for both SDK tools.
+
 Build and run the production resident agent with the default `%LOCALAPPDATA%\Pastral` root:
 
 ```powershell

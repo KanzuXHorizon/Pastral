@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3.0
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'package-toolchain.ps1')
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $repositoryRoot 'artifacts'
 }
@@ -23,19 +24,6 @@ $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
     throw $Message
-}
-
-function Resolve-SdkTool {
-    param([Parameter(Mandatory = $true)][string]$Name)
-    $sdkRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots').KitsRoot10
-    $tool = Get-ChildItem (Join-Path $sdkRoot 'bin') -Recurse -Filter $Name |
-        Where-Object { $_.FullName -match "\\x64\\$([System.Text.RegularExpressions.Regex]::Escape($Name))$" } |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
-    if ([string]::IsNullOrWhiteSpace($tool)) {
-        Fail "$Name x64 was not found in the Windows SDK"
-    }
-    return $tool
 }
 
 function ConvertTo-PlainText {
@@ -77,8 +65,17 @@ $checksumPath = $packagePath + '.sha256'
 $reportPath = Join-Path $OutputDirectory "Pastral-$packageVersion-x64-verification.txt"
 Remove-Item -LiteralPath $packagePath, $certificatePath, $checksumPath, $reportPath -Force -ErrorAction SilentlyContinue
 
-$makeAppx = Resolve-SdkTool 'makeappx.exe'
-$signTool = Resolve-SdkTool 'signtool.exe'
+$sdkVersion = Get-PastralWindowsSdkVersion -RepositoryRoot $repositoryRoot
+$makeAppx = Resolve-PastralWindowsSdkTool `
+    -RepositoryRoot $repositoryRoot `
+    -Name 'makeappx.exe'
+$signTool = Resolve-PastralWindowsSdkTool `
+    -RepositoryRoot $repositoryRoot `
+    -Name 'signtool.exe'
+$makeAppxVersion = (Get-Item -LiteralPath $makeAppx).VersionInfo.FileVersion
+$signToolVersion = (Get-Item -LiteralPath $signTool).VersionInfo.FileVersion
+$makeAppxHash = (Get-FileHash -LiteralPath $makeAppx -Algorithm SHA256).Hash.ToLowerInvariant()
+$signToolHash = (Get-FileHash -LiteralPath $signTool -Algorithm SHA256).Hash.ToLowerInvariant()
 
 Write-Host "Packing $packageName"
 & $makeAppx pack /v /o /h SHA256 /d $StagingDirectory /p $packagePath
@@ -198,6 +195,11 @@ try {
         "identity=$IdentityName",
         "publisher=$Publisher",
         'architecture=x64',
+        "windows-sdk-version=$sdkVersion",
+        "makeappx-file-version=$makeAppxVersion",
+        "makeappx-sha256=$makeAppxHash",
+        "signtool-file-version=$signToolVersion",
+        "signtool-sha256=$signToolHash",
         'manager=pastral-manager.exe',
         'resident=pastral-agent.exe',
         'startup-task=PastralAgentStartup',

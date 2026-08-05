@@ -26,7 +26,7 @@ Prototype a two-layer IPC wire contract. The framing, limits, schema rules, and 
 - Initial release-train candidate is Protocol Buffers v35.0, revalidated at prototype/bootstrap time.
 - Follow the official per-language exact-match requirement for C++ and Rust generator, generated code, and runtime artifacts; do not describe every published language package simply as `35.0` when its language major differs.
 - C++ control messages prototype lite runtime generation where supported. Reflection, TextFormat, JSON mapping, dynamic messages, services/gRPC, extensions, groups, and `Any` are not used in core IPC.
-- The official Rust Cargo path and C++ generator/runtime are the leading implementation candidate, not yet an accepted resident dependency.
+- The official Rust Cargo path is the selected current resident implementation and remains subject to the measured dependency/footprint gates below. Generated C++ schema/runtime adoption is still pending exact parity, fuzzing, and build evidence.
 - Prototype the official Rust kernel/build path against at least one credible wire-compatible Rust alternative when actively maintained and security-reviewed. Compare binary/private-working-set impact, allocations, parse latency, native dependencies, MSVC/Cargo integration, reproducibility, fuzzability, advisory process, and license.
 - The agent does not load a general async runtime, HTTP stack, gRPC runtime, reflection registry, or JSON support merely for serialization.
 - Generated output must be reproducible from pinned schemas/compiler/runtime; CI regenerates and compares descriptor/schema hashes. Whether generated output is committed is selected by bootstrap evidence and must prevent stale codegen/runtime mismatch.
@@ -114,8 +114,8 @@ Phase 3D provides evidence for the Rust-side framing/schema candidate without ac
 - Official generated bindings contain the expected upb/native unsafe implementation and generator-specific Clippy style findings. The repository permits those only inside the generated module; handwritten schema conversion remains `deny(unsafe_code)`, and `pastral-ipc-core` remains `forbid(unsafe_code)`.
 - Thirty framing/decoder/connection/DTO tests and eleven schema round-trip/adversarial tests pass. Coverage includes every header split, representative body splits, one-byte feeds, coalesced frames, poison/truncation, correlation and bulk ordering, missing oneofs, malformed wire data, zero/unknown enums, and all current semantic bounds.
 - The isolated Release probe completes 10,000 of 10,000 deterministic round trips. A representative authenticated-schema run measured a 380,416-byte executable, 174,042 ns average full round trip, 1,029 ns one-byte decoder component, 858 ns coalesced decoder component, and 7,869-byte maximum body capacity for the synthetic 100-item response.
-- These measurements are machine-specific prototype evidence, not a product SLA. The default Release agent remains protobuf-free; Phase 3F measures the admission delta separately before any production resident linkage.
-- Dependency policy proves official Protobuf packages are isolated to `pastral-agent-ipc-probe`, `pastral-ipc-schema`, `pastral-ipc-probe`, `pastral-ipc-win`, and `pastral-ipc-transport-probe`; the default agent, clipboard, domain, storage, agent-core, ipc-auth, and ipc-core remain protobuf-free.
+- These measurements are machine-specific prototype evidence, not a product SLA. At Phase 3D the default Release agent remained Protobuf-free; Phase 3F measured admission and Phase 3I later accepted the exact pinned graph in the single production resident.
+- Phase 3D dependency policy isolated official Protobuf packages from the then-default agent. The current Phase 3I policy permits the exact pinned graph in `pastral-agent` while clipboard, domain, storage, agent-core, ipc-auth, and ipc-core remain Protobuf-free.
 - CI is configured to retrieve the official `protoc-35.0-win64.zip` asset, verify SHA-256 `d1cede9e308cc3eb072392af1c02ccae4bdd3d2f374ec2970dbd8cdfdaa91363`, and expose exact `libprotoc 35.0` before locked workspace gates. Hosted execution remains unproven until GitHub Actions runs the workflow.
 
 ## Authenticated Windows transport evidence — 2026-08-04
@@ -142,7 +142,7 @@ Phase 3F measures whether the authenticated transport and official Rust schema r
 - Release ceilings are explicit: server private usage at most 25 MiB, private delta at most 8 MiB, working-set delta at most 12 MiB, and admission binary delta at most 6 MiB.
 - Representative Release evidence measured a 2,142,720-byte default agent, 2,413,568-byte admission executable, 270,848-byte binary delta, 6,963,200-byte server working set, 1,150,976-byte server private usage, 606,208-byte working-set delta, and 53,248-byte private-memory delta. All ceilings passed without adjustment.
 - The aggregate Rust workspace now passes 208 tests. The dedicated admission gate runs 3 shared-agent Health tests, 2 process-memory tests, and 11 admission tests, then builds both Release binaries and executes the authenticated cross-process smoke with content-leak checks.
-- The default `pastral-agent` remains Protobuf/transport-free. The admission executable is evidence for a later resident integration; it is not a second production storage owner, auto-start host, or manager service.
+- At Phase 3F the default `pastral-agent` remained Protobuf/transport-free and the admission executable was evidence only. Phase 3I later integrated the measured graph into the single production resident; the admission executable remains test-only and is not a second production owner or auto-start host.
 
 ## Native manager Health bridge evidence — 2026-08-05
 
@@ -152,7 +152,7 @@ Phase 3G connects the measured Health path to the unpackaged C++/WinRT manager w
 - `pastral-manager-ipc-bridge` is a small Rust `cdylib` that reuses the accepted Rust schema, authentication, and Windows named-pipe transport. Its fixed-size versioned C ABI exports only ABI version, result size, and a bounded UTF-16 Health query; panics are contained and every failure is normalized to an initialized fail-closed result.
 - The C++ manager resolves the bridge beside `pastral-manager.exe`, uses the exact deployed filename `pastral-manager-ipc-bridge.dll`, restricts DLL dependency search to the loaded DLL directory, validates ABI/result size before use, and never probes PATH or the current directory.
 - The provider performs Health work on one persistent background worker, replaces pending refresh requests with the newest generation, marshals accepted results to the XAML dispatcher, and rejects stale completion. Disconnect, authentication failure, protocol mismatch, timeout, bridge absence, and unhealthy state clear live data instead of retaining stale values.
-- Debug synthetic preview remains explicitly labeled and bounded. Release live mode contains no synthetic history; Health is content-free and History/Search/Paste remain unavailable rather than being inferred from storage.
+- Debug synthetic preview remains explicitly labeled and bounded. At Phase 3G Release live mode exposed content-free Health only; later phases added bounded authenticated History/Search while Paste remains unavailable pending payload authorization and destination validation.
 - The manager project builds the locked Release/Debug Rust bridge before link and copies it beside the executable under the exact deployed name. Dedicated verification checks exports, dependency isolation, native ABI/Health behavior, and live UI Automation.
 - Native verifier builds use unique ignored `target\verification\<run>` output and intermediate roots. This prevents concurrent verification from locking or corrupting the normal manager `x64` artifacts.
 - Focused verification runs 21 feature-enabled agent tests and 14 bridge ABI/client/FFI tests. A representative native Release query returned storage schema `1`, privacy/integrity success, connect `72 µs`, authenticated handshake `417 µs`, and Health `2,083 µs`. The bridge DLL measured 414,208 bytes. These machine-specific values are evidence, not release SLAs.
@@ -210,7 +210,7 @@ Costs:
 - generated DTO/domain conversion code and compatibility fixtures are required;
 - official Rust kernels can add native build/runtime complexity;
 - lite/runtime support and Cargo/MSBuild integration need bootstrap evidence;
-- final resident runtime choice remains open until measurement.
+- resident runtime dependency and footprint evidence must be revalidated whenever the default graph, schema runtime, or lifecycle changes.
 
 ## Alternatives considered
 

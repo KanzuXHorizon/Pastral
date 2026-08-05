@@ -50,6 +50,61 @@ function Wait-ForWindow {
     Fail "Process did not create a window: $($Process.ProcessName)"
 }
 
+function Assert-DuplicateResidentExitsCleanly {
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter()][string[]]$Arguments = @()
+    )
+
+    $stdout = Join-Path ([System.IO.Path]::GetTempPath()) ('pastral-duplicate-resident-' + [guid]::NewGuid().ToString('N') + '.out')
+    $stderr = $stdout + '.err'
+    $process = $null
+    try {
+        $startParameters = @{
+            FilePath = $Executable
+            RedirectStandardOutput = $stdout
+            RedirectStandardError = $stderr
+            PassThru = $true
+        }
+        if ($Arguments.Count -gt 0) {
+            $startParameters.ArgumentList = $Arguments
+        }
+        $process = Start-Process @startParameters
+        if (-not $process.WaitForExit(5000)) {
+            $process.Kill()
+            $process.WaitForExit()
+            Fail 'Duplicate resident did not exit within five seconds'
+        }
+        $process.WaitForExit()
+        $outputText = if (Test-Path -LiteralPath $stdout) {
+            [System.IO.File]::ReadAllText($stdout).Trim()
+        }
+        else {
+            ''
+        }
+        $errorText = if (Test-Path -LiteralPath $stderr) {
+            [System.IO.File]::ReadAllText($stderr).Trim()
+        }
+        else {
+            ''
+        }
+        if ($outputText -ne 'resident-instance=already-running' -or
+            -not [string]::IsNullOrWhiteSpace($errorText)) {
+            Fail "Duplicate resident result was unexpected: stdout='$outputText' stderr='$errorText'"
+        }
+    }
+    finally {
+        if ($null -ne $process) {
+            if (-not $process.HasExited) {
+                $process.Kill()
+                $process.WaitForExit()
+            }
+            $process.Dispose()
+        }
+        Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Find-AutomationElementByName {
     param(
         [Parameter(Mandatory = $true)]$Root,
@@ -150,6 +205,11 @@ try {
     $agent.Refresh()
     if ($agent.HasExited) {
         Fail "Registered resident agent exited before manager activation: $($agent.ExitCode)"
+    }
+    Assert-DuplicateResidentExitsCleanly -Executable $agentExecutable
+    $agent.Refresh()
+    if ($agent.HasExited) {
+        Fail 'Duplicate startup displaced the registered resident owner'
     }
 
     $baselineIds = @(Get-Process -Name 'pastral-manager' -ErrorAction SilentlyContinue |

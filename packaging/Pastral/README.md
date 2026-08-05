@@ -18,7 +18,7 @@ Run from a PowerShell prompt:
 .\eng\build-msix.ps1 -CreateDevelopmentCertificate
 ```
 
-The command builds Release binaries, stages an exact allowlist, generates brand assets, creates and validates the MSIX, signs it with a local development certificate, verifies extraction parity, and writes distributable development artifacts to `artifacts/`.
+The command builds Release binaries, stages an exact allowlist, generates brand assets, creates and validates the MSIX, signs it with a local development certificate, verifies extraction parity, and writes distributable development artifacts to `artifacts/`. `makeappx.exe` and `signtool.exe` are resolved only from the exact Windows SDK version pinned by `Directory.Build.props`; a newer installed SDK is never selected implicitly. The verification report records the SDK version and both tool hashes.
 
 The exported `.cer` contains only the public key. The temporary `.pfx` and its password remain under ignored `target/package/signing/` and are deleted after signing unless explicitly preserved for local debugging.
 

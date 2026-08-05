@@ -7,6 +7,7 @@ on:
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "apps/manager/**"
+      - "packaging/**"
       - "eng/**"
       - ".github/workflows/native-ui-ci.yml"
   pull_request:
@@ -15,6 +16,7 @@ on:
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "apps/manager/**"
+      - "packaging/**"
       - "eng/**"
       - ".github/workflows/native-ui-ci.yml"
 
@@ -98,6 +100,14 @@ jobs:
         shell: powershell
         run: ./eng/verify-toolchain.ps1 -RequireNativeManager
 
+      - name: Verify exact package toolchain selection
+        shell: powershell
+        run: ./eng/tests/verify-package-toolchain.ps1
+
+      - name: Verify canonical build dispatch
+        shell: powershell
+        run: ./eng/tests/verify-build-dispatch.ps1
+
       - name: Verify native source and XAML policy
         shell: powershell
         run: ./eng/verify-native-manager.ps1 -Mode Static
@@ -106,9 +116,13 @@ jobs:
         shell: powershell
         run: ./eng/verify-manager-ipc-bridge.ps1 -Mode Probe
 
-      - name: Build Debug and Release
+      - name: Build Debug and Release from isolated outputs
         shell: powershell
         run: ./eng/verify-native-manager.ps1 -Mode Build
+
+      - name: Stage and verify the unsigned MSIX payload
+        shell: powershell
+        run: ./eng/stage-msix.ps1
 
       - name: Verify repository source policy
         shell: powershell

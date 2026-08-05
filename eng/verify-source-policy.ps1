@@ -139,6 +139,10 @@ try {
                 $relativePath.Equals(
                     'apps/agent-ipc-probe/tests/cross_process.rs',
                     [System.StringComparison]::OrdinalIgnoreCase
+                ) -or
+                $relativePath.Equals(
+                    'apps/agent/tests/resident_single_instance.rs',
+                    [System.StringComparison]::OrdinalIgnoreCase
                 )
             if (-not $isReviewedProcessSpawnBoundary) {
                 foreach ($pattern in $processSpawnPatterns) {

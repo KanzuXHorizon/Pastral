@@ -11,26 +11,27 @@
 
 Pastral is a Windows 11-native clipboard intelligence and history platform designed around local ownership, source awareness, high-fidelity capture, deterministic behavior, and explicit privacy boundaries.
 
-The project is currently an engineering preview. The core storage, clipboard, privacy, authenticated IPC, diagnostic agent, and native manager foundations are implemented and verified. A feature-gated authenticated agent backend now serves bounded read-only History and literal Search previews; manager integration, production packaging, Paste, encryption, Quick Paste, and the complete resident lifecycle remain in development.
+The project is currently an engineering preview. The ordinary-text capture/storage foundation, single resident agent lifecycle, authenticated read-only IPC, live native Manager History/Search path, and signed development MSIX workflow are implemented and verified. Rich clipboard formats, paste/replay, encryption, Quick Paste, full manager administration surfaces, production signing, and update delivery remain in development.
 
 > “Paste perfectly” is a product ambition, not a claim that every application-private clipboard format can be captured or replayed losslessly.
 
 ## Current milestone
 
-**Phase 3H foundation — bounded read-only History and literal Search over authenticated agent IPC.**
+**Phase 3J foundation — one production resident agent, live native History/Search, and a verified signed development MSIX.**
 
 The current repository includes:
 
 - a pinned Rust `1.97.1` / Edition 2024 workspace;
 - domain, storage, clipboard, privacy, IPC framing, authentication, schema, and Windows transport crates;
-- a diagnostic clipboard agent with bounded ordinary `CF_UNICODETEXT` capture;
+- one production resident clipboard agent with bounded ordinary `CF_UNICODETEXT` capture, authenticated read IPC, and a per-data-root kernel instance guard acquired before storage ownership;
 - SQLite + FTS5 storage with internal and external blob placement support;
 - authenticated same-user/session named-pipe transport using DPAPI-protected installation material;
-- a feature-gated `serve-read` agent boundary for authenticated Health, paged History, and literal Search using bounded preview metadata only;
-- a versioned Rust C ABI bridge for content-free manager Health state;
+- a resident authenticated boundary for Health, paged History, and literal Search using bounded preview metadata only;
+- a versioned caller-owned Rust C ABI bridge for manager Health, History, and Search state;
 - an unpackaged C++20/C++/WinRT WinUI 3 manager using Windows App SDK `2.3.1`;
 - English and Vietnamese manager resources;
-- Windows CI, policy checks, focused probes, runtime smoke tests, and explicit performance ceilings.
+- a signed development MSIX containing only the manager, resident agent, bridge, resources, and reviewed assets;
+- Windows CI, policy checks, focused probes, runtime smoke tests, package verification, and explicit performance ceilings.
 
 ## Capability matrix
 
@@ -44,10 +45,10 @@ The current repository includes:
 | Authenticated local IPC | Implemented foundation | Bounded framing, peer/session evidence, HMAC authentication, replay defense |
 | Manager Health connection | Implemented | Live content-free Health through a versioned Rust bridge |
 | Native Manager UI | Implemented foundation | Home and History shell, adaptive states, accessibility, English/Vietnamese resources |
-| Live History/Search | Backend foundation implemented | Authenticated agent serves bounded previews; manager C ABI/UI integration remains unavailable |
+| Live History/Search | Implemented foundation | Resident agent, caller-owned C ABI, asynchronous provider, and native UI render bounded safe previews |
 | Paste/replay engine | Not implemented | Format fidelity and focus-safe confirmation remain separate milestones |
 | Encryption and Private profile | Not implemented | Private profile remains unavailable until encryption/recovery gates pass |
-| Installer, signing, updates | Not implemented | Current manager is unpackaged |
+| Installer, signing, updates | Partial | Signed development MSIX and install/uninstall verification exist; protected production signing and update delivery remain open |
 
 ## Architecture
 
@@ -62,7 +63,7 @@ pastral-agent-core ── privacy admission ── pastral-storage
        │                                      │
        │                                      └─ SQLite + FTS5 + BlobStore
        ▼
-pastral-agent / pastral-agent-ipc
+pastral-agent
        │ authenticated named pipe
        ▼
 pastral-manager-ipc-bridge.dll
@@ -71,7 +72,7 @@ pastral-manager-ipc-bridge.dll
 Pastral.Manager.exe (C++/WinRT + WinUI 3)
 ```
 
-The manager never opens SQLite, FTS, clipboard APIs, or blob storage directly. All live state crosses an explicit provider boundary. The current manager bridge exposes content-free Health only. Separately, the feature-gated agent `serve-read` command authorizes bounded Health, HistoryPage, and Search operations; mapping those pages through a caller-owned C ABI into WinUI remains a separate reviewed slice. Paste still requires separate authorization, lifecycle, and privacy review.
+The manager never opens SQLite, FTS, clipboard APIs, or blob storage directly. All live state crosses an explicit provider boundary. The production resident agent owns capture, storage, and authenticated Health/History/Search serving. The Rust bridge maps bounded caller-owned result buffers into immutable native presentation records, and the WinUI provider performs reads off the XAML thread with stale-result rejection. Paste still requires separate authorization, payload transfer, destination validation, and privacy review.
 
 ## Privacy and security posture
 
@@ -118,11 +119,11 @@ Run commands from Windows PowerShell at the repository root.
 .\eng\build.ps1 -Task IpcPrototype
 .\eng\build.ps1 -Task IpcTransport
 
-# Diagnostic agent and measured IPC admission
+# Resident agent and measured IPC admission
 .\eng\build.ps1 -Task Agent
 .\eng\build.ps1 -Task AgentIpcAdmission
 
-# Native manager Health bridge
+# Native manager Health/History/Search bridge
 .\eng\build.ps1 -Task ManagerIpcBridge
 
 # Native manager static policy and Debug/Release build
@@ -141,8 +142,8 @@ Automated aggregate and CI smoke gates do not invoke `capture-current` or `liste
 
 ```text
 apps/
-  agent/                    Diagnostic clipboard agent
-  agent-ipc-probe/          Measured cross-process Health admission probe
+  agent/                    Production resident capture and authenticated read agent
+  agent-ipc-probe/          Measured cross-process Health/read admission probe
   ipc-probe/                Deterministic framing/schema probe
   ipc-transport-probe/      Authenticated Windows transport probe
   manager/Pastral.Manager/  Native C++/WinRT WinUI 3 manager
@@ -177,13 +178,13 @@ protocols/                  Versioned IPC schema sources
 
 The next major engineering slices are:
 
-1. production lifecycle integration for the clipboard-owning resident agent and authenticated IPC server;
-2. caller-owned bounded manager C ABI and WinUI mapping for the authenticated read-only History/Search backend;
-3. reconnect, cancellation, adjacent-version fixtures, and parser/schema fuzzing;
-4. richer Win32/OLE clipboard format acquisition and representation policy;
-5. focus-safe paste/replay and Quick Paste interaction;
-6. authenticated encryption, key lifecycle, lock/recovery, and Private profile;
-7. packaging, signing, installer, update delivery, and release evidence.
+1. restore one canonical full verification baseline and complete manager localization/responsive behavior;
+2. richer Win32/OLE clipboard format acquisition, retention, quota, backup, and recovery;
+3. focus-safe paste/replay, Quick Paste, overlay, tray, and global-hotkey interaction;
+4. authenticated encryption, key lifecycle, lock/recovery, Private profile, profiles, and deterministic rules;
+5. complete manager administration surfaces for sources, collections, storage, privacy, settings, diagnostics, and about;
+6. parser/schema fuzzing, adjacent-version/update fixtures, release-scale performance and accessibility evidence;
+7. protected production signing, update delivery, rollback, and final release provenance.
 
 Detailed scope and acceptance gates live in [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md), [`docs/adr/`](docs/adr/), and [`docs/release/checklist.md`](docs/release/checklist.md).
 

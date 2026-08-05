@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'IpcTransport', 'AgentIpcAdmission', 'Agent', 'AgentPolicy', 'ManagerIpcBridge', 'Manager', 'ManagerBuild', 'NativePolicy', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
+    [Parameter()][ValidateSet('Verify', 'Format', 'Check', 'Test', 'Storage', 'Clipboard', 'IpcPrototype', 'IpcTransport', 'AgentIpcAdmission', 'Agent', 'AgentPolicy', 'ManagerIpcBridge', 'Manager', 'ManagerBuild', 'NativePolicy', 'PackageToolchain', 'BuildDispatch', 'Clippy', 'Doc', 'Dependencies', 'SourcePolicy', 'All', 'Full')]
     [string]$Task = 'All'
 )
 
@@ -36,12 +36,14 @@ function Invoke-Clipboard { Invoke-Step 'Test Win32 clipboard foundation' { carg
 function Invoke-IpcPrototype { Invoke-Step 'Verify IPC framing and schema prototype' { & "$PSScriptRoot\verify-ipc-prototype.ps1" -Mode All } }
 function Invoke-IpcTransport { Invoke-Step 'Verify authenticated IPC transport' { & "$PSScriptRoot\verify-ipc-transport.ps1" -Mode All } }
 function Invoke-AgentIpcAdmission { Invoke-Step 'Verify agent IPC admission' { & "$PSScriptRoot\verify-agent-ipc-admission.ps1" -Mode All } }
-function Invoke-Agent { Invoke-Step 'Verify diagnostic resident agent' { & "$PSScriptRoot\verify-agent.ps1" -Mode All } }
-function Invoke-AgentPolicy { Invoke-Step 'Verify diagnostic resident agent policy' { & "$PSScriptRoot\verify-agent.ps1" -Mode Static } }
-function Invoke-ManagerIpcBridge { Invoke-Step 'Verify manager live Health bridge' { & "$PSScriptRoot\verify-manager-ipc-bridge.ps1" -Mode All } }
+function Invoke-Agent { Invoke-Step 'Verify production resident agent' { & "$PSScriptRoot\verify-agent.ps1" -Mode All } }
+function Invoke-AgentPolicy { Invoke-Step 'Verify production resident agent policy' { & "$PSScriptRoot\verify-agent.ps1" -Mode Static } }
+function Invoke-ManagerIpcBridge { Invoke-Step 'Verify manager live Health, History, and Search bridge' { & "$PSScriptRoot\verify-manager-ipc-bridge.ps1" -Mode All } }
 function Invoke-Manager { Invoke-Step 'Verify native manager including runtime smoke' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode All } }
 function Invoke-ManagerBuild { Invoke-Step 'Build native manager Debug and Release' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Build } }
 function Invoke-NativePolicy { Invoke-Step 'Verify native manager policy' { & "$PSScriptRoot\verify-native-manager.ps1" -Mode Static } }
+function Invoke-PackageToolchain { Invoke-Step 'Verify exact package toolchain selection' { & "$PSScriptRoot\tests\verify-package-toolchain.ps1" } }
+function Invoke-BuildDispatch { Invoke-Step 'Verify canonical build task dispatch' { & "$PSScriptRoot\tests\verify-build-dispatch.ps1" } }
 function Invoke-Clippy { Invoke-Step 'Clippy workspace' { cargo clippy --locked --workspace --all-targets --all-features -- -D warnings } }
 function Invoke-Doc { Invoke-Step 'Build documentation' { cargo doc --locked --workspace --no-deps } }
 function Invoke-Dependencies { Invoke-Step 'Verify dependency policy' { & "$PSScriptRoot\verify-dependencies.ps1" } }
@@ -63,6 +65,8 @@ switch ($Task) {
     'Manager' { Invoke-Manager }
     'ManagerBuild' { Invoke-ManagerBuild }
     'NativePolicy' { Invoke-NativePolicy }
+    'PackageToolchain' { Invoke-PackageToolchain }
+    'BuildDispatch' { Invoke-BuildDispatch }
     'Clippy' { Invoke-Clippy }
     'Doc' { Invoke-Doc }
     'Dependencies' { Invoke-Dependencies }
@@ -75,6 +79,8 @@ switch ($Task) {
         Invoke-Clippy
         Invoke-Doc
         Invoke-Dependencies
+        Invoke-PackageToolchain
+        Invoke-BuildDispatch
         Invoke-SourcePolicy
     }
     'Full' {
@@ -85,13 +91,14 @@ switch ($Task) {
         Invoke-Clippy
         Invoke-Doc
         Invoke-Dependencies
+        Invoke-PackageToolchain
+        Invoke-BuildDispatch
         Invoke-SourcePolicy
         Invoke-IpcPrototype
         Invoke-IpcTransport
         Invoke-AgentIpcAdmission
         Invoke-Agent
         Invoke-ManagerIpcBridge
-        Invoke-NativePolicy
-        Invoke-ManagerBuild
+        Invoke-Manager
     }
 }

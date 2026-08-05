@@ -21,7 +21,7 @@ Use a signed x64 MSIX as the primary Windows distribution path.
 - Package the resident agent, native manager, Rust bridge, XAML/PRI/WinMD resources, and reproducibly generated brand assets together.
 - Build the manager specifically as a packaged framework-dependent Windows App SDK application. The package manifest declares `Microsoft.WindowsAppRuntime.2` version `2.3.1.0` and `Microsoft.VCLibs.140.00.UWPDesktop` version `14.0.33728.0` as x64 framework dependencies.
 - Declare the manager as `packagedClassicApp` at `mediumIL` with `runFullTrust`.
-- Declare `pastral-agent.exe` through one `windows.startupTask` named `PastralAgentStartup`. The no-argument agent entry point runs resident mode and uses `%LOCALAPPDATA%\Pastral`.
+- Declare `pastral-agent.exe` through one `windows.startupTask` named `PastralAgentStartup`. The no-argument agent entry point runs resident mode and uses `%LOCALAPPDATA%\Pastral`. Before Health/storage preflight it acquires a session-local kernel instance name derived from the normalized data-root path; a duplicate launch exits cleanly without opening storage or starting clipboard capture.
 - Keep startup user-controllable. Windows may require the user to launch the manager once, and users can disable the startup task through Windows startup settings.
 - Do not package a service, driver, updater daemon, diagnostic IPC executable, symbols, libraries, logs, or signing private key.
 - Generate package assets and stage an exact allowlist under ignored `target/package/` output.

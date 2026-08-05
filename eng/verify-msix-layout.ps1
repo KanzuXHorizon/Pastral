@@ -7,6 +7,9 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3.0
 
+$repositoryRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'package-toolchain.ps1')
+
 function Fail {
     param([Parameter(Mandatory = $true)][string]$Message)
     throw $Message
@@ -147,14 +150,9 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) {
     if (-not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
         Fail "MSIX package does not exist: $PackagePath"
     }
-    $sdkRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots').KitsRoot10
-    $makeAppx = Get-ChildItem (Join-Path $sdkRoot 'bin') -Recurse -Filter 'makeappx.exe' |
-        Where-Object { $_.FullName -match '\\x64\\makeappx\.exe$' } |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
-    if ([string]::IsNullOrWhiteSpace($makeAppx)) {
-        Fail 'MakeAppx.exe x64 was not found'
-    }
+    $makeAppx = Resolve-PastralWindowsSdkTool `
+        -RepositoryRoot $repositoryRoot `
+        -Name 'makeappx.exe'
     $unpackRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('pastral-msix-unpack-' + [guid]::NewGuid().ToString('N'))
     try {
         & $makeAppx unpack /p $PackagePath /d $unpackRoot /o

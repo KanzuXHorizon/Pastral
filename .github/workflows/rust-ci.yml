@@ -78,6 +78,9 @@ jobs:
       - name: Verify toolchain
         shell: powershell
         run: ./eng/verify-toolchain.ps1
+      - name: Verify canonical build dispatch
+        shell: powershell
+        run: ./eng/tests/verify-build-dispatch.ps1
       - name: Format
         shell: powershell
         run: cargo fmt --all -- --check
@@ -105,7 +108,7 @@ jobs:
       - name: Test storage foundation
         shell: powershell
         run: cargo test --locked -p pastral-storage --all-targets
-      - name: Verify diagnostic agent
+      - name: Verify production resident agent
         shell: powershell
         run: ./eng/verify-agent.ps1 -Mode All
       - name: Clippy

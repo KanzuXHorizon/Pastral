@@ -345,6 +345,7 @@ Out of scope as a guaranteed defense:
 - package verifier rejects diagnostic IPC binaries, symbols, libraries, logs, private keys, bootstrap DLLs, and unused WebView payloads;
 - manager is compiled in packaged framework-dependent mode with unpackaged bootstrap/deployment auto-initializers disabled;
 - one startup declaration targets only `pastral-agent.exe`; the no-argument entry point is resident mode;
+- a session-local kernel instance guard derived from the normalized data root is acquired before Health/storage preflight; a duplicate launch exits without opening storage or starting clipboard capture, and lifecycle tests prove the name is released after owner exit;
 - package identity, architecture, runtime behavior, trust level, framework dependencies, startup task, and `runFullTrust` are parsed and asserted before signing;
 - development certificate subject exactly matches manifest Publisher; the temporary PFX/password remain in ignored storage and are deleted after signing;
 - only the public `.cer` is distributed; development trust is temporary and removed after verification;
@@ -352,7 +353,7 @@ Out of scope as a guaranteed defense:
 - non-elevated registration smoke backs up/restores `%LOCALAPPDATA%\Pastral`, proves Start Apps activation and live authenticated IPC, unregisters the package, and rejects foreign Pastral processes;
 - public release requires trusted/timestamped signing and does not reuse the development identity.
 
-**Residual risk:** A user or administrator who manually trusts an unverified self-signed certificate expands machine trust. Development packages are therefore unsuitable for public distribution without a trusted signing service or Store signature.
+**Residual risk:** A user or administrator who manually trusts an unverified self-signed certificate expands machine trust. Development packages are therefore unsuitable for public distribution without a trusted signing service or Store signature. Same-user malware can pre-create the documented local instance object and deny resident startup; the guard prevents duplicate ownership but is not represented as protection from a fully compromised same-user session.
 
 ## 6. Security test mapping
 
