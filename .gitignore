@@ -36,6 +36,7 @@ build-*/
 /apps/manager/**/Generated Files/
 
 # vcpkg and package output
+/artifacts/
 /vcpkg_installed/
 /packages/
 /AppPackages/
